@@ -107,6 +107,9 @@ public enum PopupMetrics {
     public static let aiCardMaxHeight: CGFloat = 280
     /// Scrollable body max height; keeps the card plus `popupShadowInset` under `popupMaxHeight` to avoid clipping.
     public static let aiCardBodyHeight: CGFloat = 170
+    /// Additional-instruction prompt: fixed-width card whose editor scrolls past `instructionEditorHeight`.
+    public static let instructionCardWidth: CGFloat = 340
+    public static let instructionEditorHeight: CGFloat = 92
     /// Info/error toast auto-dismiss delay; loading toasts have no timer.
     public static let toastDurationNanoseconds: UInt64 = 1_200_000_000
     /// Ignores queued app-activation notifications right after a session starts; later ones are real focus switches.

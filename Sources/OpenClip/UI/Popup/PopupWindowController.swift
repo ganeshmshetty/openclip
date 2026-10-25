@@ -241,6 +241,7 @@ public class PopupWindowController {
         cardAbove = tempFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
 
         modeStore.mode = initialMode
+        modeStore.instructionRequest = nil
         PaletteRowShortcuts.setActive(initialMode == .search)
         modeStore.searchResultsAbove = cardAbove
         modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: tempFrame, releasePoint: context.cursorPosition)
@@ -354,8 +355,7 @@ public class PopupWindowController {
             },
             onRunAI: { [weak self] actionID in
                 guard let self, let preset = AIServiceManager.shared.preset(forActionID: actionID) else { return }
-                let prompt = AIServiceManager.shared.promptForPreset(preset)
-                self.runAIPreset(prompt: prompt, title: preset.title, presetID: preset.id)
+                self.runSavedAIPreset(preset)
             },
             onRunAIPrompt: { [weak self] instruction, replace, includeContext in
                 self?.runAIPrompt(instruction, replace: replace, includeContext: includeContext)
@@ -371,6 +371,12 @@ public class PopupWindowController {
             },
             onStepVersion: { [weak self] delta in
                 self?.stepVersion(delta)
+            },
+            onSubmitInstruction: { [weak self] requestID, instruction in
+                self?.submitAdditionalInstruction(instruction, requestID: requestID)
+            },
+            onCancelInstruction: { [weak self] in
+                self?.cancelAdditionalInstruction()
             },
             onClickIntent: { [weak self] in self?.pendingClickIntent ?? .primary },
             onShowTooltip: { [weak self] text, localFrame, theme, isDark in
@@ -806,7 +812,8 @@ public class PopupWindowController {
 
     /// Minimally moves an auto-placed resizable surface back on screen. User-dragged cards are left alone.
     private func keepPanelOnScreen() {
-        guard let panel, panel.isVisible, resizableSurface != nil, !hasUserMovedCard else { return }
+        guard let panel, panel.isVisible, resizableSurface != nil || modeStore.mode == .instruction,
+              !hasUserMovedCard else { return }
         let bounds = screenBounds(for: panel).insetBy(dx: PopupMetrics.popupPadding, dy: PopupMetrics.popupPadding)
         var origin = panel.frame.origin
         origin.x = max(min(origin.x, bounds.maxX - panel.frame.width), bounds.minX)
@@ -835,7 +842,7 @@ public class PopupWindowController {
     private var resizableSurface: ResizableSurface? {
         switch modeStore.mode {
         case .content: return .card
-        case .search, .actions: return nil
+        case .search, .actions, .instruction: return nil
         }
     }
 
@@ -1096,6 +1103,7 @@ public class PopupWindowController {
         isRightClickInProgress = false
         modeStore.isProcessingAI = false
         modeStore.mode = .actions
+        modeStore.instructionRequest = nil
         PaletteRowShortcuts.setActive(false)
         modeStore.isSubBarActive = false
         modeStore.activeSubGroupID = nil
@@ -1214,12 +1222,12 @@ public class PopupWindowController {
             let cursorLoc = NSEvent.mouseLocation
             updatePopupHover(at: cursorLoc)
             updateSubBarHover(at: cursorLoc)
-            // Distance dismissal is suspended in search mode, while the card is modal, while AI processes, and during onboarding.
+            // Distance dismissal is suspended in search mode, while the instruction prompt or card is modal, while AI processes, and during onboarding.
             let inArrivalGrace = PopupDismissalGrace.isActive(
                 now: ProcessInfo.processInfo.systemUptime,
                 deadline: distanceDismissGraceUntil
             )
-            let distanceDismissActive = modeStore.mode != .search && modeStore.mode != .content
+            let distanceDismissActive = modeStore.mode == .actions
                 && !modeStore.isProcessingAI && !isOnboardingVisible && !inArrivalGrace
             if distanceDismissActive, let panel = panel {
                 let frame = panel.frame
@@ -1297,8 +1305,8 @@ public class PopupWindowController {
                 }
             }
         case .scrollWheel:
-            // Search scrolls the results list; the modal card scrolls its own content and never dismisses.
-            if modeStore.mode == .search || modeStore.mode == .content { break }
+            // Search scrolls the results list; the instruction prompt and modal card scroll their own content and never dismiss.
+            if modeStore.mode != .actions { break }
             // A detached surface (e.g. Look Up) scrolls its own content and must not dismiss its popup.
             if isScrollDismissalSuspended { break }
             // Ignore the phantom scrollWheel a trackpad right-click emits before rightMouseDown, so it isn't dismissed.
@@ -1323,9 +1331,9 @@ public class PopupWindowController {
             }
         case .keyDown:
             // Actions mode: any key dismisses, and keys land in the source app. Search: the field handles keys and Escape.
-            // Content: Esc belongs to the SwiftUI card (.onKeyPress), so the monitor only observes.
+            // Content and instruction: Esc belongs to the SwiftUI card (.onKeyPress), so the monitor only observes.
             if modeStore.mode == .search { break }
-            if modeStore.mode == .content {
+            if modeStore.mode == .content || modeStore.mode == .instruction {
                 // Esc belongs to the SwiftUI card while the panel is key (handling it here would double-fire). If the panel lost key
                 // (the card was clicked into another app), the monitor must answer Esc itself.
                 if event.keyCode == 53, panel?.isKeyWindow != true {
@@ -1621,8 +1629,7 @@ public class PopupWindowController {
                 self.subBarController.hide()
                 self.modeStore.isSubBarActive = false
                 self.modeStore.activeSubGroupID = nil
-                let prompt = AIServiceManager.shared.promptForPreset(preset)
-                self.runAIPreset(prompt: prompt, title: preset.title, presetID: preset.id)
+                self.runSavedAIPreset(preset)
             },
             onRunLoadingAction: { [weak self] action, clickIntent in
                 guard let self, let context = self.currentActionContext else { return }
@@ -1654,6 +1661,89 @@ public class PopupWindowController {
 
     /// Frontmost app when an in-place answer lands; pasting is only safe into the selection's app. Settable for tests.
     var frontmostBundleIDProvider: @MainActor () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+
+    // MARK: - Additional Instruction
+
+    /// Single entry point for running a saved AI preset (bar, AI Tools sub-bar, palette rows, per-action hotkeys).
+    /// A preset that asks for an additional instruction opens the instruction prompt first and sends nothing yet.
+    func runSavedAIPreset(_ preset: AIActionPreset) {
+        if preset.requestsAdditionalInstruction {
+            presentAdditionalInstruction(for: preset)
+        } else {
+            runAIPreset(prompt: AIServiceManager.shared.promptForPreset(preset), title: preset.title, presetID: preset.id)
+        }
+    }
+
+    /// Replaces the bar, palette or card with the instruction prompt. The panel becomes key (non-activating, so the
+    /// source app keeps its selection); the selection to run on is the one already in `currentActionContext`.
+    func presentAdditionalInstruction(for preset: AIActionPreset) {
+        guard currentActionContext != nil else {
+            Log.ai.error("Cannot ask for an additional instruction: currentActionContext is nil")
+            return
+        }
+        if modeStore.mode == .content {
+            exitContent()
+        }
+        subBarController.hide()
+        tooltipController.hide()
+        modeStore.isSubBarActive = false
+        modeStore.activeSubGroupID = nil
+        modeStore.scope = nil
+        PaletteRowShortcuts.setActive(false)
+
+        let icon = ActionCustomizationManager.shared.tableIcon(for: AIAction(presetID: preset.id, title: preset.title))
+        modeStore.instructionRequest = AdditionalInstructionRequest(preset: preset, icon: icon)
+        modeStore.isSurfaceUserSized = false
+        hasUserMovedCard = false
+        if let panel {
+            panel.pinBottomEdgeOnResize = modeStore.searchResultsAbove
+            panel.releasesBottomPinAfterGrowth = false
+            panel.horizontalAnchor = .center
+            panel.heightCap = screenBounds(for: panel).height
+        }
+        modeStore.mode = .instruction
+        Log.ai.notice("Asking for an additional instruction before running AI preset \(preset.id, privacy: .public)")
+        enterKeyMode()
+
+        fitPanelToContent()
+        DispatchQueue.main.async { [weak self] in self?.fitPanelToContent() }
+        // Same deferred first-responder request as the palette: one made during the mode-change render can be dropped.
+        Task { @MainActor in
+            await Task.yield()
+            self.focusInstructionField()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self, self.modeStore.mode == .instruction else { return }
+            self.fitPanelToContent()
+            self.focusInstructionField()
+        }
+    }
+
+    private func focusInstructionField() {
+        guard let panel, panel.isVisible, modeStore.mode == .instruction else { return }
+        guard let field = findTextInput(in: panel.contentView),
+              panel.firstResponder !== field else { return }
+        panel.makeFirstResponder(field)
+    }
+
+    /// Runs the pending preset with `instruction` substituted. The request is consumed before anything starts, so a
+    /// repeated submit, or one from a replaced or dismissed prompt, is dropped. The saved preset is never modified.
+    func submitAdditionalInstruction(_ instruction: String, requestID: UUID) {
+        guard modeStore.mode == .instruction,
+              let request = modeStore.instructionRequest, request.id == requestID else { return }
+        guard !instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        modeStore.instructionRequest = nil
+        let prompt = AIServiceManager.shared.promptForPreset(request.preset, additionalInstruction: instruction)
+        Log.ai.notice("Running AI preset \(request.preset.id, privacy: .public) with an additional instruction")
+        runAIPreset(prompt: prompt, title: request.preset.title, presetID: request.preset.id)
+    }
+
+    /// Esc / Cancel on the instruction prompt: nothing was sent, so hiding (which leaves the selection and clipboard alone) is the whole cancellation.
+    func cancelAdditionalInstruction() {
+        guard modeStore.mode == .instruction else { return }
+        Log.ai.info("Additional instruction cancelled; AI preset not run")
+        hide(reason: "instruction-cancelled")
+    }
 
     /// Runs a palette instruction on the selection (standalone if `includeContext` is false). `replace` pastes over the selection (⏎);
     /// otherwise the answer streams into the card (⇧⏎).
@@ -2409,7 +2499,7 @@ public class PopupWindowController {
         }
         if ActionIdentity.isAIPreset(action) {
             guard let preset = AIServiceManager.shared.preset(forActionID: action.id) else { return }
-            runAIPreset(prompt: AIServiceManager.shared.promptForPreset(preset), title: preset.title, presetID: preset.id)
+            runSavedAIPreset(preset)
             return
         }
         runAction(action, with: context, isSecondaryClick: false)

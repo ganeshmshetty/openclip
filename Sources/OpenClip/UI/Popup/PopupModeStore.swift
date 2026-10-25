@@ -1,8 +1,9 @@
 // PopupModeStore.swift
 // OpenClip
 //
-// Shared observable popup mode state: the screen mode and the result card payload. Toasts bypass
-// this store. The static preview uses a throwaway store so it never affects the live popup.
+// Shared observable popup mode state: the screen mode, the result card payload and the pending
+// additional-instruction request. Toasts bypass this store. The static preview uses a throwaway
+// store so it never affects the live popup.
 import Foundation
 import Combine
 import Core
@@ -35,6 +36,9 @@ public final class PopupModeStore: ObservableObject {
     @Published public var activeSubGroupID: String? = nil
     /// Inline results for `chrome.isInlineResult` actions, keyed by action ID.
     @Published public var inlineResults: [String: String] = [:]
+    /// The AI preset waiting for its one-time additional instruction (only meaningful while
+    /// `mode == .instruction`). Cleared when the instruction is submitted or the prompt cancelled.
+    @Published public var instructionRequest: AdditionalInstructionRequest? = nil
 
     public init() {}
 }
@@ -70,6 +74,22 @@ public struct ResultCardPayload: Sendable, Equatable {
         self.file = file
         self.versionIndex = versionIndex
         self.versionCount = versionCount
+    }
+}
+
+/// One pending run of an AI preset that asks for an additional instruction: the preset as it was
+/// when the action was triggered (its saved prompt is resolved, never rewritten) and the icon its
+/// bar row shows. `id` distinguishes repeated requests for the same preset, so a submit can only
+/// ever run the request it was typed into.
+public struct AdditionalInstructionRequest: Equatable, Sendable {
+    public let id: UUID
+    public let preset: AIActionPreset
+    public let icon: ActionIcon?
+
+    public init(id: UUID = UUID(), preset: AIActionPreset, icon: ActionIcon? = nil) {
+        self.id = id
+        self.preset = preset
+        self.icon = icon
     }
 }
 

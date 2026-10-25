@@ -107,9 +107,9 @@ public final class HotkeyManager {
             return
         }
         guard KeyboardShortcuts.isEnabled else { return }
-        // Visible popup: search mode toggles off; actions bar switches into search.
+        // Visible popup: search mode and the instruction prompt toggle off; actions bar switches into search.
         if let popupController = self.popupController, popupController.isVisible {
-            if popupController.modeStore.mode == .search {
+            if popupController.modeStore.mode == .search || popupController.modeStore.mode == .instruction {
                 popupController.toggleMode()
             } else {
                 popupController.enterSearch()
