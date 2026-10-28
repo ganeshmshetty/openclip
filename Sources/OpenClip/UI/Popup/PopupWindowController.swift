@@ -45,6 +45,24 @@ public class PopupWindowController {
 
     private var hoveredAction: (any Action)?
 
+    /// Last two pointer samples for sub-bar menu-aim. `previous` is the sample before `latest`.
+    private var latestPointerLocation: CGPoint?
+    private var previousPointerLocation: CGPoint?
+    private var lastPointerMoveTime: TimeInterval?
+    private var pendingGroupAim: PendingGroupAim?
+    private var groupAimRestTask: Task<Void, Never>?
+
+    private struct PendingGroupAim {
+        let groupID: String
+        let commit: @MainActor () -> Void
+    }
+
+    private struct AimSegment {
+        var previous: CGPoint?
+        var current: CGPoint
+        var isNewMovement: Bool
+    }
+
     private var isMenuTracking = false
 
     /// Tracks whether a right-click mouse-down originated within the popup bar.
@@ -140,6 +158,7 @@ public class PopupWindowController {
         self.settingsStore = settingsStore
 
         self.subBarController.onDismiss = { [weak self] in
+            self?.clearPendingGroupAim()
             self?.modeStore.isSubBarActive = false
             self?.modeStore.activeSubGroupID = nil
             self?.updateToastPlacement()
@@ -1120,6 +1139,10 @@ public class PopupWindowController {
         currentContext = nil
         currentActionContext = nil
         hoveredAction = nil
+        latestPointerLocation = nil
+        previousPointerLocation = nil
+        lastPointerMoveTime = nil
+        clearPendingGroupAim()
         isMenuTracking = false
         PopupHoverState.shared.location = nil
         SubBarHoverState.shared.location = nil
@@ -1214,6 +1237,7 @@ public class PopupWindowController {
             let cursorLoc = NSEvent.mouseLocation
             updatePopupHover(at: cursorLoc)
             updateSubBarHover(at: cursorLoc)
+            trackPointerForGroupAim(at: cursorLoc)
             // Distance dismissal is suspended in search mode, while the card is modal, while AI processes, and during onboarding.
             let inArrivalGrace = PopupDismissalGrace.isActive(
                 now: ProcessInfo.processInfo.systemUptime,
@@ -1458,9 +1482,11 @@ public class PopupWindowController {
         let cursorLoc = NSEvent.mouseLocation
         updatePopupHover(at: cursorLoc, toggleClickThrough: false)
         updateSubBarHover(at: cursorLoc, toggleClickThrough: false)
+        trackPointerForGroupAim(at: cursorLoc)
     }
 
     private func handleCancelSubBarDwell() {
+        clearPendingGroupAim()
         if let hoveredAction, let actions = currentActions,
            let currentIndex = actions.firstIndex(where: { $0.id == hoveredAction.id }),
            subBarController.isImmediateNeighbor(actionIndex: currentIndex) {
@@ -1557,13 +1583,137 @@ public class PopupWindowController {
     }
 
     private func handleSubBarDwell(for action: any Action, index: Int, frame: CGRect) {
+        // An adjacent group must not replace the open row while the pointer is only
+        // crossing it on the way in (#194). The triangle decides; other groups still switch now.
+        if subBarController.isShowing,
+           subBarController.activeState?.groupID != action.id,
+           subBarController.isImmediateNeighbor(actionIndex: index) {
+            beginAdjacentGroupAim(for: action, index: index, frame: frame)
+            return
+        }
+        clearPendingGroupAim()
         subBarController.startDwell { [weak self] in
             guard let self else { return }
             self.showSubBar(for: action, index: index, frame: frame, isPinned: false)
         }
     }
 
+    private func beginAdjacentGroupAim(for action: any Action, index: Int, frame: CGRect) {
+        clearPendingGroupAim()
+        pendingGroupAim = PendingGroupAim(groupID: action.id) { [weak self] in
+            self?.showSubBar(for: action, index: index, frame: frame, isPinned: false)
+        }
+        let location = NSEvent.mouseLocation
+        let now = ProcessInfo.processInfo.systemUptime
+        let segment = aimSegment(for: location)
+        notePointer(at: location, now: now)
+        evaluateGroupAim(segment: segment, at: location, now: now)
+    }
+
+    private func trackPointerForGroupAim(at location: CGPoint) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let segment = aimSegment(for: location)
+        notePointer(at: location, now: now)
+        guard pendingGroupAim != nil else { return }
+        evaluateGroupAim(segment: segment, at: location, now: now)
+    }
+
+    private func evaluateGroupAim(segment: AimSegment, at location: CGPoint, now: TimeInterval) {
+        guard let pending = pendingGroupAim, subBarController.isShowing else {
+            clearPendingGroupAim()
+            return
+        }
+        guard hoveredAction?.id == pending.groupID else {
+            clearPendingGroupAim()
+            return
+        }
+        // The panel's shadow ring overlaps the main bar, so the triangle uses the visible row.
+        let rect = subBarController.panelFrame.insetBy(
+            dx: PopupMetrics.popupShadowInset,
+            dy: PopupMetrics.popupShadowInset
+        )
+        let rested = segment.isNewMovement ? 0 : pointerRestDuration(at: location, now: now)
+        let decision = SubBarAim.decision(
+            previous: segment.previous,
+            current: segment.current,
+            subBarRect: rect,
+            rested: rested
+        )
+        switch decision {
+        case .switchToHovered:
+            commitPendingGroupAim()
+        case .keepMovingToward:
+            subBarController.cancelGrace()
+            if segment.isNewMovement || groupAimRestTask == nil {
+                armGroupAimRest(for: pending.groupID)
+            }
+        case .keepResting:
+            subBarController.cancelGrace()
+            if groupAimRestTask == nil {
+                armGroupAimRest(for: pending.groupID)
+            }
+        }
+    }
+
+    private func aimSegment(for location: CGPoint) -> AimSegment {
+        guard let latest = latestPointerLocation else {
+            return AimSegment(previous: nil, current: location, isNewMovement: false)
+        }
+        if hypot(location.x - latest.x, location.y - latest.y) < SubBarAim.movementEpsilon {
+            return AimSegment(previous: previousPointerLocation, current: latest, isNewMovement: false)
+        }
+        return AimSegment(previous: latest, current: location, isNewMovement: true)
+    }
+
+    private func notePointer(at location: CGPoint, now: TimeInterval) {
+        guard let latest = latestPointerLocation else {
+            latestPointerLocation = location
+            lastPointerMoveTime = now
+            return
+        }
+        guard hypot(location.x - latest.x, location.y - latest.y) >= SubBarAim.movementEpsilon else { return }
+        previousPointerLocation = latest
+        latestPointerLocation = location
+        lastPointerMoveTime = now
+    }
+
+    private func pointerRestDuration(at location: CGPoint, now: TimeInterval) -> TimeInterval {
+        guard let latest = latestPointerLocation,
+              hypot(location.x - latest.x, location.y - latest.y) < SubBarAim.movementEpsilon,
+              let lastPointerMoveTime else { return 0 }
+        return max(0, now - lastPointerMoveTime)
+    }
+
+    private func armGroupAimRest(for groupID: String) {
+        groupAimRestTask?.cancel()
+        let nanos = UInt64((SubBarAim.switchDwell * 1_000_000_000).rounded())
+        groupAimRestTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: nanos)
+            guard !Task.isCancelled else { return }
+            self.groupAimRestTask = nil
+            guard let pending = self.pendingGroupAim, pending.groupID == groupID,
+                  self.hoveredAction?.id == groupID,
+                  self.subBarController.isShowing,
+                  self.subBarController.activeState?.groupID != groupID else { return }
+            // No further mouse event arrives while the pointer is still, so the timer is the rest half of SubBarAim.
+            self.commitPendingGroupAim()
+        }
+    }
+
+    private func commitPendingGroupAim() {
+        let pending = pendingGroupAim
+        clearPendingGroupAim()
+        pending?.commit()
+    }
+
+    private func clearPendingGroupAim() {
+        pendingGroupAim = nil
+        groupAimRestTask?.cancel()
+        groupAimRestTask = nil
+    }
+
     private func showSubBar(for action: any Action, index: Int, frame: CGRect, isPinned: Bool) {
+        clearPendingGroupAim()
         guard let context = currentActionContext else { return }
         let resolver = SubActionResolver()
         let catalog = currentActions ?? ActionCoordinator.shared.resolveActions(for: context)
