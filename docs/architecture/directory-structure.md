@@ -20,6 +20,7 @@ Sources/
 │   │   ├── ActionMatchInfo.swift             # Regex match context & capture payload
 │   │   ├── ActionRegistry.swift              # Storage, ordering, and transform default-on/off policy
 │   │   ├── ActionResult.swift                # Action result value types
+│   │   ├── InlinePreview.swift               # Inline preview value: text plus optional swatch, tone, icon, view-only flag
 │   │   ├── ActionResultDelivery.swift        # Select → Probe → Toast: paste-vs-copy delivery decision (resolves (result, toast))
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
 │   │   ├── ActionVisibility.swift            # Pure visibility & requirement evaluation logic
@@ -197,6 +198,7 @@ Sources/
         │   └── PermissionRecoveryWindowController.swift # Permission recovery window controller
         ├── Popup/                            # Floating popup panel
         │   ├── GroupSubActionBarView.swift   # Sub-bar action items view
+        │   ├── InlinePreviewLabel.swift      # Inline preview row: optional symbol/emoji, color swatch, toned text
         │   ├── PopupGesturePolicy.swift      # Derived popup interaction policy from chrome + conformance (App target, UI-only)
         │   ├── PopupHoverSupport.swift       # Shared popup hover-state singleton + hover-target/frame preference keys (bar)
         │   ├── PopupMetrics.swift            # UI-only popup/search/AI-card sizing + placement/dismissal constants (App target, not Core)

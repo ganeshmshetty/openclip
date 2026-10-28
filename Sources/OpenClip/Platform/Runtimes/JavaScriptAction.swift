@@ -91,6 +91,24 @@ public struct JavaScriptAction: ConfigurableAction, ActionWithRules {
 
     /// Inline evaluation passes its shorter UI budget so JavaScriptCore interrupts sync scripts at the same deadline.
     func perform(_ context: ActionContext, timeout: TimeInterval?) async throws -> ActionResult {
+        let result = try await execute(context, timeout: timeout)
+        // The click delivers the visible text. A view-only preview has nothing to deliver.
+        guard chrome.isInlineResult, case .text(let raw) = result else { return result }
+        let preview = InlinePreview.resolve(returnedText: raw)
+        guard preview.acceptsActivation else { return .none }
+        return .text(preview.text)
+    }
+
+    /// Inline display value, including swatch, tone, icon, and the view-only flag. Nil when the script did not return text.
+    func inlinePreview(_ context: ActionContext, timeout: TimeInterval?) async throws -> InlinePreview? {
+        let result = try await execute(context, timeout: timeout)
+        guard case .text(let raw) = result else { return nil }
+        let preview = InlinePreview.resolve(returnedText: raw)
+        guard !preview.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return preview
+    }
+
+    private func execute(_ context: ActionContext, timeout: TimeInterval?) async throws -> ActionResult {
         // Manifest `requiredOptions` check, run before any JS. Distinct from the runtime
         // `openclip.requireConfiguration` call, so keep it out of OpenClipJSHost.
         let missing = ActionVisibility.missingRequiredOptions(
@@ -115,6 +133,7 @@ public struct JavaScriptAction: ConfigurableAction, ActionWithRules {
             optionStore: optionStore,
             rules: rules ?? ExtensionActionRules(),
             isAsync: isAsync,
+            isInline: chrome.isInlineResult,
             timeout: timeout,
             packageDirectory: packageDirectory,
             entryDirectory: entryDirectory,

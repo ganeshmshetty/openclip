@@ -812,7 +812,17 @@ public struct PopupView: View {
     // MARK: - Unified Action Button
 
     @ViewBuilder
+    private func actionAccessibilityLabel(_ action: any Action) -> String {
+        let title = action.displayTitle(using: presenter)
+        if action.chrome.isInlineResult, let preview = modeStore.inlineResults[action.id] {
+            return "\(title): \(preview.text)"
+        }
+        return title
+    }
+
     private func actionButton(action: any Action, index: Int, isHovered: Bool, isActiveParent: Bool = false, leadingEdge: Bool = false, trailingEdge: Bool = false) -> some View {
+        let inlinePreview = action.chrome.isInlineResult ? modeStore.inlineResults[action.id] : nil
+        let isHovered = inlinePreview?.highlightFlags(hovered: isHovered, selected: false).hovered ?? isHovered
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
 
         let backgroundColor: Color = {
@@ -832,11 +842,7 @@ public struct PopupView: View {
 
         let labelView = Group {
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                Text(resolved)
-                    .font(.system(size: 15 * scale, weight: .regular))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundColor(foregroundColor)
+                InlinePreviewLabel(preview: resolved, fontSize: 15, scale: scale, foreground: foregroundColor)
                     .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
@@ -866,6 +872,15 @@ public struct PopupView: View {
         .contentShape(Rectangle())
 
         Group {
+            if inlinePreview?.acceptsActivation == false {
+                labelView
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(actionAccessibilityLabel(action))
+                    .popupHoverTarget(.action(index))
+                    .onHover { isHovering in
+                        useLocalHoverFallback(for: .action(index), isHovering: isHovering)
+                    }
+            } else {
             switch action.gesturePolicy.singleClick {
             case .openSubActions:
                 // Group rows open scoped search palette on click; sub-bar opens on hover dwell
@@ -880,7 +895,7 @@ public struct PopupView: View {
                     .accessibilityLabel({
                         let title = action.displayTitle(using: presenter)
                         if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                            return "\(title): \(resolved)"
+                            return "\(title): \(resolved.text)"
                         }
                         return title
                     }())
@@ -919,36 +934,47 @@ public struct PopupView: View {
                             onRunLoadingAction?(action, clickIntent)
                             return
                         }
-                        guard onWillPerformAction?(action, clickIntent) ?? true else { return }
-                        onActionPerformed?(action.id)
-                        if action.chrome.isInlineResult {
-                            if let resolved = modeStore.inlineResults[action.id] {
-                                onResult(.text(resolved))
-                                return
-                            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
-                                Task {
-                                    do {
-                                        if let text = await inFlight.value, !text.isEmpty {
-                                            onResult(.text(text))
+                        // A loaded view-only preview never snapshots delivery.
+                        if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                            guard resolved.acceptsActivation else { return }
+                            guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+                            onActionPerformed?(action.id)
+                            onResult(.text(resolved.text))
+                            return
+                        }
+                        if action.chrome.isInlineResult, let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
+                            Task {
+                                do {
+                                    if let preview = await inFlight.value {
+                                        guard preview.acceptsActivation else { return }
+                                        let trimmed = preview.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        if !trimmed.isEmpty {
+                                            guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+                                            onActionPerformed?(action.id)
+                                            onResult(.text(preview.text))
                                             return
                                         }
-                                        let match = action.matchInfo(for: context)
-                                        let performContext = ActionContext(
-                                            selection: context.selection,
-                                            modifiers: context.modifiers,
-                                            isSecondaryClick: clickIntent == .secondary,
-                                            match: match
-                                        )
-                                        let result = try await action.perform(performContext)
-                                        onResult(result)
-                                    } catch {
-                                        Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                                        onResult(.toast(StatusFeedback(error: error)))
                                     }
+                                    guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+                                    onActionPerformed?(action.id)
+                                    let match = action.matchInfo(for: context)
+                                    let performContext = ActionContext(
+                                        selection: context.selection,
+                                        modifiers: context.modifiers,
+                                        isSecondaryClick: clickIntent == .secondary,
+                                        match: match
+                                    )
+                                    let result = try await action.perform(performContext)
+                                    onResult(result)
+                                } catch {
+                                    Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
+                                    onResult(.toast(StatusFeedback(error: error)))
                                 }
-                                return
                             }
+                            return
                         }
+                        guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+                        onActionPerformed?(action.id)
                         Task {
                             do {
                                 let match = action.matchInfo(for: context)
@@ -972,7 +998,7 @@ public struct PopupView: View {
                     .accessibilityLabel({
                         let title = action.displayTitle(using: presenter)
                         if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                            return "\(title): \(resolved)"
+                            return "\(title): \(resolved.text)"
                         }
                         return title
                     }())
@@ -981,6 +1007,7 @@ public struct PopupView: View {
                         useLocalHoverFallback(for: .action(index), isHovering: isHovering)
                     }
                 }
+            }
             }
         }
         .animation(PopupMetrics.inlineSpring, value: modeStore.inlineResults[action.id])

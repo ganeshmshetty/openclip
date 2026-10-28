@@ -28,16 +28,16 @@ public final class InlineResultEvaluator {
     /// Longer results are shown but never memoized, so a large script result cannot pin memory.
     private static let maxMemoizedResultLength = 1024
 
-    private var prewarmedResults: [String: (result: String, textHash: Int, fingerprint: Int)] = [:]
-    private var prewarmedTasks: [String: (task: Task<String?, Never>, textHash: Int, fingerprint: Int)] = [:]
-    private var memoizedResults: [MemoKey: String] = [:]
+    private var prewarmedResults: [String: (result: InlinePreview, textHash: Int, fingerprint: Int)] = [:]
+    private var prewarmedTasks: [String: (task: Task<InlinePreview?, Never>, textHash: Int, fingerprint: Int)] = [:]
+    private var memoizedResults: [MemoKey: InlinePreview] = [:]
     private var memoizedOrder: [MemoKey] = []
-    private var runningTasks: [UUID: [String: Task<String?, Never>]] = [:]
+    private var runningTasks: [UUID: [String: Task<InlinePreview?, Never>]] = [:]
 
     public init() {}
 
-    private func storeMemoized(key: MemoKey, result: String) {
-        guard result.count <= Self.maxMemoizedResultLength else { return }
+    private func storeMemoized(key: MemoKey, result: InlinePreview) {
+        guard result.text.count <= Self.maxMemoizedResultLength else { return }
         if memoizedResults[key] == nil {
             memoizedOrder.append(key)
             if memoizedOrder.count > Self.maxMemoizedEntries {
@@ -66,10 +66,11 @@ public final class InlineResultEvaluator {
     }
 
     /// Tier 1: Evaluates synchronous built-in actions immediately without spawning tasks.
-    public func evaluateSynchronous(action: any Action, context: ActionContext) -> String? {
+    public func evaluateSynchronous(action: any Action, context: ActionContext) -> InlinePreview? {
         guard action.chrome.isInlineResult else { return nil }
         if let calculate = action as? CalculateAction {
-            return calculate.evaluateSynchronously(context.selection.text)
+            guard let text = calculate.evaluateSynchronously(context.selection.text) else { return nil }
+            return InlinePreview(text: text)
         }
         return nil
     }
@@ -95,7 +96,7 @@ public final class InlineResultEvaluator {
         _ action: any Action,
         context: ActionContext,
         timeout: TimeInterval
-    ) async -> String? {
+    ) async -> InlinePreview? {
         do {
             // Inline runs before the click, so resolve the match here: regex actions need their matched substring.
             let matchedContext: ActionContext
@@ -111,16 +112,15 @@ public final class InlineResultEvaluator {
             } else {
                 matchedContext = context
             }
-            let result: ActionResult
             if let javaScriptAction = javaScriptAction(from: action) {
-                result = try await javaScriptAction.perform(matchedContext, timeout: timeout)
-            } else {
-                result = try await action.perform(matchedContext)
+                return try await javaScriptAction.inlinePreview(matchedContext, timeout: timeout)
             }
+            let result = try await action.perform(matchedContext)
             switch result {
             case .text(let text):
-                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? nil : text
+                let preview = InlinePreview.resolve(returnedText: text)
+                let trimmed = preview.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : preview
             default:
                 return nil
             }
@@ -135,11 +135,11 @@ public final class InlineResultEvaluator {
         action: any Action,
         context: ActionContext,
         timeout: TimeInterval = PopupMetrics.inlineEvaluationTimeout
-    ) async -> String? {
+    ) async -> InlinePreview? {
         guard action.chrome.isInlineResult else { return nil }
 
         let boundedTimeout = max(0.001, timeout)
-        return await withTaskGroup(of: String?.self) { group in
+        return await withTaskGroup(of: InlinePreview?.self) { group in
             group.addTask {
                 await Self.performAction(action, context: context, timeout: boundedTimeout)
             }
@@ -173,11 +173,11 @@ public final class InlineResultEvaluator {
                    existing.fingerprint == key.fingerprint {
                     continue
                 }
-                let task = Task { @MainActor [weak self] () -> String? in
+                let task = Task { @MainActor [weak self] () -> InlinePreview? in
                     guard let self else { return nil }
                     let result = await self.evaluateAsync(action: action, context: context)
                     guard !Task.isCancelled else { return nil }
-                    if let result, !result.isEmpty {
+                    if let result, Self.displayable(result) {
                         self.prewarmedResults[action.id] = (result: result, textHash: hash, fingerprint: key.fingerprint)
                         self.storeMemoized(key: key, result: result)
                     }
@@ -208,7 +208,7 @@ public final class InlineResultEvaluator {
     }
 
     /// Returns a prewarmed or memoized result for this text hash, checking the action's input fingerprint.
-    public func prewarmedResult(for action: any Action, textHash: Int) -> String? {
+    public func prewarmedResult(for action: any Action, textHash: Int) -> InlinePreview? {
         let key = memoKey(for: action, textHash: textHash)
         if let cached = prewarmedResults[action.id],
            cached.textHash == textHash,
@@ -219,7 +219,7 @@ public final class InlineResultEvaluator {
     }
 
     /// ID-only lookup for callers that hold only an id; skips the fingerprint check.
-    public func prewarmedResult(for actionID: String, textHash: Int) -> String? {
+    public func prewarmedResult(for actionID: String, textHash: Int) -> InlinePreview? {
         if let cached = prewarmedResults[actionID], cached.textHash == textHash {
             return cached.result
         }
@@ -253,7 +253,7 @@ public final class InlineResultEvaluator {
         context: ActionContext,
         sessionID: UUID,
         timeout: TimeInterval = PopupMetrics.inlineEvaluationTimeout,
-        onResult: @escaping @MainActor (String?) -> Void
+        onResult: @escaping @MainActor (InlinePreview?) -> Void
     ) {
         guard action.chrome.isInlineResult else {
             onResult(nil)
@@ -268,11 +268,11 @@ public final class InlineResultEvaluator {
         }
 
         let prewarmed = prewarmedTasks[action.id]
-        let task = Task { @MainActor [weak self] () -> String? in
+        let task = Task { @MainActor [weak self] () -> InlinePreview? in
             guard let self else { return nil }
             guard !Task.isCancelled else { return nil }
 
-            var result: String?
+            var result: InlinePreview?
             var attempts = 0
             if let prewarmed, prewarmed.textHash == hash, prewarmed.fingerprint == key.fingerprint {
                 result = await prewarmed.task.value
@@ -280,7 +280,7 @@ public final class InlineResultEvaluator {
             }
 
             // Retry once with a fresh budget so one slow cold evaluation does not silently drop the preview.
-            while (result == nil || result?.isEmpty == true), attempts < 2 {
+            while !Self.displayable(result), attempts < 2 {
                 guard !Task.isCancelled else { return nil }
                 result = await self.evaluateAsync(
                     action: action,
@@ -292,7 +292,7 @@ public final class InlineResultEvaluator {
 
             guard !Task.isCancelled else { return nil }
 
-            if let result, !result.isEmpty {
+            if let result, Self.displayable(result) {
                 self.storeMemoized(key: key, result: result)
             }
 
@@ -312,12 +312,12 @@ public final class InlineResultEvaluator {
     }
 
     /// Returns an existing in-flight evaluation task for click-race joining.
-    public func runningTask(for actionID: String, sessionID: UUID) -> Task<String?, Never>? {
+    public func runningTask(for actionID: String, sessionID: UUID) -> Task<InlinePreview?, Never>? {
         runningTasks[sessionID]?[actionID]
     }
 
     /// Returns an existing in-flight evaluation task across all sessions for click-race joining.
-    public func runningTask(for actionID: String) -> Task<String?, Never>? {
+    public func runningTask(for actionID: String) -> Task<InlinePreview?, Never>? {
         for tasks in runningTasks.values {
             if let task = tasks[actionID] {
                 return task
@@ -333,5 +333,10 @@ public final class InlineResultEvaluator {
                 task.cancel()
             }
         }
+    }
+
+    private static func displayable(_ preview: InlinePreview?) -> Bool {
+        guard let preview else { return false }
+        return !preview.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

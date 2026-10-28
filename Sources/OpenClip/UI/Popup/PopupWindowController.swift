@@ -287,7 +287,8 @@ public class PopupWindowController {
                 modeStore.inlineResults[action.id] = syncResult
             } else {
                 evaluator.startEvaluation(action: action, context: actionContext, sessionID: aiSession) { [weak self] result in
-                    guard let self, let result, !result.isEmpty else { return }
+                    guard let self, let result else { return }
+                    guard !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                     guard self.aiSessionID == aiSession else { return }
                     self.modeStore.inlineResults[action.id] = result
                 }
@@ -2595,6 +2596,11 @@ public class PopupWindowController {
     /// from `isSecondaryClick`.
     func runAction(_ action: any Action, with context: ActionContext, isSecondaryClick: Bool) {
         guard canPerformAction(action, in: context) else { return }
+        if action.chrome.isInlineResult,
+           let preview = modeStore.inlineResults[action.id],
+           !preview.acceptsActivation {
+            return
+        }
         if action.chrome.showsLoading {
             runLoadingAction(action, with: context, isSecondaryClick: isSecondaryClick)
             return
@@ -2617,13 +2623,15 @@ public class PopupWindowController {
                 let result: ActionResult
                 if action.chrome.isInlineResult,
                    let inFlightTask = InlineResultEvaluator.shared.runningTask(for: action.id, sessionID: self.aiSessionID) {
-                    if let text = await inFlightTask.value {
-                        result = .text(text)
+                    if let preview = await inFlightTask.value {
+                        guard preview.acceptsActivation else { return }
+                        result = .text(preview.text)
                     } else {
                         result = try await action.perform(performContext)
                     }
                 } else if action.chrome.isInlineResult, let cached = self.modeStore.inlineResults[action.id] {
-                    result = .text(cached)
+                    guard cached.acceptsActivation else { return }
+                    result = .text(cached.text)
                 } else {
                     result = try await action.perform(performContext)
                 }

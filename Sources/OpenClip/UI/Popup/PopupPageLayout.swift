@@ -22,14 +22,15 @@ public enum PopupPageLayout {
     /// never overflow once previews land; before a result lands the button packs at icon width.
     public static func estimatedItemWidth(
         for action: any Action,
-        inlineResult: String? = nil,
+        inlineResult: InlinePreview? = nil,
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
     ) -> CGFloat {
-        if action.chrome.isInlineResult, let inlineResult, !inlineResult.isEmpty {
-            let textWidth = min(estimatedTextWidth(inlineResult, scale: scale),
-                                PopupMetrics.inlineResultMaxWidth * scale)
-            let padded = textWidth + 2 * PopupMetrics.inlineResultHorizontalPadding * scale
+        if action.chrome.isInlineResult, let inlineResult, !inlineResult.text.isEmpty {
+            let textWidth = estimatedTextWidth(inlineResult.text, scale: scale)
+            let content = min(textWidth + inlineChromeWidth(inlineResult, scale: scale),
+                              PopupMetrics.inlineResultMaxWidth * scale)
+            let padded = content + 2 * PopupMetrics.inlineResultHorizontalPadding * scale
             return max(PopupMetrics.actionButtonWidth * scale, padded)
         }
         let icon = action.displayIcon(using: presenter)
@@ -38,6 +39,24 @@ public enum PopupPageLayout {
             return max(PopupMetrics.actionButtonWidth * scale, min(144.0 * scale, estimated))
         }
         return PopupMetrics.actionButtonWidth * scale
+    }
+
+    /// Icon and swatch sit beside the text, inside the same max width, so a short label grows and a long one still truncates.
+    private static func inlineChromeWidth(_ preview: InlinePreview, scale: CGFloat) -> CGFloat {
+        var width: CGFloat = 0
+        var accessories = 0
+        if preview.icon != nil {
+            width += 15 * scale
+            accessories += 1
+        }
+        if preview.color != nil {
+            width += PopupMetrics.inlineSwatchSide * scale
+            accessories += 1
+        }
+        if accessories > 0 {
+            width += CGFloat(accessories) * PopupMetrics.inlinePreviewSpacing * scale
+        }
+        return width
     }
 
     /// Estimated intrinsic width of a one-line label at the popup font, before any max-width clamp.
@@ -52,7 +71,7 @@ public enum PopupPageLayout {
     /// Leading and trailing widths are reserved for persistent controls.
     public static func computePages(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlinePreview] = [:],
         leadingWidth: CGFloat = 0,
         trailingWidth: CGFloat = 0,
         maxBudget: CGFloat,
@@ -116,7 +135,7 @@ public enum PopupPageLayout {
     /// Measures the total horizontal width in points for a given page configuration.
     public static func measuredBarWidth(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlinePreview] = [:],
         hasLeftChevron: Bool,
         hasRightChevron: Bool,
         leadingWidth: CGFloat = 0,

@@ -20,6 +20,10 @@ public enum PopupMetrics {
     public static let inlineResultMaxWidth: CGFloat = 172.0
     /// Horizontal padding (pt at 1.0 scale) inside an expanded inline result button.
     public static let inlineResultHorizontalPadding: CGFloat = 9.0
+    /// Side of the color swatch drawn beside an inline preview's text.
+    public static let inlineSwatchSide: CGFloat = 10.0
+    /// Gap between an inline preview's icon, swatch, and text.
+    public static let inlinePreviewSpacing: CGFloat = 5.0
     /// Row inset at each end of a group sub-bar; keeps the card-edge gap equal to the main bar's 3 pt.
     public static let subBarEndInset: CGFloat = 1.0
     /// Cross-fade between rest icon/text and computed result; long enough to hide async Tier 3 arrivals.

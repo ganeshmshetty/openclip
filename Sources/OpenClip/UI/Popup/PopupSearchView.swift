@@ -291,6 +291,7 @@ public struct PopupSearchView: View {
     }
 
     private func handleRowClick(at index: Int) {
+        if results.indices.contains(index), isViewOnlyInline(results[index].action) { return }
         let now = ProcessInfo.processInfo.systemUptime
         let clickCount = NSApplication.shared.currentEvent?.clickCount ?? 1
         let isDoubleClick = clickCount >= 2
@@ -574,8 +575,13 @@ public struct PopupSearchView: View {
 
     @ViewBuilder
     private func resultRow(item: ActionSearchIndex, index: Int) -> some View {
-        let isSelected = index == selectedIndex
-        let isHovered = hoveredTarget == .row(index)
+        let rowSelected = index == selectedIndex
+        let rowHovered = hoveredTarget == .row(index)
+        let inlinePreview = item.action.chrome.isInlineResult ? modeStore.inlineResults[item.action.id] : nil
+        let highlight = inlinePreview?.highlightFlags(hovered: rowHovered, selected: rowSelected)
+            ?? (hovered: rowHovered, selected: rowSelected)
+        let isSelected = highlight.selected
+        let isHovered = highlight.hovered
         let rowShape = RoundedRectangle(cornerRadius: PopupMetrics.searchRowCornerRadius, style: .continuous)
 
         Button {
@@ -606,16 +612,15 @@ public struct PopupSearchView: View {
                 }
 
                 if item.action.chrome.isInlineResult, let result = modeStore.inlineResults[item.action.id], !isCommandPressed {
-                    Text(result)
-                        .font(.system(size: 11, weight: .regular))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    InlinePreviewLabel(
+                        preview: result,
+                        fontSize: 11,
+                        scale: 1,
+                        foreground: (isSelected || isHovered)
+                            ? PopupThemeModel.restForeground(for: effectiveTheme)
+                            : PopupThemeModel.restSecondary(for: effectiveTheme)
+                    )
                         .frame(maxWidth: PopupMetrics.inlineSearchAccessoryMaxWidth, alignment: .trailing)
-                        .foregroundColor(
-                            (isSelected || isHovered)
-                                ? PopupThemeModel.restForeground(for: effectiveTheme)
-                                : PopupThemeModel.restSecondary(for: effectiveTheme)
-                        )
                         .transition(.opacity)
                 } else if let shortcut = Self.shortcutHint(forRow: index) {
                     Text(shortcut)
@@ -866,6 +871,11 @@ public struct PopupSearchView: View {
         return true
     }
 
+    private func isViewOnlyInline(_ action: any Action) -> Bool {
+        guard action.chrome.isInlineResult, let preview = modeStore.inlineResults[action.id] else { return false }
+        return !preview.acceptsActivation
+    }
+
     /// `replace` matters only for AI rows: false shows the result card first, true (⇧⏎) pastes over the selection.
     private func runSelected(replace: Bool) {
         if selectedIndex >= results.count {
@@ -882,6 +892,7 @@ public struct PopupSearchView: View {
         }
         guard results.indices.contains(selectedIndex) else { return }
         let action = results[selectedIndex].action
+        if isViewOnlyInline(action) { return }
         let activeContext = activeActionContext
         guard action.isEnabled(for: activeContext) else { return }
         // Resolve the intent once so the perform context and delivery snapshot agree; ⇧⏎ never reaches the mouse monitor.
@@ -898,35 +909,45 @@ public struct PopupSearchView: View {
             }
             // No loading callback wired up (e.g. a preview): fall through to the inline perform path.
         }
-        guard onWillPerformAction?(action, clickIntent) ?? true else { return }
-        onActionPerformed?(action.id)
-        if action.chrome.isInlineResult {
-            if let result = modeStore.inlineResults[action.id] {
-                onResult(.text(result))
-                return
-            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
-                Task { @MainActor in
-                    do {
-                        if let text = await inFlight.value, !text.isEmpty {
-                            onResult(.text(text))
+        if action.chrome.isInlineResult, let result = modeStore.inlineResults[action.id] {
+            guard result.acceptsActivation else { return }
+            guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+            onActionPerformed?(action.id)
+            onResult(.text(result.text))
+            return
+        }
+        if action.chrome.isInlineResult, let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
+            Task { @MainActor in
+                do {
+                    if let preview = await inFlight.value {
+                        guard preview.acceptsActivation else { return }
+                        let trimmed = preview.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+                            onActionPerformed?(action.id)
+                            onResult(.text(preview.text))
                             return
                         }
-                        let match = action.matchInfo(for: activeContext)
-                        let performContext = ActionContext(
-                            selection: activeContext.selection,
-                            modifiers: activeContext.modifiers,
-                            isSecondaryClick: clickIntent == .secondary,
-                            match: match
-                        )
-                        let result = try await action.perform(performContext)
-                        onResult(result)
-                    } catch {
-                        onResult(.toast(StatusFeedback(error: error)))
                     }
+                    guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+                    onActionPerformed?(action.id)
+                    let match = action.matchInfo(for: activeContext)
+                    let performContext = ActionContext(
+                        selection: activeContext.selection,
+                        modifiers: activeContext.modifiers,
+                        isSecondaryClick: clickIntent == .secondary,
+                        match: match
+                    )
+                    let result = try await action.perform(performContext)
+                    onResult(result)
+                } catch {
+                    onResult(.toast(StatusFeedback(error: error)))
                 }
-                return
             }
+            return
         }
+        guard onWillPerformAction?(action, clickIntent) ?? true else { return }
+        onActionPerformed?(action.id)
         Task { @MainActor in
             do {
                 // Thread the visibility match into the perform context so placeholders see the match that enabled the row.

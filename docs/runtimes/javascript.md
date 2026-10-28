@@ -234,6 +234,55 @@ gate is released while the watchdog + pump loop bounds the async phase.)
    per-click preference (preview/paste/copy).
 7. Otherwise: `.success`.
 
+### Inline preview object
+
+An action with `"inline": true` may return an object instead of a string. A string return is unchanged: the row shows that text and stays actionable. `text` is required. A bad `color`, an unknown `tone`, or an unusable `icon` is ignored and the row falls back to plain text. Nothing here throws.
+
+| Field | Type | Meaning |
+| :--- | :--- | :--- |
+| `text` | string | The preview line. Blank text shows no preview. |
+| `color` | string | Hex color (`#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`; `#` optional) drawn as a small swatch beside the text. |
+| `tone` | string | Line color: `default`, `success` (green), `error` (red), or `warning` (yellow). |
+| `icon` | string | Leading SF Symbol (`paintpalette` or `symbol:paintpalette`) or an emoji (`🎨`). |
+| `actionable` | boolean | `false` is view-only: no click, Return, or hover/selection highlight. Defaults to `true`. |
+
+Color swatch:
+
+```javascript
+function action(selection) {
+  return { text: selection.trim(), color: "#3B82F6" };
+}
+```
+
+Tone:
+
+```javascript
+function action(selection) {
+  var valid = selection.trim().indexOf("{") === 0;
+  return { text: valid ? "Valid JSON" : "Invalid JSON", tone: valid ? "success" : "error" };
+}
+```
+
+Icon or emoji:
+
+```javascript
+function action(selection) {
+  return { text: "4 words", icon: "text.word.spacing" };
+  // return { text: "4 words", icon: "📝" };
+}
+```
+
+View-only (word count, contrast, time zone — display only):
+
+```javascript
+function action(selection) {
+  var words = selection.trim().split(/\s+/).filter(Boolean).length;
+  return { text: words + " words", tone: "warning", actionable: false };
+}
+```
+
+Only inline actions read this object. Any other action that returns a plain object still produces no text result. File objects (`type: "file"` and the copy/save variants) are unchanged.
+
 A JavaScript exception produces `.toast(.error, message)` instead of throwing; the toast dismisses
 the popup by default (`keepVisible: true` keeps it open).
 

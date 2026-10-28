@@ -10,7 +10,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let context = ActionContext(selection: SelectionContext(text: "12 * 12"))
         
         let result = evaluator.evaluateSynchronous(action: calculate, context: context)
-        XCTAssertEqual(result, "144")
+        XCTAssertEqual(result, InlinePreview(text: "144"))
     }
 
     func testSynchronousEvaluationReturnsNilForNonMathOrNonInline() {
@@ -74,7 +74,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let context = ActionContext(selection: SelectionContext(text: "input"))
 
         let result = await evaluator.evaluateAsync(action: fastAction, context: context, timeout: 0.5)
-        XCTAssertEqual(result, "Fast Result")
+        XCTAssertEqual(result, InlinePreview(text: "Fast Result"))
     }
 
     func testInlineJavaScriptReceivesRegexMatchedTextFromLongSelection() async {
@@ -92,17 +92,17 @@ final class InlineResultEvaluatorTests: XCTestCase {
 
         let result = await evaluator.evaluateAsync(action: action, context: context)
 
-        XCTAssertEqual(result, "$200K|200")
+        XCTAssertEqual(result, InlinePreview(text: "$200K|200"))
 
         let bareAmountContext = ActionContext(selection: SelectionContext(text: "$200"))
         let bareAmountResult = await evaluator.evaluateAsync(action: action, context: bareAmountContext)
-        XCTAssertEqual(bareAmountResult, "$200|200")
+        XCTAssertEqual(bareAmountResult, InlinePreview(text: "$200|200"))
 
         evaluator.prewarm(actions: [action], context: context)
         await evaluator.awaitPrewarmed(timeout: 2.0)
         XCTAssertEqual(
             evaluator.prewarmedResult(for: action, textHash: selection.hashValue),
-            "$200K|200",
+            InlinePreview(text: "$200K|200"),
             "Prewarming must use the same regex match as click execution"
         )
     }
@@ -131,7 +131,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
             context: context
         )
 
-        XCTAssertEqual(result, formatted)
+        XCTAssertEqual(result, InlinePreview(text: formatted))
         XCTAssertNil(emptyResult)
     }
 
@@ -194,7 +194,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
 
         evaluator.prewarm(actions: [calculate], context: context)
         let cached = evaluator.prewarmedResult(for: calculate.id, textHash: "25 + 75".hashValue)
-        XCTAssertEqual(cached, "100")
+        XCTAssertEqual(cached, InlinePreview(text: "100"))
 
         let mismatch = evaluator.prewarmedResult(for: calculate.id, textHash: "different".hashValue)
         XCTAssertNil(mismatch)
@@ -206,7 +206,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let context = ActionContext(selection: SelectionContext(text: "50 * 2"))
 
         evaluator.prewarm(actions: [calculate], context: context)
-        XCTAssertEqual(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue), "100")
+        XCTAssertEqual(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue), InlinePreview(text: "100"))
 
         evaluator.clearPrewarmed()
         XCTAssertNil(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue))
@@ -218,11 +218,11 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let context = ActionContext(selection: SelectionContext(text: "50 * 2"))
 
         evaluator.prewarm(actions: [calculate], context: context)
-        XCTAssertEqual(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue), "100")
+        XCTAssertEqual(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue), InlinePreview(text: "100"))
 
         // Hiding the popup must keep the warm result so the next selection renders instantly.
         evaluator.endSession(UUID())
-        XCTAssertEqual(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue), "100")
+        XCTAssertEqual(evaluator.prewarmedResult(for: calculate.id, textHash: "50 * 2".hashValue), InlinePreview(text: "100"))
 
         // Full invalidation still clears it.
         evaluator.clearPrewarmed()
@@ -249,7 +249,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
         let action = FlakyInlineAction()
         let context = ActionContext(selection: SelectionContext(text: "input"))
         let done = expectation(description: "inline result published")
-        var published: String?
+        var published: InlinePreview?
 
         evaluator.startEvaluation(action: action, context: context, sessionID: UUID()) { result in
             published = result
@@ -257,7 +257,7 @@ final class InlineResultEvaluatorTests: XCTestCase {
         }
 
         await fulfillment(of: [done], timeout: 3.0)
-        XCTAssertEqual(published, "Recovered", "A nil first result must trigger one retry")
+        XCTAssertEqual(published, InlinePreview(text: "Recovered"), "A nil first result must trigger one retry")
     }
 
     func testOptionChangeInvalidatesWarmCache() async {
@@ -279,17 +279,17 @@ final class InlineResultEvaluatorTests: XCTestCase {
         optionStore.setStringValue("A", actionID: action.id, option: option)
         evaluator.prewarm(actions: [action], context: context)
         await evaluator.awaitPrewarmed(timeout: 2.0)
-        XCTAssertEqual(evaluator.prewarmedResult(for: action, textHash: hash), "A")
+        XCTAssertEqual(evaluator.prewarmedResult(for: action, textHash: hash), InlinePreview(text: "A"))
 
         // Changing the option must invalidate the warmed result, not serve the old "A".
         optionStore.setStringValue("B", actionID: action.id, option: option)
         evaluator.prewarm(actions: [action], context: context)
         await evaluator.awaitPrewarmed(timeout: 2.0)
-        XCTAssertEqual(evaluator.prewarmedResult(for: action, textHash: hash), "B")
+        XCTAssertEqual(evaluator.prewarmedResult(for: action, textHash: hash), InlinePreview(text: "B"))
 
         // Even a joined prewarm task must not replay the stale fingerprint's result.
-        var published: String?
+        var published: InlinePreview?
         evaluator.startEvaluation(action: action, context: context, sessionID: UUID()) { published = $0 }
-        XCTAssertEqual(published, "B")
+        XCTAssertEqual(published, InlinePreview(text: "B"))
     }
 }

@@ -37,7 +37,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let toast: ExtensionToastDeclaration?
     public let secondaryToast: ExtensionToastDeclaration?
     public let keywords: [String]?
-    /// Sync JavaScript only: runs inline in the popup bar; return value is preview text.
+    /// Sync JavaScript only: runs inline in the popup bar. A string return is the preview text.
+    /// An object return may set `text`, `color`, `tone`, `icon`, and `actionable`.
     /// Mutates the selection on return.
     public let inline: Bool?
     /// Declares the uncommitted result kind produced by this action ("text", "file", "none", "dynamic").

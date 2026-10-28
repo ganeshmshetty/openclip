@@ -81,6 +81,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var rules: ExtensionActionRules
         /// Awaits the action's promise and enables fetch. False uses legacy synchronous evaluation.
         public var isAsync: Bool
+        /// When true, an object return may be an inline preview (`text`, `color`, `tone`, `icon`, `actionable`).
+        public var isInline: Bool
         /// Watchdog budget; nil runs with no timer.
         public var timeout: TimeInterval?
         /// Enables module mode (`require`). Nil keeps the single-file behavior.
@@ -98,6 +100,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             optionStore: any ActionOptionReading,
             rules: ExtensionActionRules,
             isAsync: Bool = false,
+            isInline: Bool = false,
             timeout: TimeInterval? = nil,
             packageDirectory: URL? = nil,
             entryDirectory: URL? = nil,
@@ -110,6 +113,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             self.optionStore = optionStore
             self.rules = rules
             self.isAsync = isAsync
+            self.isInline = isInline
             self.timeout = timeout
             self.packageDirectory = packageDirectory
             self.entryDirectory = entryDirectory
@@ -550,8 +554,11 @@ public final class OpenClipJSHost: @unchecked Sendable {
                     }
                 }
             }
-            // Plain objects stringify to "[object Object]" and are dropped.
+            // Plain objects stringify to "[object Object]" and are dropped, except an inline preview object.
             let resolved = promiseState.resolvedValue.flatMap { (value: JSValue) -> String? in
+                if request.isInline, let preview = inlinePreviewValue(from: value) {
+                    return preview.transportText
+                }
                 let string = value.toString() ?? ""
                 return (string.isEmpty || string == "undefined" || string == "null" || string == "[object Object]") ? nil : string
             }
@@ -579,6 +586,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
                         effects.value.append(.toast(StatusFeedback(message: String(localized: "File not found"), style: .error)))
                     }
                 }
+            } else if request.isInline, let preview = inlinePreviewValue(from: result) {
+                collected.value.returnValue = preview.transportText
             } else if let resultString = result.toString(), resultString != "undefined", resultString != "null", resultString != "[object Object]" {
                 collected.value.returnValue = resultString
             }
@@ -1090,6 +1099,38 @@ public final class OpenClipJSHost: @unchecked Sendable {
             default: return nil
             }
         }
+    }
+
+    /// Inline object return. Nil for non-objects, file results, and objects without `text`, so those keep the old path.
+    private static func inlinePreviewValue(from value: JSValue) -> InlinePreview? {
+        guard value.isObject, !isPromiseLike(value) else { return nil }
+        if let typeVal = value.objectForKeyedSubscript("type"), typeVal.isString {
+            let typeStr = (typeVal.toString() ?? "").lowercased()
+            if typeStr == "file" || typeStr == "copyfile" || typeStr == "savefile" {
+                return nil
+            }
+        }
+        return InlinePreview.parse(
+            text: previewScalar(value, key: "text", allowNumber: true),
+            color: previewScalar(value, key: "color", allowNumber: false),
+            tone: previewScalar(value, key: "tone", allowNumber: false),
+            icon: previewScalar(value, key: "icon", allowNumber: false),
+            actionable: previewBool(value, key: "actionable")
+        )
+    }
+
+    private static func previewScalar(_ object: JSValue, key: String, allowNumber: Bool) -> String? {
+        guard let field = object.objectForKeyedSubscript(key), !field.isUndefined, !field.isNull else { return nil }
+        let usable = field.isString || (allowNumber && (field.isNumber || field.isBoolean))
+        guard usable else { return nil }
+        let raw = field.toString() ?? ""
+        if raw.isEmpty || raw == "undefined" || raw == "null" { return nil }
+        return raw
+    }
+
+    private static func previewBool(_ object: JSValue, key: String) -> Bool? {
+        guard let field = object.objectForKeyedSubscript(key), field.isBoolean else { return nil }
+        return field.toBool()
     }
 
     /// nil for missing/"undefined"/"null" JS string values.

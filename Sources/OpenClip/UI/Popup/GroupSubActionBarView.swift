@@ -83,7 +83,7 @@ public struct GroupSubActionBarView: View {
 
     public static func estimatedButtonWidth(
         for action: any Action,
-        inlineResult: String? = nil,
+        inlineResult: InlinePreview? = nil,
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
     ) -> CGFloat {
@@ -92,7 +92,7 @@ public struct GroupSubActionBarView: View {
 
     public static func computePages(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlinePreview] = [:],
         maxBudget: CGFloat,
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
@@ -102,7 +102,7 @@ public struct GroupSubActionBarView: View {
 
     public static func measuredPageWidth(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlinePreview] = [:],
         hasLeftChevron: Bool,
         hasRightChevron: Bool,
         scale: CGFloat = 1.0,
@@ -193,6 +193,8 @@ public struct GroupSubActionBarView: View {
 
     @ViewBuilder
     private func subActionButton(action: any Action, index: Int, isHovered: Bool) -> some View {
+        let inlinePreview = action.chrome.isInlineResult ? modeStore.inlineResults[action.id] : nil
+        let isHovered = inlinePreview?.highlightFlags(hovered: isHovered, selected: false).hovered ?? isHovered
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
         let foregroundColor: Color = isHovered ? .white : restForeground
         let backgroundColor: Color = isHovered ? PopupThemeModel.barHoverFill : Color.clear
@@ -200,11 +202,7 @@ public struct GroupSubActionBarView: View {
         // Inline results replace the icon once InlineResultEvaluator publishes a value.
         let labelView = Group {
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                Text(resolved)
-                    .font(.system(size: 15 * scale, weight: .regular))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundColor(foregroundColor)
+                InlinePreviewLabel(preview: resolved, fontSize: 15, scale: scale, foreground: foregroundColor)
                     .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
@@ -224,6 +222,16 @@ public struct GroupSubActionBarView: View {
         }
         .contentShape(Rectangle())
 
+        Group {
+            if inlinePreview?.acceptsActivation == false {
+                labelView
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(subActionAccessibilityLabel(action))
+                    .popupHoverTarget(.subAction(index))
+                    .onHover { isHovering in
+                        useLocalHoverFallback(for: .subAction(index), isHovering: isHovering)
+                    }
+            } else {
         Button {
             guard action.isEnabled(for: context) else { return }
             // Capture intent once, synchronously, so perform context and delivery agree.
@@ -237,21 +245,28 @@ public struct GroupSubActionBarView: View {
                 return
             }
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+                guard resolved.acceptsActivation else { return }
                 guard onWillPerformAction(action, clickIntent) else { return }
                 onActionPerformed(action.id)
-                onResult(.text(resolved))
+                onResult(.text(resolved.text))
                 return
             }
             // Join an in-flight inline evaluation rather than re-running it; empty falls back to perform.
             if action.chrome.isInlineResult, let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
                 Task {
-                    guard onWillPerformAction(action, clickIntent) else { return }
-                    onActionPerformed(action.id)
                     do {
-                        if let text = await inFlight.value, !text.isEmpty {
-                            onResult(.text(text))
-                            return
+                        if let preview = await inFlight.value {
+                            guard preview.acceptsActivation else { return }
+                            let trimmed = preview.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty {
+                                guard onWillPerformAction(action, clickIntent) else { return }
+                                onActionPerformed(action.id)
+                                onResult(.text(preview.text))
+                                return
+                            }
                         }
+                        guard onWillPerformAction(action, clickIntent) else { return }
+                        onActionPerformed(action.id)
                         let match = action.matchInfo(for: context)
                         let performContext = ActionContext(
                             selection: context.selection,
@@ -293,7 +308,7 @@ public struct GroupSubActionBarView: View {
         .accessibilityLabel({
             let title = action.displayTitle(using: presenter)
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                return "\(title): \(resolved)"
+                return "\(title): \(resolved.text)"
             }
             return title
         }())
@@ -301,10 +316,20 @@ public struct GroupSubActionBarView: View {
         .onHover { isHovering in
             useLocalHoverFallback(for: .subAction(index), isHovering: isHovering)
         }
+            }
+        }
         .animation(
             PopupMetrics.inlineSpring,
             value: modeStore.inlineResults[action.id]
         )
+    }
+
+    private func subActionAccessibilityLabel(_ action: any Action) -> String {
+        let title = action.displayTitle(using: presenter)
+        if action.chrome.isInlineResult, let preview = modeStore.inlineResults[action.id] {
+            return "\(title): \(preview.text)"
+        }
+        return title
     }
 
     @ViewBuilder
