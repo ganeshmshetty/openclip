@@ -109,3 +109,13 @@ User-facing copy lives in `Sources/OpenClip/Resources/Localizable.xcstrings` (En
 
 - `docs/index.md` is the docs hub; `todo.md` tracks outstanding work (check it before assuming something is unimplemented).
 - Ignore junk the repo accumulates but gitignores: `reference/`, `graphify-out/`, `.superpowers/`, `default.profraw`.
+
+## Cursor Cloud specific instructions
+
+Cloud Agent VMs are Linux. The app, the XCTest suite, and packaging need macOS 14+ and Xcode (CI uses Xcode 26.6 on `macos-26`; see `.github/workflows/ci.yml`). `xcodebuild`, `./scripts/dev_run.sh`, `./scripts/test.sh`, and `./scripts/package_app.sh` do not run here. Core is free of AppKit, but it still imports Apple frameworks (`CoreGraphics`, `Darwin`, `UniformTypeIdentifiers`), so the Xcode targets do not compile as a Linux Swift package.
+
+The environment install puts Swift 6.4.1 on `PATH` as `swift` and `swiftc` (wrappers in `/usr/local/bin` that exec `/opt/swift-6.4.1-RELEASE-ubuntu24.04`). On this VM you can run:
+
+- `./scripts/lint_comments.sh` — comment-policy lint. Expect `comment lint: clean`.
+- `python3 scripts/generate_localizable.py` — regenerates `Localizable.xcstrings` from `scripts/translations/*.json`. A clean tree stays clean; `git diff` on that file should be empty.
+- `swiftc` on `Sources/Core/Actions/MathEvaluator.swift` — the calculate-action parser is Foundation-only, so it can be compiled and exercised on Linux. That is not a substitute for `./scripts/test.sh`.
