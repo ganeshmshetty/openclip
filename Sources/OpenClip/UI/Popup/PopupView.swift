@@ -811,7 +811,6 @@ public struct PopupView: View {
 
     // MARK: - Unified Action Button
 
-    @ViewBuilder
     private func actionAccessibilityLabel(_ action: any Action) -> String {
         let title = action.displayTitle(using: presenter)
         if action.chrome.isInlineResult, let preview = modeStore.inlineResults[action.id] {
@@ -820,6 +819,7 @@ public struct PopupView: View {
         return title
     }
 
+    @ViewBuilder
     private func actionButton(action: any Action, index: Int, isHovered: Bool, isActiveParent: Bool = false, leadingEdge: Bool = false, trailingEdge: Bool = false) -> some View {
         let inlinePreview = action.chrome.isInlineResult ? modeStore.inlineResults[action.id] : nil
         let isHovered = inlinePreview?.highlightFlags(hovered: isHovered, selected: false).hovered ?? isHovered
