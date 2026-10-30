@@ -91,7 +91,7 @@ iconutil -c icns "$ICONSET" -o "$WORK_DIR/VolumeIcon.icns"
 APP_NAME="$(basename "$APP_PATH")"
 
 cat > "$WORK_DIR/settings.py" <<PYTHON
-format = "UDZO"
+format = "ULMO"
 files = ["$APP_PATH"]
 symlinks = {"Applications": "/Applications"}
 icon = "$WORK_DIR/VolumeIcon.icns"
