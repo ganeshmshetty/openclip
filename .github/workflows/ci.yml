@@ -38,17 +38,17 @@ jobs:
       - name: Build App (Release, ad-hoc signed)
         run: ./scripts/package_app.sh
 
-      # package_app.sh already gates this, but asserting it here too keeps the guarantee visible
-      # in the workflow and independent of that script's internals. Verifying the app unpacked
-      # from the archive rather than the build product also covers the archive itself. This is the
-      # regression that shipped for months unnoticed: project.yml asked for the hardened runtime,
-      # Xcode honoured it, and a `codesign --deep` at packaging time quietly stripped it back off.
       - name: Report App Size
         run: |
           mkdir -p /tmp/ci-size && ditto -x -k build/OpenClip.zip /tmp/ci-size
           hdiutil create -quiet -srcfolder /tmp/ci-size -format ULMO /tmp/size.dmg
           du -sh build/OpenClip.zip /tmp/size.dmg /tmp/ci-size/OpenClip.app/Contents/MacOS/OpenClip
 
+      # package_app.sh already gates this, but asserting it here too keeps the guarantee visible
+      # in the workflow and independent of that script's internals. Verifying the app unpacked
+      # from the archive rather than the build product also covers the archive itself. This is the
+      # regression that shipped for months unnoticed: project.yml asked for the hardened runtime,
+      # Xcode honoured it, and a `codesign --deep` at packaging time quietly stripped it back off.
       - name: Verify Hardening & Entitlements
         run: |
           rm -rf /tmp/ci-verify
