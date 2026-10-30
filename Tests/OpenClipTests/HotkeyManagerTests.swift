@@ -8,8 +8,13 @@ import KeyboardShortcuts
 /// length contract. "Appear Automatically" does not gate it.
 @MainActor
 final class HotkeyManagerTests: XCTestCase {
+    /// Rules saved by these tests go here, never to the user's real `~/.openclip/rules.json` (#139).
+    private var tempRulesURL: URL!
+
     override func setUp() async throws {
         try await super.setUp()
+        tempRulesURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rules-\(UUID().uuidString).json")
         await MainActor.run {
             TestIsolation.reset()
             HotkeyManager.shared.selectionMonitor = nil
@@ -21,6 +26,7 @@ final class HotkeyManagerTests: XCTestCase {
     override func tearDown() async throws {
         HotkeyManager.shared.frontmostPIDProvider = { NSWorkspace.shared.frontmostApplication?.processIdentifier }
         HotkeyManager.shared.retriever = nil
+        try? FileManager.default.removeItem(at: tempRulesURL)
         try await super.tearDown()
     }
 
@@ -139,13 +145,13 @@ final class HotkeyManagerTests: XCTestCase {
     }
 
     func testAppWithDisabledRuleNeverTriggers() {
-        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.disabled"], disabled: true))
+        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.disabled"], disabled: true), saveURL: tempRulesURL)
         let app = MockFrontmostApp(bundleID: "com.test.disabled")
         XCTAssertFalse(HotkeyManager.triggerAllowed(frontmost: app))
     }
 
     func testAppWithHotkeyOnlyRuleTriggers() {
-        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.hotkeyonly"], hotkeyOnly: true))
+        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.hotkeyonly"], hotkeyOnly: true), saveURL: tempRulesURL)
         let app = MockFrontmostApp(bundleID: "com.test.hotkeyonly")
         XCTAssertTrue(HotkeyManager.triggerAllowed(frontmost: app))
     }
