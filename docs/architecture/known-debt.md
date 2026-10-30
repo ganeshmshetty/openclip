@@ -26,6 +26,13 @@ areas; stale debt notes are worse than none.
 - Turning the toggle off prevents subsequent automatic installs; an install already in progress
   finishes. Manual update controls remain available. Local and sideloaded packages are excluded.
 
+## Extension uninstall
+
+- Uninstall clears declared package and action options for top-level actions and group sub-actions,
+  using the same group-relative IDs as the action factory. Both ordinary settings and secret entries
+  are cleared even when the package's actions are not currently loaded. Nested groups remain
+  unsupported, matching the factory. Other actions' options and the cloud AI credential are preserved.
+
 ## AI action prompting
 
 - `AIRequestSupport.systemPrompt` uses a task-driven deliverable contract for both selected-text

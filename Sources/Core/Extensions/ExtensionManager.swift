@@ -288,21 +288,9 @@ public final class ExtensionManager: Sendable {
                         if matchesIdentifier || matchesAction {
                             matched = true
                             removedPackageID = meta.identifier
-                            if let optionWriter {
-                                for (index, actionMeta) in meta.actions.enumerated() {
-                                    let id = ExtensionManager.uniformActionID(metadata: actionMeta, manifest: meta, index: index)
-                                    let options = (meta.options ?? []) + (actionMeta.options ?? [])
-                                    for optMeta in options {
-                                        let opt = ExtensionOption(
-                                            identifier: optMeta.identifier,
-                                            label: optMeta.label,
-                                            type: ExtensionOptionType(rawValue: optMeta.type) ?? .string,
-                                            defaultValue: optMeta.defaultValue,
-                                            options: optMeta.values
-                                        )
-                                        optionWriter.clearValue(actionID: id, option: opt)
-                                    }
-                                }
+                            for (index, actionMeta) in meta.actions.enumerated() {
+                                let id = ExtensionManager.uniformActionID(metadata: actionMeta, manifest: meta, index: index)
+                                clearOptions(for: actionMeta, manifest: meta, actionID: id)
                             }
                         }
                         break
@@ -355,6 +343,24 @@ public final class ExtensionManager: Sendable {
             loadedActions.removeAll(where: { $0.id == actionID })
         }
         await loadExtensions(from: targetDir)
+    }
+
+    private func clearOptions(for metadata: ExtensionActionMetadata, manifest: ExtensionMetadata, actionID: String) {
+        guard let optionWriter else { return }
+        for option in (manifest.options ?? []) + (metadata.options ?? []) {
+            optionWriter.clearValue(actionID: actionID, option: ExtensionOption(
+                identifier: option.identifier,
+                label: option.label,
+                type: ExtensionOptionType(rawValue: option.type.lowercased()) ?? .string,
+                defaultValue: option.defaultValue,
+                options: option.values
+            ))
+        }
+        guard metadata.kind == .group else { return }
+        // Match the factory's group-relative IDs and its exclusion of nested groups.
+        for (index, subAction) in (metadata.subActions ?? []).enumerated() where subAction.kind != .group {
+            clearOptions(for: subAction, manifest: manifest, actionID: "\(actionID).\(subAction.id ?? String(index))")
+        }
     }
 
     /// Clones an installed package under a unique copy id, copies its options, marks it trusted, and returns the new action ID.

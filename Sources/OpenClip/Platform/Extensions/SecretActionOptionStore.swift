@@ -9,9 +9,11 @@ import Foundation
 import Core
 
 public struct SecretActionOptionStore: ActionOptionReading, ActionOptionWriting, Sendable {
-    private let settings = SettingsActionOptionStore()
+    private let settings: SettingsActionOptionStore
 
-    public init() {}
+    public init(settingsStore: any SettingsStore = DefaultSettingsStore.shared) {
+        settings = SettingsActionOptionStore(store: settingsStore)
+    }
 
     public func stringValue(actionID: String, option: ExtensionOption) -> String {
         if option.type == .secret {
