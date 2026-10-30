@@ -181,7 +181,12 @@ final class HotkeyManagerTests: XCTestCase {
         let generation = monitor.selectionGeneration
         manager.selectionMonitor = monitor
         manager.retriever = SelectionRetrievalCoordinator(inspect: { _ in AXElementInspector.Target() })
-        defer { controller.hide() }
+        // Clipboard text so the palette opens instead of the empty-clipboard toast (CI starts empty).
+        let board = NSPasteboard.general
+        let snapshot = PasteboardSnapshot.capture(board)
+        defer { controller.hide(); snapshot.restore(to: board) }
+        board.clearContents()
+        board.setString("clipboard at invocation", forType: .string)
 
         manager.handleTogglePopup(frontmostApp: MockFrontmostApp(bundleID: "com.apple.TextEdit"))
 
