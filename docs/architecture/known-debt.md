@@ -911,4 +911,5 @@ it targets the recognized source browser, falling back to the system default oth
 JavaScript `openclip.openURL` HTTP/HTTPS effect uses the same routing, regardless of content
 requirements; other schemes retain their system handlers. Effects run through the existing
 BrowserTabOpener front-window scripting and LaunchServices fallback. JavaScript owns its loop
-and deduplication when opening multiple URLs.
+and deduplication when opening multiple URLs. Firefox has no tab scripting; from a private window
+(detected by the English "Private Browsing" title suffix) it runs `firefox --private-window URL`.
