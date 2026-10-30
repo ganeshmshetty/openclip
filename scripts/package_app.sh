@@ -43,7 +43,7 @@ echo "Building OpenClip (Release)..."
 # The build is left ad-hoc signed whatever the final identity is, and scripts/sign_artifact.sh
 # re-signs the finished bundle. That keeps one signing path for contributors and releases alike,
 # and it is the only way to get Sparkle's nested helpers off the ad-hoc signature they ship with.
-xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build > /dev/null
+xcodebuild -project OpenClip.xcodeproj -scheme OpenClip -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO DEPLOYMENT_POSTPROCESSING=YES STRIP_INSTALLED_PRODUCT=YES CLANG_ENABLE_CODE_COVERAGE=NO build > /dev/null
 
 BUILT_APP="$(find ~/Library/Developer/Xcode/DerivedData/OpenClip-*/Build/Products/Release -name "OpenClip.app" | head -n 1)"
 
