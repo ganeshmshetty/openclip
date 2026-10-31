@@ -71,8 +71,12 @@ extension SelectionRetrievalCoordinator {
         requireCopyEvidence: Bool = true,
         trigger: TriggerSource = .programmatic
     ) async -> Core.TextReadResponse {
+        // When policy explicitly opts into kbCpNoAXWebAreaRetry (e.g. Monaco / code editors under kbCpNoAXWebAreaApps),
+        // Monaco never exposes selection via AXWebArea. Passing nil bundleIdentifier to OpenSelection bypasses its multi-process
+        // electronGroup check, evaluating strategyCascade directly to [.keyboardCopy] without the 105ms AXWebArea settling wait.
+        let openSelectionBundleID: String? = policy.kbCpNoAXWebAreaRetry ? nil : app.bundleIdentifier
         let openSelectionApp = OpenSelection.AppIdentity(
-            bundleIdentifier: app.bundleIdentifier,
+            bundleIdentifier: openSelectionBundleID,
             localizedName: app.localizedName,
             processIdentifier: app.processIdentifier
         )

@@ -85,9 +85,15 @@ final class RuleEngineTests: XCTestCase {
         let vsCodeContext = RuleEngine.shared.resolvePolicies(for: "com.microsoft.VSCode")
         XCTAssertEqual(vsCodeContext.retrievalMode, .keyboardCopy, "VS Code should resolve keyboard-copy retrieval mode")
         XCTAssertFalse(vsCodeContext.useMenuCopy, "VS Code should not use menu copy")
+        XCTAssertTrue(vsCodeContext.kbCpNoAXWebAreaRetry, "VS Code should bypass AXWebArea retry")
+
+        let slackContext = RuleEngine.shared.resolvePolicies(for: "com.tinyspeck.slackmacgap")
+        XCTAssertEqual(slackContext.retrievalMode, .keyboardCopy, "Slack should resolve keyboard-copy retrieval mode")
+        XCTAssertFalse(slackContext.kbCpNoAXWebAreaRetry, "Slack should not bypass AXWebArea retry")
         
         let zedContext = RuleEngine.shared.resolvePolicies(for: "dev.zed.Zed")
         XCTAssertEqual(zedContext.retrievalMode, .keyboardCopy, "Zed should resolve keyboard-copy retrieval mode")
+        XCTAssertTrue(zedContext.kbCpNoAXWebAreaRetry, "Zed should bypass AXWebArea retry")
         
         let alacrittyContext = RuleEngine.shared.resolvePolicies(for: "org.alacritty")
         XCTAssertEqual(alacrittyContext.retrievalMode, .menuCopy, "Alacritty should resolve menu-copy retrieval mode")
