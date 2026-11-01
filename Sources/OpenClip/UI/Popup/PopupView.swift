@@ -375,6 +375,9 @@ public struct PopupView: View {
             .onChange(of: hoveredTarget) { _, newTarget in
                 updateTooltip(for: newTarget)
             }
+            .onChange(of: modeStore.inlineResults) { _, _ in
+                if hoveredTarget != nil { updateTooltip(for: hoveredTarget) }
+            }
             .onChange(of: modeStore.mode) { _, newMode in
                 if newMode != .actions {
                     tooltipPresenter.reset { onHideTooltip?() }

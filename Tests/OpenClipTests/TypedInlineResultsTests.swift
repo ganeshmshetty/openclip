@@ -42,6 +42,9 @@ final class TypedInlineResultsTests: XCTestCase {
         XCTAssertNil(InlineResultValue.makeEmoji("#"))
         XCTAssertNil(InlineResultValue.makeEmoji("*"))
         XCTAssertNil(InlineResultValue.makeEmoji("❤"))
+        XCTAssertNil(InlineResultValue.makeEmoji("A\u{FE0F}"))
+        XCTAssertNil(InlineResultValue.makeEmoji("A\u{20E3}"))
+        XCTAssertNil(InlineResultValue.makeEmoji("1\u{FE0F}"))
     }
 
     func testTextPreservesValueButCollapsesDisplayLineBreaks() {
@@ -65,6 +68,11 @@ final class TypedInlineResultsTests: XCTestCase {
     }
 
     // MARK: - Manifest and output contract
+
+    func testFileOutputRejectsLegacyInlineStrings() {
+        XCTAssertNil(InlineResultValue.makeLegacyString("/tmp/file", for: .file, displayOnly: false))
+        XCTAssertEqual(InlineResultValue.makeLegacyString("hello", for: .text, displayOnly: false), .text("hello"))
+    }
 
     func testOutputContractSupportsEmojiAndColor() {
         XCTAssertTrue(ExtensionOutputContract.isCompatible(output: .emoji, result: .paste))
@@ -311,8 +319,9 @@ final class TypedInlineResultsTests: XCTestCase {
     func testColorExportWritesCanonicalHexText() throws {
         let color = InlineColor(hex: "#ff8800")!
         let url = try XCTUnwrap(InlineColorExport.writeText(color))
-        defer { try? FileManager.default.removeItem(at: url) }
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "#FF8800\n")
+        InlineColorExport.removeStagedFile(url)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
     func testInvocationDoesNotJoinAnOlderSelectionsEvaluation() async {
@@ -420,7 +429,11 @@ final class TypedInlineResultsTests: XCTestCase {
             "return { type: 'color', value: 'red' };",
             "return { type: 'emoji', value: 'ab' };",
             "return { type: 'text', value: 144 };",
-            "return { type: 'unknown', value: 'x' };"
+            "return { type: 'unknown', value: 'x' };",
+            "return { type: 42, toString() { return 'unexpected'; } };",
+            "return { type: 'file', path: '/tmp/no-file', toString() { return 'unexpected'; } };",
+            "return { type: 'copyfile', path: '/tmp/no-file' };",
+            "return { type: 'savefile', path: '/tmp/no-file' };"
         ] {
             var request = makeRequest(script: "function action() { \(script) }")
             request.restrictedToPreview = true

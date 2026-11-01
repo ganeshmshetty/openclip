@@ -772,10 +772,13 @@ public struct PopupSearchView: View {
     @ViewBuilder
     private var informationalFooter: some View {
         if let selectedAction, let value = modeStore.inlineResults[selectedAction.id] {
-            Text(value.rawValue)
-                .font(.system(size: 11, weight: .regular))
-                .lineLimit(1)
-                .truncationMode(.tail)
+            ScrollView(.vertical) {
+                Text(value.rawValue)
+                    .font(.system(size: 11, weight: .regular))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+                .frame(maxWidth: .infinity, maxHeight: Self.footerHeight)
                 .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
                 .help(value.rawValue)
                 .accessibilityLabel(

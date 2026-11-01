@@ -546,7 +546,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 let message = rejected.toString() ?? "JavaScript promise rejected"
                 return EvaluationResult(collected: collected.value, effects: effects.value, exceptionMessage: message, asyncReturnValue: nil)
             }
-            if let resolvedVal = promiseState.resolvedValue, resolvedVal.isObject {
+            if !request.restrictedToPreview, let resolvedVal = promiseState.resolvedValue, resolvedVal.isObject {
                 if let typeVal = resolvedVal.objectForKeyedSubscript("type"), typeVal.isString {
                     let typeStr = (typeVal.toString() ?? "").lowercased()
                     if typeStr == "file" || typeStr == "copyfile" || typeStr == "savefile" {
@@ -581,7 +581,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             if result.isObject, let typeVal = result.objectForKeyedSubscript("type"), typeVal.isString {
                 fileType = (typeVal.toString() ?? "").lowercased()
             }
-            if let typeStr = fileType, typeStr == "file" || typeStr == "copyfile" || typeStr == "savefile" {
+            if !request.restrictedToPreview, let typeStr = fileType, typeStr == "file" || typeStr == "copyfile" || typeStr == "savefile" {
                 if effects.value.isEmpty {
                     if let payload = parseFilePayload(result, options: nil) {
                         let fileAction = parseFileAction(result, options: nil)
@@ -596,7 +596,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
                         effects.value.append(.toast(StatusFeedback(message: String(localized: "File not found"), style: .error)))
                     }
                 }
-            } else if let resultString = result.toString(), resultString != "undefined", resultString != "null", resultString != "[object Object]" {
+            } else if (!request.restrictedToPreview || !result.isObject),
+                      let resultString = result.toString(), resultString != "undefined", resultString != "null", resultString != "[object Object]" {
                 collected.value.returnValue = resultString
             }
             if request.restrictedToPreview {
@@ -680,14 +681,11 @@ public final class OpenClipJSHost: @unchecked Sendable {
     }
 
     private static func decodeInlineReturn(_ value: JSValue) -> DecodedInlineReturn {
-        guard value.isObject, let typeValue = value.objectForKeyedSubscript("type"), typeValue.isString else {
-            return .notStructured
+        guard value.isObject else { return .notStructured }
+        guard let typeValue = value.objectForKeyedSubscript("type"), typeValue.isString else {
+            return .invalid
         }
         let type = (typeValue.toString() ?? "").lowercased()
-        // File objects keep their separate existing contract.
-        if type == "file" || type == "copyfile" || type == "savefile" {
-            return .notStructured
-        }
         guard let rawValue = value.objectForKeyedSubscript("value"), rawValue.isString else {
             return .invalid
         }

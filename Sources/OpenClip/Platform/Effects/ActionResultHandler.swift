@@ -352,6 +352,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             pasteboard.writeObjects(objects)
 
         case .saveFile(let url):
+            defer { InlineColorExport.removeStagedFile(url) }
             guard FileManager.default.fileExists(atPath: url.path) else {
                 throw NSError(domain: Constants.actionErrorDomain,
                               code: Constants.actionErrorCode,

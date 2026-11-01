@@ -121,8 +121,17 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
         let hasEmojiModifier = scalars.contains {
             $0.properties.isEmojiModifier || $0.properties.isEmojiModifierBase
         }
-        let hasVariationSelector = scalars.contains { $0.value == 0xFE0F }
-        let hasKeycap = scalars.contains { $0.value == 0x20E3 }
+        let scalarArray = Array(scalars)
+        let keycapBases: Set<UInt32> = Set(0x30...0x39).union([0x23, 0x2A])
+        let hasVariationSelector = scalarArray.enumerated().contains { index, scalar in
+            index > 0 && scalar.value == 0xFE0F && scalarArray[index - 1].properties.isEmoji
+                && !keycapBases.contains(scalarArray[index - 1].value)
+        }
+        let hasKeycap = scalarArray.enumerated().contains { index, scalar in
+            guard scalar.value == 0x20E3, index > 0 else { return false }
+            let baseIndex = scalarArray[index - 1].value == 0xFE0F ? index - 2 : index - 1
+            return baseIndex >= 0 && keycapBases.contains(scalarArray[baseIndex].value)
+        }
         let hasRegionalIndicator = scalars.contains { (0x1F1E6...0x1F1FF).contains($0.value) }
         guard hasEmojiPresentation || hasEmojiModifier || hasVariationSelector || hasKeycap || hasRegionalIndicator else {
             return nil
@@ -183,6 +192,8 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
         switch output {
         case .emoji:
             return makeEmoji(value)
+        case .file:
+            return nil
         case .color:
             guard let color = InlineColor(hex: value) else { return nil }
             return .color(color)

@@ -220,8 +220,13 @@ public final class HotkeyManager {
     }
 
     private func registerActionHotkeys(_ actions: [any Action]) {
+        let bindableIDs = Set(actions.filter { ActionIdentity.isBindable($0) }.map { $0.id })
+        for actionID in registeredHotkeyIDs.subtracting(bindableIDs) {
+            KeyboardShortcuts.disable(.actionHotkey(actionID))
+        }
         for action in actions where ActionIdentity.isBindable(action) {
             let actionID = action.id
+            KeyboardShortcuts.enable(.actionHotkey(actionID))
             guard registeredHotkeyIDs.insert(actionID).inserted else { continue }
             KeyboardShortcuts.onKeyUp(for: .actionHotkey(actionID)) { [weak self] in
                 Task { @MainActor in

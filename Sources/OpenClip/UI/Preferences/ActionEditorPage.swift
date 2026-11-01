@@ -1610,6 +1610,7 @@ public struct ActionEditorPage: View {
             secondaryToast: meta.secondaryToast,
             keywords: meta.keywords,
             inline: meta.inline,
+            displayOnly: meta.displayOnly,
             localizedTitle: (finalTitle.isEmpty || finalTitle == meta.title || finalTitle == meta.localizedTitle?.resolve()) ? meta.localizedTitle : nil,
             localizedLoadingMessage: meta.localizedLoadingMessage,
             output: meta.output,

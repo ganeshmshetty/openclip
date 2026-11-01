@@ -292,7 +292,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             source: .extensionPkg(packageID: manifest.identifier),
             requiresLiveSelection: metadata.requirements?.input == .liveSelection
                 || metadata.requirements?.input == .editableSelection,
-            showsLoading: metadata.loading ?? false,
+            showsLoading: !isInline && (metadata.loading ?? false),
             loadingMessage: metadata.loadingMessage,
             isInlineResult: isInline,
             displayOnly: isDisplayOnly,
