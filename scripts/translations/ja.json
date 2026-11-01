@@ -848,5 +848,8 @@
   "Recognizing text…": "テキストを認識中…",
   "This display is no longer available. Try again.": "このディスプレイは使用できなくなりました。もう一度お試しください。",
   "Could not capture this area. Try again.": "この領域をキャプチャできませんでした。もう一度お試しください。",
-  "Could not read text in this area.": "この領域のテキストを読み取れませんでした。"
+  "Could not read text in this area.": "この領域のテキストを読み取れませんでした。",
+  "Information": "情報",
+  "Color": "カラー",
+  "Emoji": "絵文字"
 }

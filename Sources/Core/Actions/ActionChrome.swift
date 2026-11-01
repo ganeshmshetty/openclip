@@ -186,6 +186,8 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     public let loadingMessage: String?
     /// Shows an inline result preview in the popup bar instead of performing on click.
     public let isInlineResult: Bool
+    /// Informational inline item: visible and searchable, but never executable or deliverable.
+    public let displayOnly: Bool
     public let outputKind: ActionOutputKind
     /// Author-recommended delivery for uncommitted results.
     public let recommendedResult: ActionResultDeliveryMode?
@@ -200,6 +202,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         showsLoading: Bool = false,
         loadingMessage: String? = nil,
         isInlineResult: Bool = false,
+        displayOnly: Bool = false,
         outputKind: ActionOutputKind = .none,
         recommendedResult: ActionResultDeliveryMode? = nil
     ) {
@@ -212,6 +215,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.showsLoading = showsLoading
         self.loadingMessage = loadingMessage
         self.isInlineResult = isInlineResult
+        self.displayOnly = displayOnly && isInlineResult
         self.outputKind = (outputKind == .none && isInlineResult) ? .text : outputKind
         self.recommendedResult = recommendedResult
     }
@@ -228,6 +232,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.loadingMessage = try container.decodeIfPresent(String.self, forKey: .loadingMessage)
         let inline = try container.decodeIfPresent(Bool.self, forKey: .isInlineResult) ?? false
         self.isInlineResult = inline
+        self.displayOnly = (try container.decodeIfPresent(Bool.self, forKey: .displayOnly) ?? false) && inline
         let rawOutput = try? container.decodeIfPresent(String.self, forKey: .outputKind)
         let decodedOutput = rawOutput.flatMap(ActionOutputKind.init(rawValue:)) ?? .none
         self.outputKind = (decodedOutput == .none && inline) ? .text : decodedOutput
@@ -246,6 +251,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         try container.encode(showsLoading, forKey: .showsLoading)
         try container.encodeIfPresent(loadingMessage, forKey: .loadingMessage)
         try container.encode(isInlineResult, forKey: .isInlineResult)
+        try container.encode(displayOnly, forKey: .displayOnly)
         if outputKind != .none {
             try container.encode(outputKind.rawValue, forKey: .outputKind)
         }
@@ -262,6 +268,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         case showsLoading
         case loadingMessage
         case isInlineResult
+        case displayOnly
         case outputKind
         case recommendedResult
     }

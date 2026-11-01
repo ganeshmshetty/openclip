@@ -89,6 +89,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var entryDirectory: URL?
         /// Pre-captured pasteboard content; injectable for tests.
         public var pasteboardContent: PasteboardContent?
+        /// Automatic inline preview mode: effect APIs are removed before top-level code runs.
+        public var restrictedToPreview: Bool
 
         public init(
             actionID: String,
@@ -101,7 +103,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             timeout: TimeInterval? = nil,
             packageDirectory: URL? = nil,
             entryDirectory: URL? = nil,
-            pasteboardContent: PasteboardContent? = nil
+            pasteboardContent: PasteboardContent? = nil,
+            restrictedToPreview: Bool = false
         ) {
             self.actionID = actionID
             self.scriptCode = scriptCode
@@ -114,6 +117,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             self.packageDirectory = packageDirectory
             self.entryDirectory = entryDirectory
             self.pasteboardContent = pasteboardContent
+            self.restrictedToPreview = restrictedToPreview
         }
     }
 
@@ -134,6 +138,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var copyFile: URL?
         public var saveFile: URL?
         public var returnValue: String?
+        /// A validated typed inline value (text/emoji/color) returned by the script.
+        public var inlineValue: InlineResultValue?
+        /// A structured inline object was present but malformed; never reinterpret it as text.
+        public var invalidInlineValue = false
 
         public init() {}
     }
@@ -287,7 +295,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
         // Options are a plain dictionary; `option(id)` reads the same dictionary.
         let optionsDict = optionValues(for: request)
-        let pbContent = request.pasteboardContent ?? PasteboardContent.read()
+        let pbContent = request.restrictedToPreview
+            ? PasteboardContent()
+            : (request.pasteboardContent ?? PasteboardContent.read())
         guard let openclip = makeOpenClipObject(
             in: jsContext,
             text: text,
@@ -466,9 +476,16 @@ public final class OpenClipJSHost: @unchecked Sendable {
             });
         })();
         """)
-        installPasteboardBridge(in: jsContext)
+        if !request.restrictedToPreview {
+            installPasteboardBridge(in: jsContext)
+        }
         jsContext.evaluateScript("openclip.option = function(id) { return openclip.options[id]; }")
         jsContext.evaluateScript("openclip.i18n = function(dict) { if (!dict) return ''; var baseLang = (openclip.language || '').split('-')[0]; return dict[openclip.language] || dict[openclip.locale] || dict[baseLang] || dict['en'] || Object.values(dict)[0] || ''; }")
+        // Remove capabilities before any top-level code or required module runs; a final-result check
+        // alone would let script construction perform the effect first.
+        if request.restrictedToPreview {
+            installRestrictedPreviewEnvironment(in: jsContext)
+        }
         let asyncResolvers: FetchResolvers?
         if request.isAsync, let promiseState {
             asyncResolvers = registerAsyncBridge(
@@ -582,8 +599,47 @@ public final class OpenClipJSHost: @unchecked Sendable {
             } else if let resultString = result.toString(), resultString != "undefined", resultString != "null", resultString != "[object Object]" {
                 collected.value.returnValue = resultString
             }
+            if request.restrictedToPreview {
+                switch Self.decodeInlineReturn(result) {
+                case .value(let inlineValue):
+                    collected.value.inlineValue = inlineValue
+                    collected.value.returnValue = nil
+                case .invalid:
+                    collected.value.invalidInlineValue = true
+                    collected.value.returnValue = nil
+                case .notStructured:
+                    break
+                }
+            }
         }
         return EvaluationResult(collected: collected.value, effects: effects.value, exceptionMessage: nil, asyncReturnValue: nil)
+    }
+
+    /// Removes every effect capability from `openclip` before any script or required module executes.
+    /// Calls fail loudly rather than being silently ignored, so a preview cannot perform an effect and
+    /// then have its final value accepted.
+    private static func installRestrictedPreviewEnvironment(in context: JSContext) {
+        context.evaluateScript("""
+        (function() {
+            var unavailable = function(name) {
+                return function() {
+                    throw new Error('openclip.' + name + ' is unavailable during inline preview');
+                };
+            };
+            ['paste', 'copy', 'pasteContent', 'copyContent', 'cut', 'openURL', 'file',
+             'copyFile', 'saveFile', 'keyPress', 'runShortcut', 'notify', 'shareService',
+             'toast', 'requireConfiguration'].forEach(function(name) {
+                openclip[name] = unavailable(name);
+            });
+            try { delete openclip.pasteboard; } catch (e) {}
+            try {
+                Object.defineProperty(openclip, 'pasteboard', {
+                    get: function() { throw new Error('openclip.pasteboard is unavailable during inline preview'); },
+                    configurable: false
+                });
+            } catch (e) {}
+        })();
+        """)
     }
 
     // MARK: - Async bridge (fetch polyfill + promise settling)
@@ -613,6 +669,33 @@ public final class OpenClipJSHost: @unchecked Sendable {
     private static func isPromiseLike(_ value: JSValue) -> Bool {
         guard value.isObject, let then = value.objectForKeyedSubscript("then") else { return false }
         return !then.isUndefined && !then.isNull && then.isObject
+    }
+
+    /// Shallow typed-return decoding. Only `type` and `value` are read; malformed structured
+    /// objects are rejected rather than stringified or reinterpreted as text.
+    private enum DecodedInlineReturn {
+        case notStructured
+        case invalid
+        case value(InlineResultValue)
+    }
+
+    private static func decodeInlineReturn(_ value: JSValue) -> DecodedInlineReturn {
+        guard value.isObject, let typeValue = value.objectForKeyedSubscript("type"), typeValue.isString else {
+            return .notStructured
+        }
+        let type = (typeValue.toString() ?? "").lowercased()
+        // File objects keep their separate existing contract.
+        if type == "file" || type == "copyfile" || type == "savefile" {
+            return .notStructured
+        }
+        guard let rawValue = value.objectForKeyedSubscript("value"), rawValue.isString else {
+            return .invalid
+        }
+        let string = rawValue.toString() ?? ""
+        guard let typed = InlineResultValue.make(type: type, value: string, displayOnly: false) else {
+            return .invalid
+        }
+        return .value(typed)
     }
 
     // MARK: - Console shim
@@ -918,6 +1001,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
             let input = request.context.match?.matchedText ?? request.context.selection.text
             let mapped = effects.map { effectResult($0, input: input, browserBundleID: browserID) }
             raw = mapped.count == 1 ? mapped[0] : .sequence(mapped)
+        } else if let inlineValue = collected.inlineValue {
+            raw = request.restrictedToPreview ? .inlineValue(inlineValue) : inlineValue.inlineActionResult
+        } else if collected.invalidInlineValue {
+            raw = .none
         } else if let returnValue = evaluation.asyncReturnValue ?? collected.returnValue {
             // A string naming an existing regular file becomes a file result.
             if let fileResult = ShellResultMapper.detectFileResult(from: returnValue) {

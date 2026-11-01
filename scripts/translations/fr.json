@@ -848,5 +848,8 @@
   "Recognizing text…": "Reconnaissance du texte…",
   "This display is no longer available. Try again.": "Cet écran n’est plus disponible. Réessayez.",
   "Could not capture this area. Try again.": "Impossible de capturer cette zone. Réessayez.",
-  "Could not read text in this area.": "Impossible de lire le texte de cette zone."
+  "Could not read text in this area.": "Impossible de lire le texte de cette zone.",
+  "Information": "Informations",
+  "Color": "Couleur",
+  "Emoji": "Émoji"
 }

@@ -52,6 +52,9 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Logging](logging.md) — the single `Log` surface, category table, and per-subsystem filtering workflow.
 - [DMG Installer](dmg.md) — the styled disk image: HTML-rendered background, Retina TIFF, and the Finder layout contract.
 
+### Design Proposals
+- [Typed Inline Results](architecture/typed-inline-results-design.md) — Text, emoji, and color values; delivery rules; display-only items; search-palette behavior.
+
 ### Developer Guide
 - [AGENTS.md — Authoring & Packaging Extensions](../Extensions/AGENTS.md) — **Start here.** Self-contained guide: manifest schema, all action kinds, options, requirements, groups, and the result surface.
 - [Extending OpenClip Overview](developer-guide/overview.md) — Extension architecture and custom action integration.

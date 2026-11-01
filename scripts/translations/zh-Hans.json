@@ -848,5 +848,8 @@
   "Recognizing text…": "正在识别文字…",
   "This display is no longer available. Try again.": "此显示器已不可用。请重试。",
   "Could not capture this area. Try again.": "无法捕获此区域。请重试。",
-  "Could not read text in this area.": "无法读取此区域中的文字。"
+  "Could not read text in this area.": "无法读取此区域中的文字。",
+  "Information": "信息",
+  "Color": "颜色",
+  "Emoji": "表情符号"
 }

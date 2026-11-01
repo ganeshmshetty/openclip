@@ -72,7 +72,7 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `keywords` | Array / String | - | Optional search keywords for the package actions in the action-search palette. |
 | `version` | String | - | Declared package version; recorded in the validation log line, not used for loading. |
 | `capabilities` | Array | - | Declared runtime capabilities. The known set is empty on day one, so any non-empty value rejects the manifest. Reserved. |
-| `output` | String | - | Optional default output contract kind (`"text"`, `"file"`, `"none"`, `"dynamic"`) inherited by actions in the package. |
+| `output` | String | - | Optional default output contract kind (`"text"`, `"emoji"`, `"color"`, `"file"`, `"none"`, `"dynamic"`) inherited by actions in the package. |
 | `result` | String | - | Optional default delivery recommendation (`"preview"`, `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`) inherited by actions. |
 
 Manifests are validated on load (`ManifestValidator`): unknown action kinds, missing required
@@ -100,7 +100,7 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `shortcutName` | String | Name of a macOS Shortcut to run (for `type: "shortcut"`). |
 | `serviceName` | String | Reserved for the macOS Services menu (for `type: "service"`). |
 | `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
-| `output` | String | Optional declared output kind: `"text"`, `"file"`, `"none"`, `"dynamic"`. Inherits package-level `output` if omitted, or falls back to inference sniffing for legacy extensions. |
+| `output` | String | Optional declared output kind: `"text"`, `"emoji"`, `"color"`, `"file"`, `"none"`, `"dynamic"`. Inherits package-level `output` if omitted, or falls back to inference sniffing for legacy extensions. |
 | `result` | String | Optional recommended delivery: `"preview"` (result card), `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`. Defaults to package-level default or kind defaults (`paste-or-copy` for text, `preview` for file). |
 | `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "toast" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only**, rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
 | `toast` | Object | Optional. Primary-click companion toast `{ "message": string | object, "style"?: "success" | "error" | "info" }` (default style `success`). Valid on all kinds. Message can be localized dictionary. |
@@ -124,10 +124,28 @@ Toast) then applies the probe and resolves the companion toast.
 ### Extension output contract and delivery resolution
 
 OpenClip uses an author output contract (`output` and `result`) for extensions:
-- **`output` (`text` | `file` | `none` | `dynamic`)**: Declares what type of output the action produces. Non-output actions (`url`, `keyPress`, `shortcut`, `service`) default to `none`.
-- **`result` (`preview` | `paste` | `copy` | `paste-or-copy` | `open` | `save`)**: Declares the author's recommended default outcome. Text actions default to `paste-or-copy`; file actions default to `preview`.
+- **`output` (`text` | `emoji` | `color` | `file` | `none` | `dynamic`)**: Declares what type of output the action produces. Non-output actions (`url`, `keyPress`, `shortcut`, `service`) default to `none`.
+- **`result` (`preview` | `paste` | `copy` | `paste-or-copy` | `open` | `save`)**: Declares the author's recommended default outcome. Text and emoji actions default to `paste-or-copy`; file actions default to `preview`; color actions support `preview` only and fall back to it with a validation warning.
 - **User Customization**: Users can override the delivery mode per-action in Settings (`Show in card`, `Paste`, `Copy`).
-- **Clipboard Invariant**: Secondary click (right-click or ⇧-click) always copies the result to the clipboard (or displays a preview card if the primary click was copy), unless the action explicitly declares a custom `secondary` outcome. If the user set the action to **Show in card**, a secondary click on a text result shows the card too.
+- **Clipboard Invariant**: Secondary click (right-click or ⇧-click) always copies the result to the clipboard (or displays a preview card if the primary click was copy), unless the action explicitly declares a custom `secondary` outcome. If the user set the action to **Show in card**, a secondary click on a text result shows the card too. A color never enters automatic copy/paste delivery on any route, including force-copy; its card offers explicit Copy of the hex and Save of the hex text.
+
+### Typed inline results
+
+Synchronous JavaScript actions with `inline: true` can return typed preview values:
+
+```js
+return "144";                              // shorthand text
+return { type: "text", value: "144" };
+return { type: "emoji", value: "🎉" };
+return { type: "color", value: "#FF8800" };
+return null;                               // no applicable result
+```
+
+- The structured type must match the declared `output` (`text`, `emoji`, or `color`); a mismatch produces no preview.
+- Text and emoji keep the existing Paste/Copy/Show delivery matrix. Color renders a swatch and canonical hex with automatic Show-only delivery; the card offers explicit Copy and Save.
+- `displayOnly: true` requires `inline: true` on a synchronous JavaScript action, and requires `minOpenClipVersion` `1.10.0` or newer. The item stays visible, searchable, and accessible, but mouse, footer, Enter/Shift-Enter, Command-digit, and bound-hotkey routes do nothing and record no execution.
+- Automatic preview runs in a restricted environment: clipboard, fetch, file, URL, notification, keypress, subprocess, and configuration APIs are removed before top-level code or `require`d modules execute. A script that needs those effects must not declare `inline`.
+- Extension-author documentation, validator rules, and catalog examples remain authoritative in the separate `openclip-extensions` repository (`Extensions/AGENTS.md`).
 
 ### Native file output results
 

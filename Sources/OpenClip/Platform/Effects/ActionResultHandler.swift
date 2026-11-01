@@ -377,7 +377,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             _ = await deliveryWindow.value
 
         // Presenter-owned results: no-ops here, which keeps the switch exhaustive.
-        case .toast, .openConfiguration, .sequence, .text, .file:
+        case .toast, .openConfiguration, .sequence, .text, .file, .color, .emoji, .inlineValue:
             break
 
         // keyPress posts a synthetic keystroke; runShortcut runs under the subprocess watchdog.
