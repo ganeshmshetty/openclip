@@ -671,10 +671,12 @@ lines by height interleaved multi-column text.
   the press-to-release rectangle (both padded 12 pt). Nil, empty, sub-2 pt, or off-screen bounds
   fail open. Triple-clicks are not checked: Chromium reports paragraph ranges as a 1×1 rect or
   offset by a line. Keyboard, hold, and hotkey reads are not checked either.
-- Double-click reads wait out a possible third press. A double-click read starts only after
-  `min(NSEvent.doubleClickInterval, 220 ms)`, so a triple-click's third press cancels it instead
-  of flashing a word popup that the paragraph selection immediately replaces. Triple and later
-  clicks keep the 50 ms geometry settle.
+- Double-click reads no longer wait out a possible third press. Every multi-click read starts
+  after the same 50 ms window-geometry settle, so a double-click popup appears promptly instead
+  of after the system multi-click interval. A third press cancels a read that is still in
+  flight; if the word popup already opened, the press keeps it up and the paragraph result
+  replaces its content instead of dismissing and re-showing it. Title-bar zoom remains guarded
+  by the pre-read chrome hit-test and the post-settle window-frame check.
   Mouse-up Paste availability inspection begins only after a valid text result is accepted.
 - Clipboard operations share ownership. OpenSelection's pasteboard coordinator reserves
   the clipboard through preparation, activation, and the bounded delivery window. Posted
