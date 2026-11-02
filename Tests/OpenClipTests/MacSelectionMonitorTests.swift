@@ -1268,10 +1268,11 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertEqual(monitor.latestSelection?.context.text, "1080P")
     }
 
-    /// A third press inside the 50 ms geometry settle cancels the double-click read before it
+    /// A third press inside the geometry settle cancels the double-click read before it
     /// inspects, so an immediate triple-click never reads or presents a word at all.
     func testThirdPressDuringSettleCancelsPendingDoubleClickRead() async {
         let monitor = makeLocalityMonitor(axBounds: CGRect(x: 230, y: 790, width: 60, height: 18))
+        monitor.multiClickWindowSettleNanoseconds = 1_000_000_000
         final class Counter: @unchecked Sendable { var inspects = 0 }
         let counter = Counter()
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
@@ -1293,11 +1294,38 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertTrue(delivered.isEmpty)
     }
 
+    /// The old double-click path waited out the system multi-click interval. Pin the replacement
+    /// settle deterministically so a reintroduced long wait fails without a wall-clock race.
+    func testMultiClickSettleStaysBelowTheOldTripleClickWait() {
+        XCTAssertLessThanOrEqual(
+            MacSelectionMonitor.defaultMultiClickWindowSettleNanoseconds,
+            50_000_000,
+            "a double-click must not wait out the system multi-click interval"
+        )
+    }
+
+    /// The real default settle still has to deliver before the old 220 ms floor. Polling returns
+    /// as soon as delivery happens, so this does not add a fixed sleep.
+    func testDoubleClickDeliversBeforeOldTripleClickWindow() async throws {
+        let bounds = CGRect(x: 230, y: 790, width: 60, height: 18)
+        let monitor = makeLocalityMonitor(axBounds: bounds)
+        var delivered: [String] = []
+        monitor.onSelection = { context, _ in delivered.append(context.text) }
+        let point = CGPoint(x: 256, y: 200)
+
+        monitor.handleMouseDown(at: point)
+        monitor.handleMouseUp(app: MockTestApp(bundleID: "com.apple.TextEdit"), cursor: point, clickCount: 2)
+        try await waitUntil({ !delivered.isEmpty }, timeout: 0.2)
+
+        XCTAssertEqual(delivered, ["1080P"])
+    }
+
     /// A third press that arrives after the word popup has already opened must not lose the
     /// paragraph selection. The paragraph read replaces the word content in place.
     func testThirdClickAfterWordPopupDeliversParagraph() async {
         let bounds = CGRect(x: 230, y: 790, width: 60, height: 18)
         let monitor = makeLocalityMonitor(axBounds: bounds)
+        monitor.multiClickWindowSettleNanoseconds = 0
         final class TextBox: @unchecked Sendable { var text = "word" }
         let box = TextBox()
         monitor.retriever = SelectionRetrievalCoordinator(inspect: {
@@ -1310,9 +1338,7 @@ final class MacSelectionMonitorTests: XCTestCase {
 
         monitor.handleMouseDown(at: point)
         monitor.handleMouseUp(app: app, cursor: point, clickCount: 2)
-        // The old 220 ms triple-click wait kept the word popup hidden at this point. A
-        // double-click must now present before a plausible third press can arrive.
-        try? await Task.sleep(nanoseconds: 150_000_000)
+        await monitor.debounceTask?.value
         XCTAssertEqual(delivered, ["word"])
 
         box.text = "paragraph text"

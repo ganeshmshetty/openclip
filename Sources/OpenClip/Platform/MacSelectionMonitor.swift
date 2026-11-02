@@ -131,7 +131,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// press is treated as a text gesture. This is a window-geometry guard, not a triple-click
     /// guard: a double-click read no longer waits out the system multi-click interval, and a
     /// third press either cancels it while still in flight or replaces the visible word popup.
-    private static let multiClickWindowSettleDelayNanoseconds: UInt64 = 50_000_000
+    internal static let defaultMultiClickWindowSettleNanoseconds: UInt64 = 50_000_000
+    /// Injectable so tests can drive multi-click delivery without a wall-clock wait.
+    internal var multiClickWindowSettleNanoseconds = MacSelectionMonitor.defaultMultiClickWindowSettleNanoseconds
 
     internal static func holdStationary(downPoint: CGPoint?, pointer: CGPoint, buttonPressed: Bool) -> Bool {
         OpenSelectionMonitor.holdStationary(downPoint: downPoint, pointer: pointer, buttonPressed: buttonPressed)
@@ -653,7 +655,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // Let AppKit settle that operation before treating a multi-click as a text gesture.
             if clickCount >= 2 {
                 do {
-                    try await Task.sleep(nanoseconds: Self.multiClickWindowSettleDelayNanoseconds)
+                    try await Task.sleep(nanoseconds: self.multiClickWindowSettleNanoseconds)
                 } catch {
                     return
                 }
