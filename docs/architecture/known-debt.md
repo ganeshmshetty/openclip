@@ -707,15 +707,39 @@ lines by height interleaved multi-column text.
   unknown/disabled Copy commands and non-text object roles still block automatic Copy. The cursor
   snapshot is consumed on release and cleared on cancellation/app switches; popup positioning
   continues to use the actual release point.
+- Automatic Copy needs a text cue from the gesture. A drag or multi-click is only a selection
+  *gesture*: the pointer may have been on a scrollbar, a photo, a video, or window content, and the
+  copy tier would then post a real ⌘C against an app with nothing selected. AppKit answers that
+  with its alert sound and a flashing Edit menu (issues #210, #159, #153, #109). So
+  `handleMouseUp` requests the copy fallback only when the press or the release showed the I-beam
+  (`allowCopyFallback = auto-enabled && !hotkeyOnly && !overlay && text-cue`); arrow, pointing-hand,
+  and unclassified cursors keep the AX strategies but never reach a synthetic copy. The cue is
+  structural, not per-app: real drags and double/triple-clicks on text keep working, including the
+  Chromium/Electron fallback the package grants for a target whose AX tree cannot expose the
+  selection. A pointer that jitters during a click no longer becomes a drag at all: the monitor's
+  threshold is 5 pt, not the package's 3 pt (`OpenSelectionMonitor.dragThresholdSquared` is
+  unchanged for package callers). Keyboards, hold, and the hotkey paths are separate; see the
+  remaining holes below.
 - A completed drag or multi-click is itself weak Copy evidence. Electron pages often show an
   arrow or custom cursor over selectable text, and with no AX tree (Claude before the step below)
   the target has no role at all, so neither the cursor nor the role could justify Copy and every
-  arrow-to-arrow drag was refused. `dragEnd`/`doubleClick`/`mouseUp` triggers now yield
+  arrow-to-arrow drag was refused. `dragEnd`/`doubleClick`/`mouseUp` triggers yield
   `selection-gesture:<trigger>` weak evidence, so Copy still needs a confirmed enabled Edit ▸ Copy
   (AppKit apps disable it with nothing selected). It never applies to hold, keyboard, or
   programmatic triggers, to image/item surfaces, or when AX exposes a web area that reports no
   selection (a Figma canvas object drag). A Chromium Copy command that reads stale or disabled
-  still blocks; the menu-gate refusal now logs at debug with `menuState` and `evidence`.
+  still blocks; the menu-gate refusal now logs at debug with `menuState` and `evidence`. Within
+  OpenClip, this evidence is only reachable for gestures that carried the I-beam (previous bullet):
+  the package rule remains for other callers and for a future package release that tightens the
+  browser fallback.
+- Remaining beep-adjacent holes. The keyboard path still passes `requireCopyEvidence: false` for
+  ⌘A/⌘L and ⇧-extend, so a ⇧-arrow that selects nothing (for example on a Safari page) can post a
+  ⌘C with only the overlay/auto-show gates; fixing it needs the package to require an enabled Copy
+  command independently of evidence (`CopyRequest` currently couples them). Setting
+  `OPENCLIP_ENABLE_RICH_CAPTURE=1` posts an extra ⌘C after a successful web/AX read with
+  `requiresEnabledCopyMenu: false`. Remote-desktop/VM guests can receive a synthetic ⌘C as a plain
+  `c` when the Command modifier is lost on the way to the guest (issue #153); UTM is not in
+  `DefaultAppRules.menuCopyApps`.
 - Electron apps get their AX tree on demand. Electron builds no web-content AX tree until a
   client sets `AXManualAccessibility`. `ElectronAccessibilityEnabler` sets it once per process
   (keyed by pid and launch date) for apps bundling `Electron Framework.framework`, off the main
