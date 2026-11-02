@@ -127,15 +127,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal static let holdFireDriftSquared: CGFloat = OpenSelectionMonitor.holdFireDriftSquared
     internal static let dragThresholdSquared: CGFloat = OpenSelectionMonitor.dragThresholdSquared
     private static let holdStationaryConfirmDelayNanoseconds: UInt64 = 90_000_000
+    /// How long a multi-click waits for AppKit to apply a native window zoom/resize before its
+    /// press is treated as a text gesture. This is a window-geometry guard, not a triple-click
+    /// guard: a double-click read no longer waits out the system multi-click interval, and a
+    /// third press either cancels it while still in flight or replaces the visible word popup.
     private static let multiClickWindowSettleDelayNanoseconds: UInt64 = 50_000_000
-    /// A double-click may be the first two presses of a triple-click; the third press usually
-    /// lands 100–200 ms after the second release. Waiting that long lets the third press cancel
-    /// this read instead of flashing a word popup it immediately replaces. Capped so a long
-    /// system double-click interval doesn't make every double-click feel slow.
-    internal var doubleClickSettleNanoseconds: UInt64 = {
-        let interval = min(max(NSEvent.doubleClickInterval, 0.05), 0.22)
-        return UInt64(interval * 1_000_000_000)
-    }()
 
     internal static func holdStationary(downPoint: CGPoint?, pointer: CGPoint, buttonPressed: Bool) -> Bool {
         OpenSelectionMonitor.holdStationary(downPoint: downPoint, pointer: pointer, buttonPressed: buttonPressed)
@@ -657,9 +653,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // Let AppKit settle that operation before treating a multi-click as a text gesture.
             if clickCount >= 2 {
                 do {
-                    try await Task.sleep(nanoseconds: clickCount == 2
-                        ? self.doubleClickSettleNanoseconds
-                        : Self.multiClickWindowSettleDelayNanoseconds)
+                    try await Task.sleep(nanoseconds: Self.multiClickWindowSettleDelayNanoseconds)
                 } catch {
                     return
                 }

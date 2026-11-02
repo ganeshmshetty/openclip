@@ -1268,9 +1268,9 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertEqual(monitor.latestSelection?.context.text, "1080P")
     }
 
-    /// The third press of a triple-click lands 100–200 ms after the second release. It must
-    /// cancel the double-click read before it reads or presents, not race a word popup.
-    func testThirdPressCancelsPendingDoubleClickRead() async {
+    /// A third press inside the 50 ms geometry settle cancels the double-click read before it
+    /// inspects, so an immediate triple-click never reads or presents a word at all.
+    func testThirdPressDuringSettleCancelsPendingDoubleClickRead() async {
         let monitor = makeLocalityMonitor(axBounds: CGRect(x: 230, y: 790, width: 60, height: 18))
         final class Counter: @unchecked Sendable { var inspects = 0 }
         let counter = Counter()
@@ -1286,12 +1286,42 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.handleMouseDown(at: point)
         monitor.handleMouseUp(app: app, cursor: point, clickCount: 2)
         let doubleClickRead = monitor.debounceTask
-        try? await Task.sleep(nanoseconds: 100_000_000)
         monitor.handleMouseDown(at: point)
         await doubleClickRead?.value
 
-        XCTAssertEqual(counter.inspects, 0, "the double-click read must not start before a third press can arrive")
+        XCTAssertEqual(counter.inspects, 0, "the third press must cancel a read that has not started yet")
         XCTAssertTrue(delivered.isEmpty)
+    }
+
+    /// A third press that arrives after the word popup has already opened must not lose the
+    /// paragraph selection. The paragraph read replaces the word content in place.
+    func testThirdClickAfterWordPopupDeliversParagraph() async {
+        let bounds = CGRect(x: 230, y: 790, width: 60, height: 18)
+        let monitor = makeLocalityMonitor(axBounds: bounds)
+        final class TextBox: @unchecked Sendable { var text = "word" }
+        let box = TextBox()
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.boundedTarget(selectedText: box.text, axBounds: bounds)
+        }, copyCapture: { _ in nil })
+        var delivered: [String] = []
+        monitor.onSelection = { context, _ in delivered.append(context.text) }
+        let point = CGPoint(x: 256, y: 200)
+        let app = MockTestApp(bundleID: "com.apple.TextEdit")
+
+        monitor.handleMouseDown(at: point)
+        monitor.handleMouseUp(app: app, cursor: point, clickCount: 2)
+        // The old 220 ms triple-click wait kept the word popup hidden at this point. A
+        // double-click must now present before a plausible third press can arrive.
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertEqual(delivered, ["word"])
+
+        box.text = "paragraph text"
+        monitor.handleMouseDown(at: point)
+        monitor.handleMouseUp(app: app, cursor: point, clickCount: 3)
+        await monitor.debounceTask?.value
+
+        XCTAssertEqual(delivered, ["word", "paragraph text"])
+        XCTAssertEqual(monitor.latestSelection?.context.text, "paragraph text")
     }
 
     /// Chromium reports paragraph bounds that miss the click (degenerate 1×1 or offset by a

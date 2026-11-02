@@ -1250,6 +1250,10 @@ public class PopupWindowController {
             let isShift = event.modifierFlags.contains(.shift)
             pendingClickIntent = isShift ? .secondary : .primary
             if !inMain && !inSub && !cardIsModal {
+                // A third press belongs to the same gesture that just opened the word popup.
+                // Keep it up; the paragraph result replaces its content when the button is
+                // released. A fresh click sequence starts at clickCount 1 and still dismisses.
+                if event.clickCount >= 3 { break }
                 // A mouse-down within 100 ms of showing is likely part of the gesture that selected the text (e.g. triple-click).
                 if sessionShowTime > 0,
                    (ProcessInfo.processInfo.systemUptime - sessionShowTime) < 0.1 {
