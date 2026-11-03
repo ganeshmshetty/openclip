@@ -31,6 +31,7 @@ final class StarPrompt: ObservableObject {
     /// which is what the tests drive.
     func evaluate() -> Bool {
         guard !settingsStore.get(.hasDismissedStarPrompt) else { return false }
+        guard settingsStore.get(.hasCompletedOnboarding) else { return false }
 
         let current = now().timeIntervalSince1970
         let completedAt = settingsStore.get(.onboardingCompletedAt)

@@ -1,7 +1,7 @@
 // StarPromptTests.swift
 // OpenClipTests
 //
-// The one-time star ask: age gate, pause, missing-timestamp stamping, and permanent dismissal.
+// The one-time star ask: onboarding and age gates, pause, missing-timestamp stamping, and dismissal.
 
 import XCTest
 @testable import Core
@@ -15,6 +15,7 @@ final class StarPromptTests: XCTestCase {
     override func setUp() {
         super.setUp()
         store = MemorySettingsStore()
+        store.set(.hasCompletedOnboarding, value: true)
         store.set(.onboardingCompletedAt, value: installedAt.timeIntervalSince1970)
     }
 
@@ -63,5 +64,16 @@ final class StarPromptTests: XCTestCase {
         XCTAssertEqual(store.get(.onboardingCompletedAt), installedAt.timeIntervalSince1970, accuracy: 0.001)
 
         XCTAssertTrue(makePrompt(daysAfterInstall: 7.1).evaluate())
+    }
+
+    func testIgnoresInstallsThatNeverFinishedOnboarding() {
+        store.set(.hasCompletedOnboarding, value: false)
+        store.set(.onboardingCompletedAt, value: 0)
+
+        XCTAssertFalse(makePrompt(daysAfterInstall: 0).evaluate())
+        XCTAssertEqual(store.get(.onboardingCompletedAt), 0)
+
+        XCTAssertFalse(makePrompt(daysAfterInstall: 400).evaluate())
+        XCTAssertEqual(store.get(.onboardingCompletedAt), 0)
     }
 }
