@@ -12662,25 +12662,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "以后再说"
+            "value": "不用了"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "以後再說"
+            "value": "不用了"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Plus tard"
+            "value": "Non merci"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "あとで"
+            "value": "結構です"
           }
         }
       }
