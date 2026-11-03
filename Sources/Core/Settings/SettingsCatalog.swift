@@ -34,6 +34,7 @@ public enum SettingsCatalog {
             SettingKey.isMouseHoldEnabled.erased,
             SettingKey.hasCompletedOnboarding.erased,
             SettingKey.hasDismissedPostOnboardingCoachMark.erased,
+            SettingKey.hasDismissedStarPrompt.erased,
             SettingKey.startAtLogin.erased,
             SettingKey.completionCopyToClipboard.erased,
             SettingKey.captureTextAutoCopy.erased,
@@ -60,6 +61,7 @@ public enum SettingsCatalog {
             // Gesture / lifecycle
             SettingKey.mouseHoldDuration.erased,
             SettingKey.pauseUntilTimestamp.erased,
+            SettingKey.onboardingCompletedAt.erased,
             SettingKey.lastRunVersion.erased,
             SettingKey.lastRunBuild.erased,
 

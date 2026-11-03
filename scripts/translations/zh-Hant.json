@@ -848,5 +848,10 @@
   "Recognizing text…": "正在辨識文字…",
   "This display is no longer available. Try again.": "此顯示器已無法使用。請再試一次。",
   "Could not capture this area. Try again.": "無法擷取此區域。請再試一次。",
-  "Could not read text in this area.": "無法讀取此區域中的文字。"
+  "Could not read text in this area.": "無法讀取此區域中的文字。",
+  "Star the repo": "為專案標星",
+  "Finding OpenClip useful?": "OpenClip 好用嗎？",
+  "It's free and open source. A star on GitHub helps more people find it.": "它免費且開源。在 GitHub 上打一顆星，能讓更多人發現它。",
+  "Star on GitHub": "在 GitHub 上打星",
+  "Not Now": "以後再說"
 }

@@ -61,6 +61,7 @@ public struct PreferencesView: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
     @ObservedObject private var bindingStore = ActionBindingStore.shared
     @ObservedObject private var router = SettingsRouter.shared
+    @ObservedObject private var starPrompt = StarPrompt.shared
     @ObservedObject private var toolbarModel: PreferencesToolbarModel
 
     private let initialPage: SettingsPage
@@ -84,6 +85,15 @@ public struct PreferencesView: View {
             detail
         }
         .frame(minWidth: 760, minHeight: 560)
+        .overlay {
+            if starPrompt.isVisible {
+                StarPromptOverlay(
+                    onStar: { starPrompt.openRepository() },
+                    onDismiss: { starPrompt.dismiss() }
+                )
+                .transition(.opacity)
+            }
+        }
         .background {
             ZStack {
                 VisualEffectView(
