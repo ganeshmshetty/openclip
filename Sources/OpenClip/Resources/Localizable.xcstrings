@@ -8905,6 +8905,34 @@
         }
       }
     },
+    "Finding OpenClip useful?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 好用吗？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 好用嗎？"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip vous est utile ?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip はお役に立っていますか？"
+          }
+        }
+      }
+    },
     "Finish setting up OpenClip": {
       "localizations": {
         "zh-Hans": {
@@ -10525,6 +10553,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "問題の報告"
+          }
+        }
+      }
+    },
+    "It's free and open source. A star on GitHub helps more people find it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "它免费且开源。在 GitHub 上点一颗星，能让更多人发现它。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "它免費且開源。在 GitHub 上打一顆星，能讓更多人發現它。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C’est gratuit et open source. Une étoile sur GitHub aide plus de gens à le découvrir."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無料のオープンソースです。GitHub でスターを付けると、より多くの人に見つけてもらえます。"
           }
         }
       }
@@ -12597,6 +12653,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "なし（常に表示）"
+          }
+        }
+      }
+    },
+    "Not Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不用了"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不用了"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non merci"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結構です"
           }
         }
       }
@@ -19849,6 +19933,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "安定版"
+          }
+        }
+      }
+    },
+    "Star on GitHub": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上点星"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上打星"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre une étoile sur GitHub"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub でスターを付ける"
+          }
+        }
+      }
+    },
+    "Star the repo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "给项目标星"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為專案標星"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre une étoile au dépôt"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリにスターを付ける"
           }
         }
       }

@@ -105,6 +105,8 @@ public extension SettingKey where Value == Bool {
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     /// Once dismissed by any path, the post-onboarding coach-mark never shows again.
     static var hasDismissedPostOnboardingCoachMark: SettingKey<Bool> { SettingKey<Bool>("hasDismissedPostOnboardingCoachMark", defaultValue: false) }
+    /// Once dismissed by any path, the one-time "star the repo" ask never shows again.
+    static var hasDismissedStarPrompt: SettingKey<Bool> { SettingKey<Bool>("hasDismissedStarPrompt", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
     /// Plays a short system sound when an action copies to the clipboard.
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
@@ -133,6 +135,9 @@ public extension SettingKey where Value == Double {
     static var mouseHoldDuration: SettingKey<Double> { SettingKey<Double>("mouseHoldDuration", defaultValue: 0.3) }
     /// Timestamp (seconds since 1970) until which OpenClip is temporarily paused (0.0 = not paused).
     static var pauseUntilTimestamp: SettingKey<Double> { SettingKey<Double>("pauseUntilTimestamp", defaultValue: 0.0) }
+    /// Timestamp (seconds since 1970) onboarding finished. Installs that predate the key get it stamped
+    /// on first check, so an update never surfaces the star ask on day one.
+    static var onboardingCompletedAt: SettingKey<Double> { SettingKey<Double>("onboardingCompletedAt", defaultValue: 0.0) }
 }
 
 public extension SettingKey where Value == Data? {
