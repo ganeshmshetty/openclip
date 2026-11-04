@@ -182,20 +182,80 @@ extension View {
         modifier(PopupBottomDissolve(height: height))
     }
 
-    @ViewBuilder
-    func paletteSafeAreaBar<Content: View>(
+    /// Lays fixed chrome over the scroll view instead of insetting it: rows keep scrolling underneath,
+    /// which is what lets the edge fade erase them there. The content margin keeps the first and last
+    /// rows reachable.
+    func paletteBar<Content: View>(
         edge: VerticalEdge,
-        spacing: CGFloat? = 0,
+        height: CGFloat,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        if #available(macOS 26.0, *), !ProcessInfo.processInfo.arguments.contains("-XCTest") && NSClassFromString("XCTestCase") == nil {
-            safeAreaBar(edge: edge, spacing: spacing, content: content)
-        } else {
-            safeAreaInset(edge: edge, spacing: spacing) {
+        self
+            .contentMargins(edge == .top ? .top : .bottom, height, for: .scrollContent)
+            .overlay(alignment: edge == .top ? .top : .bottom) {
                 content()
-                    .background(.ultraThinMaterial)
+            }
+    }
+
+    /// Erases rows into the card over the last stretch inside each fixed bar, so content cross-fades
+    /// instead of being cut at the bar edge. The mask is derived from the bar heights alone, so it
+    /// never shifts while scrolling, and because it erases rather than paints, the bars and their
+    /// controls are untouched. Inactive when the list cannot scroll.
+    @ViewBuilder
+    func paletteScrollFade(topInset: CGFloat, bottomInset: CGFloat, isActive: Bool) -> some View {
+        Group {
+            if isActive {
+                mask { PaletteScrollFadeMask(topInset: topInset, bottomInset: bottomInset) }
+            } else {
+                self
             }
         }
+        .paletteHidesSystemScrollEdge()
+    }
+
+    /// The system draws its own edge material where a scroll view meets a safe area, which over an
+    /// opaque card is the band and hairline this fade replaces.
+    @ViewBuilder
+    fileprivate func paletteHidesSystemScrollEdge() -> some View {
+        if #available(macOS 26.0, *) {
+            self
+                .scrollEdgeEffectHidden(true, for: .top)
+                .scrollEdgeEffectHidden(true, for: .bottom)
+        } else {
+            self
+        }
+    }
+}
+
+private struct PaletteScrollFadeMask: View {
+    let topInset: CGFloat
+    let bottomInset: CGFloat
+    /// Band width inside the bar: rows fade out before the bar's controls begin.
+    private static let fade: CGFloat = 14
+
+    var body: some View {
+        GeometryReader { proxy in
+            let height = max(proxy.size.height, 1)
+            let topClear = clamp((topInset - Self.fade) / height)
+            let topOpaque = max(topClear, clamp(topInset / height))
+            let bottomOpaque = max(topOpaque, clamp(1 - bottomInset / height))
+            let bottomClear = max(bottomOpaque, clamp(1 - (bottomInset - Self.fade) / height))
+
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: topClear),
+                    .init(color: .black, location: topOpaque),
+                    .init(color: .black, location: bottomOpaque),
+                    .init(color: .clear, location: bottomClear)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
+
+    private func clamp(_ value: CGFloat) -> CGFloat {
+        min(max(value, 0), 1)
     }
 }
 

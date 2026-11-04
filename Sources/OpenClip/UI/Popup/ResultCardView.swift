@@ -744,13 +744,23 @@ public struct ResultCardView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .paletteSafeAreaBar(edge: .top, spacing: 0) {
+        .paletteScrollFade(
+            topInset: Self.headerTotalHeight,
+            bottomInset: Self.baseBottomInset,
+            isActive: bodyScrolls
+        )
+        .paletteBar(edge: .top, height: Self.headerTotalHeight) {
             header
         }
-        .paletteSafeAreaBar(edge: .bottom, spacing: 0) {
+        .paletteBar(edge: .bottom, height: Self.baseBottomInset) {
             footer
         }
         .frame(height: dynamicCardHeight)
+    }
+
+    /// The text scrolls only when it needs more room than the card has.
+    private var bodyScrolls: Bool {
+        naturalContentHeight > dynamicCardHeight
     }
 
     @ViewBuilder

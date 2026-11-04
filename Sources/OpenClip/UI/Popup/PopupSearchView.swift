@@ -446,6 +446,18 @@ public struct PopupSearchView: View {
             }
     }
 
+    /// Whether the list overflows the space between the bars; only then does it need an edge fade.
+    private var listScrolls: Bool {
+        let rows = results.count + promptRows.count
+        guard rows > 0 else { return false }
+        var content = CGFloat(rows) * PopupMetrics.searchResultRowHeight
+            + CGFloat(rows - 1) * Self.rowSpacing
+            + 8
+        if contextualBoundary != nil { content += Self.contextualGroupSpacing }
+        let viewport = cardHeight - Self.searchHeaderHeight - Self.footerHeight
+        return content > viewport + 0.5
+    }
+
     private func exitSearch() {
         if scope != nil { onExitScope() } else { onExit() }
     }
@@ -502,10 +514,15 @@ public struct PopupSearchView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .paletteSafeAreaBar(edge: .top, spacing: 0) {
+            .paletteScrollFade(
+                topInset: Self.searchHeaderHeight,
+                bottomInset: Self.footerHeight,
+                isActive: listScrolls
+            )
+            .paletteBar(edge: .top, height: Self.searchHeaderHeight) {
                 searchFieldRow
             }
-            .paletteSafeAreaBar(edge: .bottom, spacing: 0) {
+            .paletteBar(edge: .bottom, height: Self.footerHeight) {
                 bottomBarRow
             }
             .frame(height: cardHeight)
