@@ -337,9 +337,12 @@ areas; stale debt notes are worse than none.
   enables `canBecomeKey`/`canBecomeMain` in both modes (`PopupPanel.swift:19`), routed through the
   same `enterKeyMode()`/`exitKeyMode()` primitives (`PopupWindowController.swift:196,206`). A
   `@FocusState`-in-onAppear request is silently dropped on macOS, so search forces focus via
-  `focusSearchField()` on the next run-loop turn (`PopupWindowController.swift:245`);
-  `previousFrontmostApp` is captured once per session (on `show(for:)`/`enterKeyMode`, never
-  re-captured mid-session) and re-activated on `exitKeyMode`/`hide`.
+  `focusSearchField()` on the next run-loop turn (`PopupWindowController.swift:245`). The result
+  card takes the same route through `focusResultCard()`: it focuses the follow-up field when one
+  exists, otherwise it makes the card's AppKit `ResultCardKeyCatcher` first responder, then retries
+  after the content swap so a regular action's card is usable without a click. `previousFrontmostApp`
+  is captured once per session (on `show(for:)`/`enterKeyMode`, never re-captured mid-session) and
+  re-activated on `exitKeyMode`/`hide`.
 - Search and content modes suspend popup dismissal. The distance auto-dismiss and the key/scroll
   dismissals in `handleEvent` are skipped while `modeStore.mode == .search` or `.content`
   (`PopupWindowController.swift:591,612,622`), so typing with the mouse elsewhere doesn't close the
