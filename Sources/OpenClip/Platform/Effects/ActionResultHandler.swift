@@ -615,11 +615,11 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
     }
 
     private func writeSmartClipboard(_ text: String, marker: Bool) {
-        pasteboard.clearContents()
-        let item = NSPasteboardItem()
-        item.setString(text, forType: .string)
-        if marker { item.setData(Data(), forType: NSPasteboard.PasteboardType(SmartCopyPaste.pasteboardTypeName)) }
-        pasteboard.writeObjects([item])
+        // declareTypes (not NSPasteboardItem) so the empty marker survives, as AppKit/WebKit write it.
+        let smartType = NSPasteboard.PasteboardType(SmartCopyPaste.pasteboardTypeName)
+        pasteboard.declareTypes(marker ? [.string, smartType] : [.string], owner: nil)
+        pasteboard.setString(text, forType: .string)
+        if marker { pasteboard.setData(Data(), forType: smartType) }
     }
 
     private func postKey(keyCode: CGKeyCode, flags: CGEventFlags) {
