@@ -246,7 +246,11 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             }
             let pasteboard = self.pasteboard
             pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
+            let item = NSPasteboardItem()
+            item.setString(text, forType: .string)
+            item.setData(Data(), forType: NSPasteboard.PasteboardType(SmartCopyPaste.pasteboardTypeName))
+            pasteboard.writeObjects([item])
+            if targetApp != nil { Self.widenFocusedSelectionForSmartCut() }
             postKey(keyCode: Constants.deleteVirtualKey, flags: [])
 
         case .paste(let text):
@@ -563,6 +567,31 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             }
         }
         postKey(keyCode: keyCode, flags: flags)
+    }
+
+    /// Best effort: widen the focused text selection to include the adjacent space a native ⌘X
+    /// would delete. Leaves the selection alone if AX can't read or set it.
+    private static func widenFocusedSelectionForSmartCut() {
+        guard AXIsProcessTrusted() else { return }
+        let system = AXUIElementCreateSystemWide()
+        var focusedRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+              let focusedRef, CFGetTypeID(focusedRef) == AXUIElementGetTypeID() else { return }
+        let focused = focusedRef as! AXUIElement
+        var valueRef: CFTypeRef?
+        var rangeRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(focused, kAXValueAttribute as CFString, &valueRef) == .success,
+              let value = valueRef as? String,
+              AXUIElementCopyAttributeValue(focused, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
+              let rangeRef, CFGetTypeID(rangeRef) == AXValueGetTypeID() else { return }
+        var cfRange = CFRange()
+        guard AXValueGetValue(rangeRef as! AXValue, .cfRange, &cfRange) else { return }
+        let selection = NSRange(location: cfRange.location, length: cfRange.length)
+        guard let target = SmartCopyPaste.smartDeleteRange(in: value, selection: selection),
+              target != selection else { return }
+        var newRange = CFRange(location: target.location, length: target.length)
+        guard let axRange = AXValueCreate(.cfRange, &newRange) else { return }
+        _ = AXUIElementSetAttributeValue(focused, kAXSelectedTextRangeAttribute as CFString, axRange)
     }
 
     private func postKey(keyCode: CGKeyCode, flags: CGEventFlags) {
