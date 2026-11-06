@@ -36,6 +36,34 @@ public enum SmartCopyPaste {
         return selection
     }
 
+    /// Text to actually insert so a pasted word doesn't glue onto its neighbours, for fields that
+    /// ignore the smart-paste marker (e.g. HTML inputs). `before`/`after` are the characters around
+    /// the insertion range (nil at start/end of text).
+    public static func smartInsertText(_ text: String, before: Character?, after: Character?) -> String {
+        guard let first = text.utf16.first, let last = text.utf16.last,
+              !isSpace(first), !isNewline(first), !isSpace(last), !isNewline(last) else { return text }
+        var result = text
+        if let before, isWordish(before) { result = " " + result }
+        if let after, isWordish(after) { result += " " }
+        return result
+    }
+
+    /// `smartInsertText` using the characters around `selection` in `value`.
+    public static func smartInsertText(_ text: String, into value: String, selection: NSRange) -> String? {
+        let ns = value as NSString
+        guard selection.location != NSNotFound, selection.location >= 0, selection.length >= 0,
+              selection.location + selection.length <= ns.length else { return nil }
+        let end = selection.location + selection.length
+        let before = selection.location > 0
+            ? (ns.substring(with: ns.rangeOfComposedCharacterSequence(at: selection.location - 1))).last : nil
+        let after = end < ns.length ? ns.substring(with: ns.rangeOfComposedCharacterSequence(at: end)).first : nil
+        return smartInsertText(text, before: before, after: after)
+    }
+
+    private static func isWordish(_ char: Character) -> Bool {
+        char.isLetter || char.isNumber
+    }
+
     private static func isSpace(_ unit: UInt16) -> Bool {
         unit == 0x20 || unit == 0x09 || unit == 0xA0
     }

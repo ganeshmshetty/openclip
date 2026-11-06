@@ -64,3 +64,40 @@ final class SmartCopyPasteTests: XCTestCase {
         XCTAssertNil(SmartCopyPaste.smartDeleteRange(in: "one", selection: NSRange(location: NSNotFound, length: 0)))
     }
 }
+
+final class SmartInsertTests: XCTestCase {
+    private func insert(_ text: String, into value: String, at location: Int, length: Int = 0) -> String? {
+        SmartCopyPaste.smartInsertText(text, into: value, selection: NSRange(location: location, length: length))
+    }
+
+    func testPastingAtStartOfWordAddsTrailingSpace() {
+        XCTAssertEqual(insert("Computer", into: "Apple", at: 0), "Computer ")
+    }
+
+    func testPastingAtEndOfWordAddsLeadingSpace() {
+        XCTAssertEqual(insert("Computer", into: "Apple", at: 5), " Computer")
+    }
+
+    func testExistingSpacesAreNotDoubled() {
+        XCTAssertEqual(insert("two", into: "one  three", at: 4), "two")
+        XCTAssertEqual(insert("two", into: "one ", at: 4), "two")
+        XCTAssertEqual(insert("two", into: " three", at: 0), "two")
+    }
+
+    func testBetweenTwoWordsAddsBoth() {
+        XCTAssertEqual(insert("two", into: "onethree", at: 3), " two ")
+    }
+
+    func testEmptyFieldAndPunctuationNeighbours() {
+        XCTAssertEqual(insert("word", into: "", at: 0), "word")
+        XCTAssertEqual(insert("word", into: "(.)", at: 1), "word")
+    }
+
+    func testTextWithOwnEdgeWhitespaceIsLeftAlone() {
+        XCTAssertEqual(insert(" word", into: "Apple", at: 5), " word")
+    }
+
+    func testInvalidRange() {
+        XCTAssertNil(insert("word", into: "Apple", at: 9))
+    }
+}
