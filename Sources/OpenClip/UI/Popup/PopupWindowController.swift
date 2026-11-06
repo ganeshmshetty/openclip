@@ -1366,7 +1366,7 @@ public class PopupWindowController {
             panel.ignoresMouseEvents = !overContent
         }
         if overContent {
-            NSCursor.arrow.set()
+            PopupHoverState.shared.hoverCursor.set()
         }
 
         let windowPoint = panel.convertPoint(fromScreen: screenLocation)
