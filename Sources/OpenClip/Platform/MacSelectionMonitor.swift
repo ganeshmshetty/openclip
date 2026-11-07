@@ -125,7 +125,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal static let extendKeyCodes: Set<UInt16> = OpenSelectionMonitor.extendKeyCodes
     internal static let holdDragDisarmSquared: CGFloat = OpenSelectionMonitor.holdDragDisarmSquared
     internal static let holdFireDriftSquared: CGFloat = OpenSelectionMonitor.holdFireDriftSquared
-    internal static let dragThresholdSquared: CGFloat = OpenSelectionMonitor.dragThresholdSquared
+    /// A press that travels less than 5 pt is a click, not a drag. The package's 3 pt threshold let
+    /// pointer jitter during a click (a high-polling Bluetooth mouse, a trackpad tap that slides)
+    /// register as a drag, which started a full selection read for an interaction the user never
+    /// meant as a selection.
+    internal static let dragThresholdSquared: CGFloat = 25
     private static let holdStationaryConfirmDelayNanoseconds: UInt64 = 90_000_000
     /// How long a multi-click waits for AppKit to apply a native window zoom/resize before its
     /// press is treated as a text gesture. This is a window-geometry guard, not a triple-click
@@ -615,8 +619,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         guard !shouldSuppress(for: app.bundleIdentifier) else { return }
 
         // A text drag can finish in whitespace with an arrow/custom cursor. Keep the press's
-        // I-beam as weak context only for an actual drag; the retriever still requires an enabled
-        // Copy menu and rejects object-selection roles when AX cannot provide selected text.
+        // I-beam as the retrieval cursor for an actual drag, so a drag that began on text is still
+        // read (and, if needed, copied) after the pointer leaves the text.
         let isDrag = downPoint.map { point in
             let dx = cursor.x - point.x
             let dy = cursor.y - point.y
@@ -637,7 +641,12 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         }
         let releaseCursor = currentCursorProvider()
         let retrievalCursor: CursorClass = isDrag && pressCursor == .beam ? .beam : releaseCursor
-        Log.selection.debug("monitor: mouse selection context press=\(pressCursor?.rawValue ?? "none", privacy: .public) release=\(releaseCursor.rawValue, privacy: .public) retrieval=\(retrievalCursor.rawValue, privacy: .public) drag=\(isDrag, privacy: .public)")
+        // A selection *gesture* is not a selection. The I-beam is the only cue available before
+        // retrieval proves text: without it, the copy tier is withheld below, because there a
+        // synthetic ⌘C is a real system-wide command that makes the target app beep and flash its
+        // Edit menu whenever none of its commands can act on it (issues #210, #159, #109).
+        let hasTextCue = pressCursor == .beam || releaseCursor == .beam
+        Log.selection.debug("monitor: mouse selection context press=\(pressCursor?.rawValue ?? "none", privacy: .public) release=\(releaseCursor.rawValue, privacy: .public) retrieval=\(retrievalCursor.rawValue, privacy: .public) drag=\(isDrag, privacy: .public) textCue=\(hasTextCue, privacy: .public)")
 
         debounceTask = Task { @MainActor in
             guard self.isSelectionSourceActive(app) else {
@@ -683,8 +692,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // 1. "Appear Automatically" is disabled (passive background caching must stay non-invasive)
             // 2. The app has `hotkeyOnly` policy
             // 3. A foreign overlay owns the key window
+            // 4. The gesture carried no text cue. Every drag and multi-click reaches here — a
+            //    scrollbar scrub, dragging a window's content, double-clicking a photo/video/canvas —
+            //    and the copy strategies would otherwise fire ⌘C on a target with nothing selected,
+            //    which is what beeps (and flashes Edit). AX reads below stay unconditional, so a
+            //    real selection the app exposes is still delivered; only the clipboard tier narrows.
             let isAutoEnabled = self.settingsStore.get(.isAppEnabled)
-            let allowCopyFallback = isAutoEnabled && !policy.hotkeyOnly && !self.isOverlayPresent(cursor)
+            let allowCopyFallback = isAutoEnabled && !policy.hotkeyOnly
+                && !self.isOverlayPresent(cursor) && hasTextCue
+            if isAutoEnabled, !policy.hotkeyOnly, !hasTextCue {
+                Log.selection.debug("monitor: copy fallback withheld, no text cursor cue bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
+            }
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             let response = await retriever.retrieveResponse(
                 for: appIdentity,
