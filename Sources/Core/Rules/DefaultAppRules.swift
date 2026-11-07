@@ -109,7 +109,7 @@ public enum DefaultAppRules: Sendable {
         "com.apple.SystemSettings"
     ]
     
-    public static let keyboardCopyApps: [String] = [
+    public static let kbCpNoAXWebAreaApps: [String] = [
         // Code Editors & IDEs
         "com.apple.Terminal",
         "com.googlecode.iterm2",
@@ -135,8 +135,10 @@ public enum DefaultAppRules: Sendable {
         "neovide",
         "com.jetbrains.*",
         "com.google.android.studio",
-        "com.rstudio.positron",
-        
+        "com.rstudio.positron"
+    ]
+
+    public static let keyboardCopyApps: [String] = kbCpNoAXWebAreaApps + [
         // Notes, Knowledge & Markdown
         "com.apple.Notes",
         "notion.id",
@@ -271,6 +273,10 @@ public enum DefaultAppRules: Sendable {
         AppRule(
             bundleIdentifiers: keyboardCopyApps,
             retrievalMode: .keyboardCopy
+        ),
+        AppRule(
+            bundleIdentifiers: kbCpNoAXWebAreaApps,
+            kbCpNoAXWebAreaRetry: true
         ),
         AppRule(
             bundleIdentifiers: menuCopyApps,
