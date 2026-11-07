@@ -163,6 +163,62 @@ public struct ResultCardView: View {
         }
     }
 
+    private func handleReturn(shift: Bool) {
+        if payload.color != nil {
+            onCopy()
+        } else if payload.file != nil {
+            (onSave ?? onPaste)()
+        } else if showsFollowUp {
+            handleFollowUpReturn(shift: shift)
+        } else if canPaste == false || shift {
+            onCopy()
+        } else {
+            onPaste()
+        }
+    }
+
+    /// AppKit route for cards that have no follow-up field to focus. SwiftUI's `@FocusState`
+    /// request from `onAppear` can be dropped before the panel finishes becoming key, so the
+    /// controller focuses this catcher instead and the same decisions still run.
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let key = event.charactersIgnoringModifiers?.lowercased()
+
+        if flags.contains(.command) {
+            switch key {
+            case "c":
+                guard showsResultButtons else { return true }
+                onCopy()
+                return true
+            case "d":
+                guard hasDiff, payload.file == nil else { return false }
+                toggleDiff()
+                return true
+            case "s":
+                guard payload.file != nil || payload.color != nil else { return false }
+                if payload.color != nil { onSave?() } else { (onSave ?? onPaste)() }
+                return true
+            case "z":
+                guard showsVersionSwitcher else { return false }
+                onStepVersion?(flags.contains(.shift) ? 1 : -1)
+                return true
+            default:
+                return false
+            }
+        }
+
+        switch event.keyCode {
+        case 53: // Escape
+            handleEscape()
+            return true
+        case 36, 76: // Return, keypad Enter
+            handleReturn(shift: flags.contains(.shift))
+            return true
+        default:
+            return false
+        }
+    }
+
     private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError && payload.canFollowUp && payload.file == nil && !isTypedVisualResult }
 
     /// Typed color/emoji cards have their own body; diff, follow-up, and text metrics do not apply.
@@ -187,6 +243,12 @@ public struct ResultCardView: View {
         }
         .frame(width: dynamicCardWidth, height: dynamicCardHeight)
         .onHover { isCardHovered = $0 }
+        .background(
+            ResultCardKeyCatcher(
+                handlesCommandShortcuts: !showsFollowUp,
+                onKeyDown: handleKeyEvent
+            )
+        )
         .focusable()
         .focusEffectDisabled()
         .focused($isCardFocused)
@@ -225,22 +287,8 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(.return, phases: .down) { press in
-            if payload.color != nil {
-                onCopy()
-                return .handled
-            }
-            if payload.file != nil {
-                (onSave ?? onPaste)()
-                return .handled
-            }
             // SwiftUI sees Return even while the follow-up field is first responder, so apply its rules here too.
-            if showsFollowUp {
-                handleFollowUpReturn(shift: press.modifiers.contains(.shift))
-            } else if canPaste == false || press.modifiers.contains(.shift) {
-                onCopy()
-            } else {
-                onPaste()
-            }
+            handleReturn(shift: press.modifiers.contains(.shift))
             return .handled
         }
         .onDisappear {
@@ -1533,6 +1581,49 @@ public struct ResultCardView: View {
                 .accessibilityLabel("Paste response over selection")
                 .onHover { isPasteHovered = $0 }
             }
+        }
+    }
+}
+
+/// AppKit first responder for result cards without a follow-up field. SwiftUI's focus request
+/// can be dropped while the panel becomes key, so the controller focuses this view instead.
+struct ResultCardKeyCatcher: NSViewRepresentable {
+    let handlesCommandShortcuts: Bool
+    let onKeyDown: (NSEvent) -> Bool
+
+    func makeNSView(context: Context) -> CatcherView {
+        let view = CatcherView()
+        view.handlesCommandShortcuts = handlesCommandShortcuts
+        view.onKeyDown = onKeyDown
+        return view
+    }
+
+    func updateNSView(_ nsView: CatcherView, context: Context) {
+        nsView.handlesCommandShortcuts = handlesCommandShortcuts
+        nsView.onKeyDown = onKeyDown
+    }
+
+    final class CatcherView: NSView {
+        var handlesCommandShortcuts = false
+        var onKeyDown: ((NSEvent) -> Bool)?
+
+        override var acceptsFirstResponder: Bool { true }
+
+        /// The catcher sits behind the card's content; it must never swallow a click.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func keyDown(with event: NSEvent) {
+            guard window?.firstResponder === self, onKeyDown?(event) == true else {
+                super.keyDown(with: event)
+                return
+            }
+        }
+
+        override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            guard handlesCommandShortcuts, onKeyDown?(event) == true else {
+                return super.performKeyEquivalent(with: event)
+            }
+            return true
         }
     }
 }

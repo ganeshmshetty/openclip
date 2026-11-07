@@ -151,19 +151,35 @@ struct AboutTab: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button {
-                openURL("https://www.getopenclip.app/support")
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "heart.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.red)
-                    Text(String(localized: "Donate"))
-                    Image(systemName: "arrow.up.right")
-                        .font(.caption2.weight(.semibold))
+            HStack(spacing: 14) {
+                Button {
+                    openURL("https://github.com/ganeshmshetty/openclip")
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.yellow)
+                        Text(String(localized: "Star the repo"))
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption2.weight(.semibold))
+                    }
                 }
+                .buttonStyle(.link)
+
+                Button {
+                    openURL("https://www.getopenclip.app/support")
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "heart.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.red)
+                        Text(String(localized: "Donate"))
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption2.weight(.semibold))
+                    }
+                }
+                .buttonStyle(.link)
             }
-            .buttonStyle(.link)
             .font(.callout)
             .padding(.top, 2)
         }

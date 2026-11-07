@@ -101,6 +101,7 @@ public struct PopupSearchView: View {
     private static let rowSpacing: CGFloat = 2.0
     private static let contextualGroupSpacing: CGFloat = 8.0
     private static let listBottomPadding: CGFloat = 6.0
+    private static let dragHandleCrossFadeDuration: Double = 0.12
 
     /// The AI rows under the results for the current query: Ask + Save when nothing matched, none otherwise.
     private var promptRows: [PaletteAIPromptRow] {
@@ -274,6 +275,10 @@ public struct PopupSearchView: View {
             }
         }
         .onDisappear {
+            if isDraggingSearch || hoveredTarget == .dragHandle {
+                hoverState.hoverCursor = .arrow
+                NSCursor.arrow.set()
+            }
             if let local = localFlagsMonitor {
                 NSEvent.removeMonitor(local)
                 localFlagsMonitor = nil
@@ -369,6 +374,11 @@ public struct PopupSearchView: View {
                 .frame(width: 20, height: Self.searchHeaderHeight - 4, alignment: .center)
                 .contentShape(Rectangle())
                 .gesture(searchHeaderDragGesture)
+                .searchHoverTarget(.dragHandle)
+                .onHover { hovering in
+                    useLocalHoverFallback(for: .dragHandle, isHovering: hovering)
+                }
+                .help(String(localized: "Drag to move"))
 
             TextField(
                 scope == nil
@@ -435,6 +445,7 @@ public struct PopupSearchView: View {
             .onChanged { _ in
                 if !isDraggingSearch {
                     isDraggingSearch = true
+                    updateDragCursor()
                     onDrag(.began)
                 }
                 onDrag(.changed)
@@ -443,6 +454,7 @@ public struct PopupSearchView: View {
                 guard isDraggingSearch else { return }
                 isDraggingSearch = false
                 onDrag(.ended)
+                updateDragCursor()
             }
     }
 
@@ -450,7 +462,24 @@ public struct PopupSearchView: View {
         if scope != nil { onExitScope() } else { onExit() }
     }
 
+    /// True while the header reads as a grab handle: hovered, or actively being dragged.
+    private var isDragHandleActive: Bool {
+        isDraggingSearch || hoveredTarget == .dragHandle
+    }
+
+    /// The left icon doubles as the palette's drag handle: the magnifier (or scope icon) at rest,
+    /// a grip on hover or during a drag, paired with the open/closed hand cursor.
     private var searchIcon: some View {
+        ZStack {
+            restSearchIcon
+                .opacity(isDragHandleActive ? 0 : 1)
+            DragGripGlyph(tint: PopupThemeModel.restForeground(for: effectiveTheme))
+                .opacity(isDragHandleActive ? 1 : 0)
+        }
+        .animation(.easeInOut(duration: Self.dragHandleCrossFadeDuration), value: isDragHandleActive)
+    }
+
+    private var restSearchIcon: some View {
         if let parent = scope?.parent {
             return AnyView(actionIcon(parent).foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme)))
         } else {
@@ -1032,32 +1061,51 @@ public struct PopupSearchView: View {
 
     /// Hit-tests the shared mouse location against row frames. Hovering the search or bottom bar never changes selection.
     private func updateHoveredTarget(for location: CGPoint?) {
-        guard let point = location else {
-            hoveredTarget = nil
-            return
-        }
-
-        // Hit-test registered frames: the location includes the 28 pt shadow inset added before the named hover space.
-        if let header = hoverFrames[.searchBar], header.contains(point) {
-            hoveredTarget = .searchBar
-            return
-        }
-        if let dock = hoverFrames[.bottomDock], dock.contains(point) {
-            hoveredTarget = .bottomDock
-            return
-        }
-
-        let target = hoverFrames.first(where: { key, frame in
-            switch key {
-            case .row:
-                return frame.contains(point)
-            default:
-                return false
+        let target: SearchHoverTarget?
+        if let point = location {
+            // The grip sits inside the header frame, so it must win the hit-test.
+            if let handle = hoverFrames[.dragHandle], handle.contains(point) {
+                target = .dragHandle
+            } else if let header = hoverFrames[.searchBar], header.contains(point) {
+                target = .searchBar
+            } else if let dock = hoverFrames[.bottomDock], dock.contains(point) {
+                target = .bottomDock
+            } else {
+                target = hoverFrames.first(where: { key, frame in
+                    switch key {
+                    case .row:
+                        return frame.contains(point)
+                    default:
+                        return false
+                    }
+                })?.key
             }
-        })?.key
+        } else {
+            target = nil
+        }
 
         guard target != hoveredTarget else { return }
+        let leftDragHandle = hoveredTarget == .dragHandle
         hoveredTarget = target
+        // Only touch the cursor when the grip is involved: other surfaces (the resize grip) set their own.
+        if leftDragHandle || target == .dragHandle || isDraggingSearch {
+            updateDragCursor()
+        }
+    }
+
+    /// Published to the hover state, which `PopupWindowController.updatePopupHover` applies once per move.
+    /// Setting it directly too keeps the cursor correct on the transition event.
+    private func updateDragCursor() {
+        let cursor: NSCursor
+        if isDraggingSearch {
+            cursor = .closedHand
+        } else if hoveredTarget == .dragHandle {
+            cursor = .openHand
+        } else {
+            cursor = .arrow
+        }
+        hoverState.hoverCursor = cursor
+        cursor.set()
     }
 
     /// `.onHover` fallback, used only when the AX global mouse monitor is unavailable.
@@ -1069,9 +1117,46 @@ public struct PopupSearchView: View {
         } else if hoveredTarget == target {
             hoveredTarget = nil
         }
+        if target == .dragHandle {
+            updateDragCursor()
+        }
     }
 }
 
+
+// MARK: - Drag Handle Glyph
+
+/// Six-dot grip drawn by hand: SF Symbols has no grip glyph, and `line.3.horizontal` reads as a menu.
+private struct DragGripGlyph: View {
+    let tint: Color
+
+    private static let dotDiameter: CGFloat = 2
+    private static let columnSpacing: CGFloat = 5
+    private static let rowSpacing: CGFloat = 5
+    private static let columns = 2
+    private static let rows = 3
+
+    var body: some View {
+        Canvas { context, _ in
+            for row in 0..<Self.rows {
+                for column in 0..<Self.columns {
+                    let rect = CGRect(
+                        x: CGFloat(column) * Self.columnSpacing,
+                        y: CGFloat(row) * Self.rowSpacing,
+                        width: Self.dotDiameter,
+                        height: Self.dotDiameter
+                    )
+                    context.fill(Path(ellipseIn: rect), with: .color(tint))
+                }
+            }
+        }
+        .frame(
+            width: Self.dotDiameter + CGFloat(Self.columns - 1) * Self.columnSpacing,
+            height: Self.dotDiameter + CGFloat(Self.rows - 1) * Self.rowSpacing
+        )
+        .accessibilityHidden(true)
+    }
+}
 
 // MARK: - ⌘-digit Key Equivalents
 

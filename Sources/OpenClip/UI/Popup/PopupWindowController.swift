@@ -737,10 +737,11 @@ public class PopupWindowController {
             versionCount: versionCount
         )
         if !isStreaming {
-            // A settled card hands keyboard focus to its instruction field.
+            // A settled card takes keyboard focus without requiring a click. The follow-up field
+            // wins when present; otherwise the card's AppKit key catcher does.
             Task { @MainActor in
                 await Task.yield()
-                self.focusCardField()
+                self.focusResultCard()
             }
         }
         if modeStore.mode != .content {
@@ -769,12 +770,15 @@ public class PopupWindowController {
         fitPanelToContent()
         // Retry after the display cycle (DispatchQueue.main.async, not Task.yield, which doesn't guarantee a display pass).
         DispatchQueue.main.async { [weak self] in
-            self?.fitPanelToContent()
+            guard let self, self.modeStore.mode == .content else { return }
+            self.fitPanelToContent()
+            if !isStreaming { self.focusResultCard() }
         }
         // Safety-net retry: SwiftUI swaps the whole view tree on first content-mode entry.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard let self, self.modeStore.mode == .content else { return }
             self.fitPanelToContent()
+            if !isStreaming { self.focusResultCard() }
         }
     }
 
@@ -1252,6 +1256,10 @@ public class PopupWindowController {
             let isShift = event.modifierFlags.contains(.shift)
             pendingClickIntent = isShift ? .secondary : .primary
             if !inMain && !inSub && !cardIsModal {
+                // A third press belongs to the same gesture that just opened the word popup.
+                // Keep it up; the paragraph result replaces its content when the button is
+                // released. A fresh click sequence starts at clickCount 1 and still dismisses.
+                if event.clickCount >= 3 { break }
                 // A mouse-down within 100 ms of showing is likely part of the gesture that selected the text (e.g. triple-click).
                 if sessionShowTime > 0,
                    (ProcessInfo.processInfo.systemUptime - sessionShowTime) < 0.1 {
@@ -1360,7 +1368,7 @@ public class PopupWindowController {
             panel.ignoresMouseEvents = !overContent
         }
         if overContent {
-            NSCursor.arrow.set()
+            PopupHoverState.shared.hoverCursor.set()
         }
 
         let windowPoint = panel.convertPoint(fromScreen: screenLocation)
@@ -2044,11 +2052,20 @@ public class PopupWindowController {
         restoreRefiningCard()
     }
 
-    /// Focuses the card's instruction field on the next run-loop turn; a @FocusState request during the mode change is dropped on macOS.
-    private func focusCardField() {
+    /// Gives a settled card keyboard focus on the next run-loop turn. A @FocusState request during
+    /// the mode change is dropped on macOS, so the follow-up field (or the card's AppKit catcher)
+    /// is made first responder directly.
+    private func focusResultCard() {
         guard let panel, panel.isVisible, modeStore.mode == .content else { return }
-        guard let field = Self.findEditableTextField(in: panel.contentView) else { return }
-        panel.makeFirstResponder(field)
+        if let field = Self.findEditableTextField(in: panel.contentView) {
+            panel.makeFirstResponder(field)
+            return
+        }
+        guard let catcher = Self.findResultCardKeyCatcher(in: panel.contentView) else { return }
+        guard panel.firstResponder !== catcher else { return }
+        // Never steal focus from an editable field or a preview that owns its own keyboard input.
+        if panel.firstResponder is NSTextView || panel.firstResponder is NSTextField { return }
+        panel.makeFirstResponder(catcher)
     }
 
     /// The first editable text field in a view tree (the result card's follow-up field), or nil.
@@ -2057,6 +2074,15 @@ public class PopupWindowController {
         if let field = view as? NSTextField, field.isEditable { return field }
         for subview in view.subviews {
             if let found = findEditableTextField(in: subview) { return found }
+        }
+        return nil
+    }
+
+    private static func findResultCardKeyCatcher(in view: NSView?) -> ResultCardKeyCatcher.CatcherView? {
+        guard let view else { return nil }
+        if let catcher = view as? ResultCardKeyCatcher.CatcherView { return catcher }
+        for subview in view.subviews {
+            if let found = findResultCardKeyCatcher(in: subview) { return found }
         }
         return nil
     }

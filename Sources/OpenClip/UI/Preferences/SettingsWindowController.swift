@@ -84,6 +84,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         NotificationCenter.default.post(name: .openClipPreferencesWindowDidShow, object: nil)
+        StarPrompt.shared.present()
     }
 
     private init() {
@@ -138,6 +139,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
     // MARK: - NSWindowDelegate
 
     public func windowWillClose(_ notification: Notification) {
+        StarPrompt.shared.dismissIfShowing()
         AppActivationPolicy.leave()
     }
 

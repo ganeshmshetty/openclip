@@ -9,6 +9,7 @@ import Core
 /// Hover targets within the action-search palette.
 enum SearchHoverTarget: Hashable {
     case searchBar
+    case dragHandle
     case bottomDock
     case row(Int)
 }

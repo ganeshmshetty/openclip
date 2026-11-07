@@ -232,6 +232,7 @@ public struct OnboardingView: View {
         DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
         DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
         DefaultSettingsStore.shared.set(.hasCompletedOnboarding, value: true)
+        DefaultSettingsStore.shared.set(.onboardingCompletedAt, value: Date().timeIntervalSince1970)
         onComplete()
     }
 
