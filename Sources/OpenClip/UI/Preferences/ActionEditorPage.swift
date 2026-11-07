@@ -207,12 +207,14 @@ public struct ActionEditorPage: View {
     }
 
     private var canProduceTextOutput: Bool {
+        // Informational items never deliver, so delivery settings are inactive and hidden.
+        if action.chrome.displayOnly { return false }
         // AI presets stream through the controller's AI flow, not the ordinary delivery preference.
         if isAIPreset { return false }
-        if action.chrome.outputKind == .text || action.chrome.outputKind == .dynamic {
+        if action.chrome.outputKind == .text || action.chrome.outputKind == .dynamic || action.chrome.outputKind == .emoji {
             return true
         }
-        if action.chrome.outputKind == .none || action.chrome.outputKind == .file {
+        if action.chrome.outputKind == .none || action.chrome.outputKind == .file || action.chrome.outputKind == .color {
             return false
         }
         if isBuiltin { return false }
@@ -661,58 +663,66 @@ public struct ActionEditorPage: View {
                     }
                 }
 
-                let hasTriggers = ActionIdentity.isBindable(action)
+                // Informational items keep their search alias but have no execution hotkey.
+                let hasHotkey = ActionIdentity.isBindable(action)
+                let hasAlias = hasHotkey || action.chrome.displayOnly
                 let hasOutput = canProduceTextOutput
-                if hasTriggers || hasOutput {
-                    let cardTitle: LocalizedStringKey = (hasTriggers && hasOutput)
+                if hasAlias || hasOutput {
+                    let cardTitle: LocalizedStringKey = (hasAlias && hasOutput)
                         ? "Triggers & Output"
-                        : (hasTriggers ? "Triggers" : "Output")
+                        : (hasAlias ? "Triggers" : "Output")
 
                     SettingsCard(cardTitle) {
-                        if hasTriggers {
-                            SettingsRow(
-                                title: "Keyboard Shortcut",
-                                subtitle: "Global hotkey to run this action directly.",
-                                systemImage: "keyboard",
-                                iconTileTint: SettingsDesignTokens.iconTileColor(forSystemImage: "keyboard"),
-                                plainIcon: true,
-                                descriptionOnHover: true
-                            ) {
-                                Shortcut(for: .actionHotkey(action.id))
+                        if hasAlias {
+                            if hasHotkey {
+                                SettingsRow(
+                                    title: "Keyboard Shortcut",
+                                    subtitle: "Global hotkey to run this action directly.",
+                                    systemImage: "keyboard",
+                                    iconTileTint: SettingsDesignTokens.iconTileColor(forSystemImage: "keyboard"),
+                                    plainIcon: true,
+                                    descriptionOnHover: true
+                                ) {
+                                    Shortcut(for: .actionHotkey(action.id))
+                                }
                             }
 
-                            SettingsDivider()
+                            if hasHotkey {
+                                SettingsDivider()
+                            }
 
-                            SettingsRow(
-                                title: "Search Alias",
-                                subtitle: "Keyword to jump to this action in the search palette.",
-                                systemImage: "text.magnifyingglass",
-                                iconTileTint: SettingsDesignTokens.iconTileColor(forSystemImage: "magnifyingglass"),
-                                plainIcon: true,
-                                descriptionOnHover: true
-                            ) {
-                                HStack(spacing: 8) {
-                                    if let aliasError {
-                                        Text(aliasError)
-                                            .font(.caption2)
-                                            .foregroundStyle(.red)
+                            if hasAlias {
+                                SettingsRow(
+                                    title: "Search Alias",
+                                    subtitle: "Keyword to jump to this action in the search palette.",
+                                    systemImage: "text.magnifyingglass",
+                                    iconTileTint: SettingsDesignTokens.iconTileColor(forSystemImage: "magnifyingglass"),
+                                    plainIcon: true,
+                                    descriptionOnHover: true
+                                ) {
+                                    HStack(spacing: 8) {
+                                        if let aliasError {
+                                            Text(aliasError)
+                                                .font(.caption2)
+                                                .foregroundStyle(.red)
+                                        }
+                                        TextField("Alias", text: $aliasText, prompt: Text("e.g. tr"))
+                                            .textFieldStyle(.plain)
+                                            .font(.system(size: 13))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 5)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                    .fill(Color(white: 1.0, opacity: 0.08))
+                                            )
+                                            .frame(maxWidth: 100)
+                                            .disabled(manifestMissing)
                                     }
-                                    TextField("Alias", text: $aliasText, prompt: Text("e.g. tr"))
-                                        .textFieldStyle(.plain)
-                                        .font(.system(size: 13))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                                .fill(Color(white: 1.0, opacity: 0.08))
-                                        )
-                                        .frame(maxWidth: 100)
-                                        .disabled(manifestMissing)
                                 }
                             }
                         }
 
-                        if hasTriggers && hasOutput {
+                        if hasAlias && hasOutput {
                             SettingsDivider()
                         }
 
@@ -1386,7 +1396,7 @@ public struct ActionEditorPage: View {
     }
 
     private func saveAlias() {
-        guard ActionIdentity.isBindable(action) else { return }
+        guard ActionIdentity.isBindable(action) || action.chrome.displayOnly else { return }
         switch ActionBindingStore.shared.setAlias(aliasText, for: action.id) {
         case .accepted, .cleared:
             aliasError = nil
@@ -1600,6 +1610,7 @@ public struct ActionEditorPage: View {
             secondaryToast: meta.secondaryToast,
             keywords: meta.keywords,
             inline: meta.inline,
+            displayOnly: meta.displayOnly,
             localizedTitle: (finalTitle.isEmpty || finalTitle == meta.title || finalTitle == meta.localizedTitle?.resolve()) ? meta.localizedTitle : nil,
             localizedLoadingMessage: meta.localizedLoadingMessage,
             output: meta.output,

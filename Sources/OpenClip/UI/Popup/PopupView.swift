@@ -375,6 +375,9 @@ public struct PopupView: View {
             .onChange(of: hoveredTarget) { _, newTarget in
                 updateTooltip(for: newTarget)
             }
+            .onChange(of: modeStore.inlineResults) { _, _ in
+                if hoveredTarget != nil { updateTooltip(for: hoveredTarget) }
+            }
             .onChange(of: modeStore.mode) { _, newMode in
                 if newMode != .actions {
                     tooltipPresenter.reset { onHideTooltip?() }
@@ -437,7 +440,10 @@ public struct PopupView: View {
                     }
                 },
                 onSave: {
-                    if let file = payload.file {
+                    if let color = payload.color {
+                        guard let url = InlineColorExport.writeText(color) else { return }
+                        onCardEffect(.saveFile(url))
+                    } else if let file = payload.file {
                         onCardEffect(.saveFile(file.url))
                     }
                 },
@@ -808,6 +814,9 @@ public struct PopupView: View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
 
         let backgroundColor: Color = {
+            if action.chrome.displayOnly {
+                return Color.clear
+            }
             if isHovered {
                 return PopupThemeModel.barHoverFill
             } else if isActiveParent {
@@ -817,19 +826,19 @@ public struct PopupView: View {
             }
         }()
 
-        let foregroundColor: Color = isHovered ? .white : restForeground
+        let foregroundColor: Color = (isHovered && !action.chrome.displayOnly) ? .white : restForeground
 
         let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
         let subBarAbove = modeStore.subBarAbove
 
         let labelView = Group {
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                Text(resolved)
-                    .font(.system(size: 15 * scale, weight: .regular))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundColor(foregroundColor)
-                    .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
+                InlineResultLabel(
+                    value: resolved,
+                    surface: .bar,
+                    scale: scale,
+                    foreground: foregroundColor
+                )
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                     .popupBarHighlight(backgroundColor, scale: scale, isText: true, leadingEdge: leadingEdge, trailingEdge: trailingEdge, isHovered: isHovered, namespace: hoverHighlightNamespace)
@@ -872,7 +881,11 @@ public struct PopupView: View {
                     .accessibilityLabel({
                         let title = action.displayTitle(using: presenter)
                         if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                            return "\(title): \(resolved)"
+                            return InlineResultLayout.accessibilityLabel(
+                                title: title,
+                                value: resolved,
+                                displayOnly: action.chrome.displayOnly
+                            )
                         }
                         return title
                     }())
@@ -901,6 +914,8 @@ public struct PopupView: View {
                     // Leaf actions use their existing execution flow.
                     Button {
                         onCancelSubBarDwell?()
+                        // Informational items never execute, deliver, record usage, or dismiss.
+                        guard !action.chrome.displayOnly else { return }
                         if ActionIdentity.isAIPreset(action) {
                             runAIAction(action.id)
                             return
@@ -915,31 +930,20 @@ public struct PopupView: View {
                         onActionPerformed?(action.id)
                         if action.chrome.isInlineResult {
                             if let resolved = modeStore.inlineResults[action.id] {
-                                onResult(.text(resolved))
-                                return
-                            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
-                                Task {
-                                    do {
-                                        if let text = await inFlight.value, !text.isEmpty {
-                                            onResult(.text(text))
-                                            return
-                                        }
-                                        let match = action.matchInfo(for: context)
-                                        let performContext = ActionContext(
-                                            selection: context.selection,
-                                            modifiers: context.modifiers,
-                                            isSecondaryClick: clickIntent == .secondary,
-                                            match: match
-                                        )
-                                        let result = try await action.perform(performContext)
-                                        onResult(result)
-                                    } catch {
-                                        Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                                        onResult(.toast(StatusFeedback(error: error)))
-                                    }
-                                }
+                                onResult(resolved.inlineActionResult)
                                 return
                             }
+                            // Reuse/join the bounded evaluation, never the unrestricted perform path.
+                            Task { @MainActor in
+                                if let result = await InlineResultActivation.invoke(
+                                    action: action,
+                                    context: context,
+                                    sessionID: sessionID
+                                ) {
+                                    onResult(result)
+                                }
+                            }
+                            return
                         }
                         Task {
                             do {
@@ -964,7 +968,11 @@ public struct PopupView: View {
                     .accessibilityLabel({
                         let title = action.displayTitle(using: presenter)
                         if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                            return "\(title): \(resolved)"
+                            return InlineResultLayout.accessibilityLabel(
+                                title: title,
+                                value: resolved,
+                                displayOnly: action.chrome.displayOnly
+                            )
                         }
                         return title
                     }())
@@ -1056,7 +1064,11 @@ public struct PopupView: View {
         switch target {
         case .action(let index):
             guard index < visibleBarActions.count else { return nil }
-            return visibleBarActions[index].displayTitle(using: presenter)
+            let action = visibleBarActions[index]
+            if action.chrome.displayOnly, let value = modeStore.inlineResults[action.id] {
+                return value.rawValue
+            }
+            return action.displayTitle(using: presenter)
         case .subAction:
             return nil
         case .search:

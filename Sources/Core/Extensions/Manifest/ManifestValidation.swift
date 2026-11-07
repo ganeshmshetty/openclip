@@ -18,6 +18,8 @@ public struct ManifestValidationIssue: Sendable, Equatable {
         case secondaryOnJavaScriptAction
         case unsafeScriptPath(String)
         case invalidInlineAction
+        case invalidDisplayOnlyAction
+        case minimumVersionRequired(feature: String, version: String)
     }
 
     public let kind: Kind
@@ -46,6 +48,10 @@ extension ManifestValidationIssue: CustomStringConvertible {
             return "\(path): script path escapes extension directory \"\(script)\""
         case .invalidInlineAction:
             return "\(path): `inline: true` is only supported on synchronous javascript actions (kind \"js\"/\"javascript\" without \"async: true\", captureRtf, or captureHtml)"
+        case .invalidDisplayOnlyAction:
+            return "\(path): `displayOnly: true` requires `inline: true` on a synchronous javascript action"
+        case .minimumVersionRequired(let feature, let version):
+            return "\(path): `\(feature)` requires `minOpenClipVersion` \(version) or newer"
         }
     }
 }
@@ -142,10 +148,31 @@ public struct ManifestValidator: Sendable {
         if let options = manifest.options {
             issues.append(contentsOf: validateOptions(options, path: "options"))
         }
+        let typedInlineVersionSatisfied = Self.satisfiesMinimumVersion(
+            manifest.minOpenClipVersion,
+            required: InlineResultValue.minimumOpenClipVersion
+        )
+        if !typedInlineVersionSatisfied, manifest.output == .emoji || manifest.output == .color {
+            issues.append(ManifestValidationIssue(
+                kind: .minimumVersionRequired(feature: "output: \(manifest.output?.rawValue ?? "")", version: InlineResultValue.minimumOpenClipVersion),
+                path: "manifest"
+            ))
+        }
         for (index, action) in manifest.actions.enumerated() {
-            issues.append(contentsOf: validateAction(action, path: "actions[\(index)]"))
+            issues.append(contentsOf: validateAction(
+                action,
+                path: "actions[\(index)]",
+                inheritedOutput: manifest.output,
+                typedInlineVersionSatisfied: typedInlineVersionSatisfied
+            ))
         }
         return issues
+    }
+
+    private static func satisfiesMinimumVersion(_ declared: String?, required: String) -> Bool {
+        guard let minimum = SemanticVersion.parse(required) else { return false }
+        guard let declared, let version = SemanticVersion.parse(declared) else { return false }
+        return version >= minimum
     }
 
     public func validateWarnings(_ manifest: ExtensionMetadata) -> [ManifestValidationWarning] {
@@ -189,19 +216,37 @@ public struct ManifestValidator: Sendable {
         )
     }
 
-    private func validateAction(_ action: ExtensionActionMetadata, path: String) -> [ManifestValidationIssue] {
+    private func validateAction(
+        _ action: ExtensionActionMetadata,
+        path: String,
+        inheritedOutput: ExtensionOutputKind? = nil,
+        typedInlineVersionSatisfied: Bool = true
+    ) -> [ManifestValidationIssue] {
         guard ExtensionActionKind.isRecognized(rawType: action.type) else {
             return [ManifestValidationIssue(kind: .unknownActionKind(action.type ?? ""), path: path)]
         }
 
         var issues: [ManifestValidationIssue] = []
+        // Typed inline output is a new contract; older apps must not treat it as text.
+        let effectiveOutput = action.output ?? (action.inline == true ? .text : inheritedOutput)
+        if !typedInlineVersionSatisfied, effectiveOutput == .emoji || effectiveOutput == .color {
+            issues.append(ManifestValidationIssue(
+                kind: .minimumVersionRequired(feature: "output: \(effectiveOutput?.rawValue ?? "")", version: InlineResultValue.minimumOpenClipVersion),
+                path: path
+            ))
+        }
         switch action.kind {
         case .group:
             if action.subActions?.isEmpty != false {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("subActions"), path: path))
             }
             for (index, sub) in (action.subActions ?? []).enumerated() {
-                issues.append(contentsOf: validateAction(sub, path: "\(path).subActions[\(index)]"))
+                issues.append(contentsOf: validateAction(
+                    sub,
+                    path: "\(path).subActions[\(index)]",
+                    inheritedOutput: effectiveOutput,
+                    typedInlineVersionSatisfied: typedInlineVersionSatisfied
+                ))
             }
         case .keyPress:
             if isBlank(action.keyPress) {
@@ -227,6 +272,17 @@ public struct ManifestValidator: Sendable {
             if action.kind != .js || action.isAsync == true || action.captureRtf == true || action.captureHtml == true {
                 issues.append(ManifestValidationIssue(
                     kind: .invalidInlineAction,
+                    path: path
+                ))
+            }
+        }
+        if action.displayOnly == true {
+            if action.inline != true || action.kind != .js || action.isAsync == true || action.captureRtf == true || action.captureHtml == true {
+                issues.append(ManifestValidationIssue(kind: .invalidDisplayOnlyAction, path: path))
+            }
+            if !typedInlineVersionSatisfied {
+                issues.append(ManifestValidationIssue(
+                    kind: .minimumVersionRequired(feature: "displayOnly", version: InlineResultValue.minimumOpenClipVersion),
                     path: path
                 ))
             }

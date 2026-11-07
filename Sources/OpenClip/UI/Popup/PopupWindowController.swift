@@ -278,16 +278,14 @@ public class PopupWindowController {
             combinedActions.append(item)
         }
         let inlineActions = combinedActions.filter { $0.chrome.isInlineResult }
-        let textHash = context.text.hashValue
-
         for action in inlineActions {
-            if let prewarmed = evaluator.prewarmedResult(for: action, textHash: textHash) {
+            if let prewarmed = evaluator.prewarmedResult(for: action, context: actionContext) {
                 modeStore.inlineResults[action.id] = prewarmed
             } else if let syncResult = evaluator.evaluateSynchronous(action: action, context: actionContext) {
                 modeStore.inlineResults[action.id] = syncResult
             } else {
                 evaluator.startEvaluation(action: action, context: actionContext, sessionID: aiSession) { [weak self] result in
-                    guard let self, let result, !result.isEmpty else { return }
+                    guard let self, let result else { return }
                     guard self.aiSessionID == aiSession else { return }
                     self.modeStore.inlineResults[action.id] = result
                 }
@@ -710,10 +708,12 @@ public class PopupWindowController {
         originalText: String? = nil,
         overrideOriginal: Bool = false,
         canFollowUp: Bool = true,
-        file: FileOutputPayload? = nil
+        file: FileOutputPayload? = nil,
+        color: InlineColor? = nil,
+        emoji: String? = nil
     ) {
         guard session == aiSessionID else { return }
-        let showsVersions = canFollowUp && !isError && !isStreaming && file == nil
+        let showsVersions = canFollowUp && !isError && !isStreaming && file == nil && color == nil && emoji == nil
         let versionCount = showsVersions ? (cardConversation.map { $0.steps.count + redoSteps.count } ?? 1) : 1
         let versionIndex = showsVersions ? (cardConversation?.steps.count ?? 1) : 1
         if toastController.isLoading {
@@ -731,6 +731,8 @@ public class PopupWindowController {
             original: original,
             canFollowUp: canFollowUp,
             file: file,
+            color: color,
+            emoji: emoji,
             versionIndex: versionIndex,
             versionCount: versionCount
         )
@@ -1048,7 +1050,7 @@ public class PopupWindowController {
         activeLoadingTask?.cancel()
         activeLoadingTask = nil
         activeLoadingID = nil
-        // Cancel in-flight work but keep warm inline-result caches for the next selection.
+        // Cancel in-flight work; extension previews are session-scoped, pure builtins stay warm.
         InlineResultEvaluator.shared.endSession(aiSessionID)
         aiSessionID = UUID()
         refiningPrevious = nil
@@ -2415,6 +2417,32 @@ public class PopupWindowController {
                     ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
                     return
                 }
+                if case .color(let color) = resolved.result {
+                    showResultCard(
+                        text: color.hex,
+                        isError: false,
+                        title: delivery?.actionTitle ?? String(localized: "Color"),
+                        icon: delivery?.actionIcon,
+                        session: aiSessionID,
+                        canFollowUp: false,
+                        color: color
+                    )
+                    ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
+                    return
+                }
+                if case .emoji(let emoji) = resolved.result {
+                    showResultCard(
+                        text: emoji,
+                        isError: false,
+                        title: delivery?.actionTitle ?? String(localized: "Emoji"),
+                        icon: delivery?.actionIcon,
+                        session: aiSessionID,
+                        canFollowUp: false,
+                        emoji: emoji
+                    )
+                    ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
+                    return
+                }
                 // A detached-surface result suspends scroll dismissal for the rest of the session.
                 isScrollDismissalSuspended = resolved.result.suspendsScrollDismissal
                 try await resultHandler.handle(resolved.result, in: panel?.contentView, targetApp: delivery?.application,
@@ -2556,6 +2584,7 @@ public class PopupWindowController {
     /// Perform-time gate for clicks, group actions, and hotkeys. Visibility is recomputed from the captured context; source-bound
     /// requirements also check the selection generation and target app.
     private func canPerformAction(_ action: any Action, in context: ActionContext) -> Bool {
+        guard !action.chrome.displayOnly else { return false }
         guard action.isEnabled(for: context) else { return false }
         guard let ruledAction = action as? any ActionWithRules else { return true }
         let requirements = ruledAction.rules?.requirements ?? ActionRequirements()
@@ -2603,15 +2632,20 @@ public class PopupWindowController {
         Task { @MainActor in
             do {
                 let result: ActionResult
-                if action.chrome.isInlineResult,
-                   let inFlightTask = InlineResultEvaluator.shared.runningTask(for: action.id, sessionID: self.aiSessionID) {
-                    if let text = await inFlightTask.value {
-                        result = .text(text)
+                if action.chrome.isInlineResult {
+                    if let cached = self.modeStore.inlineResults[action.id] {
+                        result = cached.inlineActionResult
+                    } else if let activated = await InlineResultActivation.invoke(
+                        action: action,
+                        context: performContext,
+                        sessionID: self.aiSessionID
+                    ) {
+                        result = activated
                     } else {
-                        result = try await action.perform(performContext)
+                        // A failed or invalid preview never falls back to unrestricted execution.
+                        self.inFlightDeliveryContext = nil
+                        return
                     }
-                } else if action.chrome.isInlineResult, let cached = self.modeStore.inlineResults[action.id] {
-                    result = .text(cached)
                 } else {
                     result = try await action.perform(performContext)
                 }

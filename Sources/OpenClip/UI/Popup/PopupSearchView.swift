@@ -580,19 +580,20 @@ public struct PopupSearchView: View {
                         )
                 }
 
-                if item.action.chrome.isInlineResult, let result = modeStore.inlineResults[item.action.id], !isCommandPressed {
-                    Text(result)
-                        .font(.system(size: 11, weight: .regular))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: PopupMetrics.inlineSearchAccessoryMaxWidth, alignment: .trailing)
-                        .foregroundColor(
-                            (isSelected || isHovered)
-                                ? PopupThemeModel.restForeground(for: effectiveTheme)
-                                : PopupThemeModel.restSecondary(for: effectiveTheme)
-                        )
-                        .transition(.opacity)
-                } else if let shortcut = Self.shortcutHint(forRow: index) {
+                if item.action.chrome.isInlineResult,
+                   let result = modeStore.inlineResults[item.action.id],
+                   (!isCommandPressed || item.action.chrome.displayOnly) {
+                    InlineResultLabel(
+                        value: result,
+                        surface: .search,
+                        scale: 1.0,
+                        foreground: (isSelected || isHovered)
+                            ? PopupThemeModel.restForeground(for: effectiveTheme)
+                            : PopupThemeModel.restSecondary(for: effectiveTheme)
+                    )
+                    .helpIfPresent(item.action.chrome.displayOnly ? result.rawValue : nil)
+                    .transition(.opacity)
+                } else if let shortcut = Self.shortcutHint(forRow: index, action: item.action) {
                     Text(shortcut)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .monospacedDigit()
@@ -638,6 +639,7 @@ public struct PopupSearchView: View {
             .contentShape(rowShape)
         }
         .buttonStyle(.plain)
+        .accessibilityValue(accessibilityValue(for: item.action))
         .searchHoverTarget(.row(index))
         .onHover { hovering in
             useLocalHoverFallback(for: .row(index), isHovering: hovering)
@@ -725,6 +727,26 @@ public struct PopupSearchView: View {
         return ActionIdentity.isAIPreset(results[selectedIndex].action)
     }
 
+    private var selectedAction: (any Action)? {
+        guard selectedIndex < results.count, results.indices.contains(selectedIndex) else { return nil }
+        return results[selectedIndex].action
+    }
+
+    private var selectedIsDisplayOnly: Bool {
+        selectedAction?.chrome.displayOnly == true
+    }
+
+    private var selectedIsColor: Bool {
+        guard let selectedAction else { return false }
+        if case .color = modeStore.inlineResults[selectedAction.id] { return true }
+        return selectedAction.chrome.outputKind == .color
+    }
+
+    private func accessibilityValue(for action: any Action) -> String {
+        guard action.chrome.displayOnly, let value = modeStore.inlineResults[action.id] else { return "" }
+        return InlineResultLayout.accessibilityValue(for: value)
+    }
+
     /// The plain, borderless bottom bar matching the top search field.
     private var bottomBarRow: some View {
         HStack(spacing: 8) {
@@ -744,28 +766,57 @@ public struct PopupSearchView: View {
     @ViewBuilder
     private var footerActionButtons: some View {
         if rowCount > 0 {
-            HStack(spacing: 4) {
-                footerButton(
-                    title: isSelectedAI
-                        ? PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste)
-                        : "",
-                    shortcut: "⇧⏎",
-                    id: .paste,
-                    isAccent: false
-                ) {
-                    runSelected(replace: true)
-                }
+            if selectedIsDisplayOnly {
+                informationalFooter
+            } else {
+                HStack(spacing: 4) {
+                    footerButton(
+                        title: isSelectedAI
+                            ? PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste)
+                            : "",
+                        shortcut: "⇧⏎",
+                        id: .paste,
+                        isAccent: false
+                    ) {
+                        runSelected(replace: true)
+                    }
 
-                footerButton(
-                    title: isSelectedAI ? PaletteAIPrompt.primaryActionTitle() : String(localized: "Run"),
-                    shortcut: "⏎",
-                    id: .run,
-                    isAccent: true
-                ) {
-                    runSelected(replace: false)
+                    footerButton(
+                        title: isSelectedAI
+                            ? PaletteAIPrompt.primaryActionTitle()
+                            : (selectedIsColor ? String(localized: "Show") : String(localized: "Run")),
+                        shortcut: "⏎",
+                        id: .run,
+                        isAccent: true
+                    ) {
+                        runSelected(replace: false)
+                    }
                 }
+                .animation(.easeInOut(duration: 0.15), value: isSelectedAI)
             }
-            .animation(.easeInOut(duration: 0.15), value: isSelectedAI)
+        }
+    }
+
+    /// Display-only rows replace execution controls with noninteractive full-value detail.
+    @ViewBuilder
+    private var informationalFooter: some View {
+        if let selectedAction, let value = modeStore.inlineResults[selectedAction.id] {
+            ScrollView(.vertical) {
+                Text(value.rawValue)
+                    .font(.system(size: 11, weight: .regular))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+                .frame(maxWidth: .infinity, maxHeight: Self.footerHeight)
+                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                .help(value.rawValue)
+                .accessibilityLabel(
+                    InlineResultLayout.accessibilityLabel(
+                        title: selectedAction.displayTitle(using: ActionCustomizationManager.shared),
+                        value: value,
+                        displayOnly: true
+                    )
+                )
         }
     }
 
@@ -833,6 +884,12 @@ public struct PopupSearchView: View {
         return "⌘\(index + 1)"
     }
 
+    /// Display-only rows keep their position in the digit map but advertise no execution shortcut.
+    static func shortcutHint(forRow index: Int, action: any Action) -> String? {
+        guard !action.chrome.displayOnly else { return nil }
+        return shortcutHint(forRow: index)
+    }
+
     /// Returns false when there is no such row, so the keystroke falls through to the field instead of being swallowed.
     private func runRow(at index: Int) -> Bool {
         guard index >= 0, index < Self.maxShortcutRows, index < rowCount else { return false }
@@ -858,6 +915,8 @@ public struct PopupSearchView: View {
         guard results.indices.contains(selectedIndex) else { return }
         let action = results[selectedIndex].action
         let activeContext = activeActionContext
+        // Display-only rows stay selectable for inspection, but activation does nothing at all.
+        guard !action.chrome.displayOnly else { return }
         guard action.isEnabled(for: activeContext) else { return }
         // Resolve the intent once so the perform context and delivery snapshot agree; ⇧⏎ never reaches the mouse monitor.
         let clickIntent: ActionResultDelivery.ClickIntent = replace ? .secondary : onClickIntent()
@@ -877,30 +936,19 @@ public struct PopupSearchView: View {
         onActionPerformed?(action.id)
         if action.chrome.isInlineResult {
             if let result = modeStore.inlineResults[action.id] {
-                onResult(.text(result))
-                return
-            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
-                Task { @MainActor in
-                    do {
-                        if let text = await inFlight.value, !text.isEmpty {
-                            onResult(.text(text))
-                            return
-                        }
-                        let match = action.matchInfo(for: activeContext)
-                        let performContext = ActionContext(
-                            selection: activeContext.selection,
-                            modifiers: activeContext.modifiers,
-                            isSecondaryClick: clickIntent == .secondary,
-                            match: match
-                        )
-                        let result = try await action.perform(performContext)
-                        onResult(result)
-                    } catch {
-                        onResult(.toast(StatusFeedback(error: error)))
-                    }
-                }
+                onResult(result.inlineActionResult)
                 return
             }
+            // Reuse/join the bounded evaluation, never the unrestricted perform path.
+            Task { @MainActor in
+                if let result = await InlineResultActivation.invoke(
+                    action: action,
+                    context: activeContext
+                ) {
+                    onResult(result)
+                }
+            }
+            return
         }
         Task { @MainActor in
             do {

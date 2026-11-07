@@ -110,7 +110,7 @@ final class PopupPageLayoutTests: XCTestCase {
 
     func testInlinePreviewRepacksPagesAtRenderedWidth() {
         let actions = (0..<6).map { InlineStubAction(id: "inline.\($0)", title: "Inline \($0)") }
-        let results = Dictionary(uniqueKeysWithValues: actions.map { ($0.id, "1,234,567.89 USD") })
+        let results = Dictionary(uniqueKeysWithValues: actions.map { ($0.id, InlineResultValue.text("1,234,567.89 USD")) })
 
         // Six icon buttons fit the budget; the rendered preview text does not.
         let iconPacked = PopupPageLayout.computePages(actions: actions, maxBudget: 260.0)
@@ -120,7 +120,7 @@ final class PopupPageLayoutTests: XCTestCase {
         XCTAssertGreaterThan(previewPacked.count, 1, "Preview text must re-pack the page at its rendered width")
         XCTAssertEqual(iconPacked.flatMap { $0.map(\.id) }, previewPacked.flatMap { $0.map(\.id) }, "No action may be lost across re-packing")
 
-        let width = PopupPageLayout.estimatedItemWidth(for: actions[0], inlineResult: "1,234,567.89 USD")
+        let width = PopupPageLayout.estimatedItemWidth(for: actions[0], inlineResult: .text("1,234,567.89 USD"))
         XCTAssertGreaterThan(width, PopupMetrics.actionButtonWidth)
         XCTAssertLessThanOrEqual(width, PopupMetrics.inlineResultMaxWidth + 2 * PopupMetrics.inlineResultHorizontalPadding + 0.001)
     }

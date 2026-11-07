@@ -164,7 +164,9 @@ public struct ResultCardView: View {
     }
 
     private func handleReturn(shift: Bool) {
-        if payload.file != nil {
+        if payload.color != nil {
+            onCopy()
+        } else if payload.file != nil {
             (onSave ?? onPaste)()
         } else if showsFollowUp {
             handleFollowUpReturn(shift: shift)
@@ -193,8 +195,8 @@ public struct ResultCardView: View {
                 toggleDiff()
                 return true
             case "s":
-                guard payload.file != nil else { return false }
-                (onSave ?? onPaste)()
+                guard payload.file != nil || payload.color != nil else { return false }
+                if payload.color != nil { onSave?() } else { (onSave ?? onPaste)() }
                 return true
             case "z":
                 guard showsVersionSwitcher else { return false }
@@ -217,7 +219,10 @@ public struct ResultCardView: View {
         }
     }
 
-    private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError && payload.canFollowUp && payload.file == nil }
+    private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError && payload.canFollowUp && payload.file == nil && !isTypedVisualResult }
+
+    /// Typed color/emoji cards have their own body; diff, follow-up, and text metrics do not apply.
+    private var isTypedVisualResult: Bool { payload.color != nil || payload.emoji != nil }
 
     /// Diff and pin rest hidden until hover, but stay visible while active so a set state is never hidden.
     private var revealsSecondaryChrome: Bool {
@@ -259,7 +264,7 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(keys: ["d"], phases: .down) { press in
-            guard press.modifiers.contains(.command), hasDiff, payload.file == nil else { return .ignored }
+            guard press.modifiers.contains(.command), hasDiff, payload.file == nil, !isTypedVisualResult else { return .ignored }
             toggleDiff()
             return .handled
         }
@@ -269,8 +274,9 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(keys: ["s"], phases: .down) { press in
-            guard press.modifiers.contains(.command), payload.file != nil else { return .ignored }
-            (onSave ?? onPaste)()
+            guard press.modifiers.contains(.command) else { return .ignored }
+            guard payload.file != nil || payload.color != nil else { return .ignored }
+            onSave?()
             return .handled
         }
         .onKeyPress(keys: ["c"], phases: .down) { press in
@@ -297,7 +303,7 @@ public struct ResultCardView: View {
     /// Picks the default view: light edits open on the diff, wholesale rewrites on the plain result.
     /// A streaming response is never diffed.
     private func refreshDiff() {
-        guard !payload.isError, !payload.isStreaming,
+        guard !isTypedVisualResult, !payload.isError, !payload.isStreaming,
               let original = payload.original else {
             diffSegments = []
             showsDiff = false
@@ -409,7 +415,7 @@ public struct ResultCardView: View {
 
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
-                    if hasDiff && payload.file == nil {
+                    if hasDiff && payload.file == nil && !isTypedVisualResult {
                         diffToggle
                     }
 
@@ -576,7 +582,7 @@ public struct ResultCardView: View {
         // Padding, back button, icon, gaps, and min spacer.
         let baseChrome: CGFloat = 28 + 22 + 8 + 13 + 7 + 8
         // Right controls: 74 with diff, 48 without.
-        let controlsWidth: CGFloat = (hasDiff && payload.file == nil) ? 74 : 48
+        let controlsWidth: CGFloat = (hasDiff && payload.file == nil && !isTypedVisualResult) ? 74 : 48
         return ceil(rect.width) + baseChrome + controlsWidth
     }
 
@@ -714,6 +720,9 @@ public struct ResultCardView: View {
 
     /// The height the body needs when wrapped at the card's actual width.
     private var naturalContentHeight: CGFloat {
+        if isTypedVisualResult {
+            return PopupMetrics.typedCardNaturalHeight
+        }
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return PopupMetrics.aiCardMinHeight }
         let availableWidth = dynamicCardWidth - 2 * Self.horizontalTextInset
@@ -779,6 +788,12 @@ public struct ResultCardView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
+            } else if let emoji = payload.emoji {
+                emojiPreviewContent(emoji)
+                    .frame(maxWidth: .infinity)
+            } else if let color = payload.color {
+                colorPreviewContent(color)
+                    .frame(maxWidth: .infinity)
             } else {
                 ScrollView {
                     bodyText
@@ -811,6 +826,56 @@ public struct ResultCardView: View {
             Text(payload.text)
                 .foregroundColor(payload.isError ? Color.red : (payload.isRefining ? Color.primary.opacity(0.55) : Color.primary))
         }
+    }
+
+    /// A typed color: one bounded swatch plus its canonical hex. Copy/Save are explicit card actions;
+    /// the swatch grows with the card while the hex keeps its fixed type size.
+    private func colorPreviewContent(_ color: InlineColor) -> some View {
+        GeometryReader { proxy in
+            let swatch = Self.colorSwatchSize(for: proxy.size)
+            VStack(spacing: PopupMetrics.colorPreviewSpacing) {
+                Spacer(minLength: 0)
+                InlineColorSwatch(color: color, size: swatch)
+                Text(color.hex)
+                    .font(.system(size: 15, weight: .medium, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .textSelection(.enabled)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Self.horizontalTextInset)
+            .padding(.vertical, PopupMetrics.colorPreviewPadding)
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .clipped()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(color.hex)
+    }
+
+    /// Largest swatch that still leaves the fixed-size hex room inside the body.
+    static func colorSwatchSize(for available: CGSize) -> CGFloat {
+        let height = available.height - PopupMetrics.colorHexLineHeight - PopupMetrics.colorPreviewSpacing - 2 * PopupMetrics.colorPreviewPadding
+        let width = available.width - 2 * horizontalTextInset
+        return max(PopupMetrics.colorSwatchMinSize, min(width, height))
+    }
+
+    /// Emoji keeps the platform glyph shape, centered; it grows with the card but stops at a cap.
+    private func emojiPreviewContent(_ emoji: String) -> some View {
+        GeometryReader { proxy in
+            Text(emoji)
+                .font(.system(size: Self.emojiPointSize(for: proxy.size)))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .clipped()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(emoji)
+    }
+
+    static func emojiPointSize(for available: CGSize) -> CGFloat {
+        let side = min(available.width, available.height)
+        let scaled = side * PopupMetrics.emojiPointSizeFraction
+        return min(PopupMetrics.emojiPointSizeMax, max(PopupMetrics.emojiPointSizeMin, scaled))
     }
 
     // MARK: - Footer
@@ -994,29 +1059,35 @@ public struct ResultCardView: View {
         HStack(spacing: 6) {
             if payload.file != nil {
                 fileButtons
+            } else if payload.color != nil {
+                colorButtons
             } else if !payload.isError {
                 resultButtons
             } else {
-                Button {
-                    onDismiss()
-                } label: {
-                    Text(String(localized: "Dismiss"))
-                        .font(.system(size: 11.5, weight: .medium))
-                        .lineLimit(1)
-                        .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .popupFooterButtonChrome(
-                            effectiveTheme: effectiveTheme,
-                            colorScheme: colorScheme,
-                            isHovered: isDismissHovered
-                        )
-                }
-                .buttonStyle(.plain)
-                .help(String(localized: "Dismiss the error (⎋)"))
-                .onHover { isDismissHovered = $0 }
+                dismissButton
             }
         }
+    }
+
+    private var dismissButton: some View {
+        Button {
+            onDismiss()
+        } label: {
+            Text(String(localized: "Dismiss"))
+                .font(.system(size: 11.5, weight: .medium))
+                .lineLimit(1)
+                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .popupFooterButtonChrome(
+                    effectiveTheme: effectiveTheme,
+                    colorScheme: colorScheme,
+                    isHovered: isDismissHovered
+                )
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "Dismiss the error (⎋)"))
+        .onHover { isDismissHovered = $0 }
     }
 
     @ViewBuilder
@@ -1382,6 +1453,66 @@ public struct ResultCardView: View {
 
     private var isCopyPrimary: Bool {
         canPaste == false
+    }
+
+    /// Color card actions are explicit requests: Copy the canonical hex, or save it as a text file.
+    private var colorButtons: some View {
+        HStack(spacing: 4) {
+            Button {
+                onCopy()
+            } label: {
+                HStack(spacing: 4) {
+                    Text(String(localized: "Copy"))
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Image(systemName: "return")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .opacity(0.9)
+                }
+                .lineLimit(1)
+                .fixedSize()
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .popupFooterButtonChrome(
+                    effectiveTheme: effectiveTheme,
+                    colorScheme: colorScheme,
+                    isHovered: isCopyHovered,
+                    tint: .accentColor
+                )
+            }
+            .buttonStyle(.plain)
+            .help(String(localized: "Copy"))
+            .accessibilityLabel(String(localized: "Copy"))
+            .onHover { isCopyHovered = $0 }
+
+            if let onSave {
+                Button {
+                    onSave()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(String(localized: "Save"))
+                            .font(.system(size: 11.5, weight: .medium))
+                        Text("⌘S")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                    }
+                    .lineLimit(1)
+                    .fixedSize()
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .popupFooterButtonChrome(
+                        effectiveTheme: effectiveTheme,
+                        colorScheme: colorScheme,
+                        isHovered: isSaveHovered
+                    )
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "Save"))
+                .accessibilityLabel(String(localized: "Save"))
+                .onHover { isSaveHovered = $0 }
+            }
+        }
     }
 
     /// Copy / Paste — the answers that consume the result. Absent on an error card, which only

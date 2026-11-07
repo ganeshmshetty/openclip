@@ -62,6 +62,7 @@ public enum ActionResultDelivery {
         recommendedResult: ActionResultDeliveryMode? = nil,
         outputKind: ActionOutputKind? = nil
     ) -> ActionResult {
+        if case .color = raw { return raw }
         if clickIntent == .secondary, let declared = delivery.secondary {
             // Declared outcomes always win over automatic conventions.
             return declared
@@ -78,7 +79,8 @@ public enum ActionResultDelivery {
             explicitMode = recommendedResult
         } else if let outputKind {
             switch outputKind {
-            case .text: explicitMode = .pasteOrCopy
+            case .text, .emoji: explicitMode = .pasteOrCopy
+            case .color: explicitMode = .preview
             case .file, .dynamic: explicitMode = .preview
             case .none: explicitMode = .preview
             }
@@ -99,6 +101,10 @@ public enum ActionResultDelivery {
         explicitMode: ActionResultDeliveryMode?,
         previewOnSecondary: Bool = false
     ) -> ActionResult {
+        // A color is Show-only on every route: recommendations, force-copy, and card commands cannot
+        // turn its canonical hex into text delivery.
+        if case .color = raw { return raw }
+
         if case .sequence(let items) = raw {
             return .sequence(items.map {
                 selectItem($0, clickIntent: clickIntent, explicitMode: explicitMode, previewOnSecondary: previewOnSecondary)
@@ -109,6 +115,8 @@ public enum ActionResultDelivery {
         if let explicitMode {
             effectiveMode = explicitMode
         } else if case .text = raw {
+            effectiveMode = .pasteOrCopy
+        } else if case .emoji = raw {
             effectiveMode = .pasteOrCopy
         } else if case .file = raw {
             effectiveMode = .preview
@@ -138,6 +146,32 @@ public enum ActionResultDelivery {
                 case .copy:
                     // Primary copy -> Secondary preview
                     return .text(text)
+                }
+            }
+        }
+
+        if case .emoji(let emoji) = raw {
+            if clickIntent == .primary {
+                switch effectiveMode {
+                case .preview:
+                    return raw
+                case .paste, .pasteOrCopy:
+                    return .paste(emoji)
+                case .copy:
+                    return .copy(emoji)
+                case .open, .save:
+                    return .paste(emoji)
+                }
+            } else {
+                switch effectiveMode {
+                case .preview where previewOnSecondary:
+                    // User chose "Show in card": the secondary click shows the card too.
+                    return raw
+                case .paste, .pasteOrCopy, .preview, .open, .save:
+                    return .copy(emoji)
+                case .copy:
+                    // Primary copy -> Secondary preview
+                    return raw
                 }
             }
         }
