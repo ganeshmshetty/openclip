@@ -62,6 +62,7 @@ public enum ActionResultDelivery {
         recommendedResult: ActionResultDeliveryMode? = nil,
         outputKind: ActionOutputKind? = nil
     ) -> ActionResult {
+        if case .color = raw { return raw }
         if clickIntent == .secondary, let declared = delivery.secondary {
             // Declared outcomes always win over automatic conventions.
             return declared
@@ -79,6 +80,7 @@ public enum ActionResultDelivery {
         } else if let outputKind {
             switch outputKind {
             case .text: explicitMode = .pasteOrCopy
+            case .color: explicitMode = .preview
             case .file, .dynamic: explicitMode = .preview
             case .none: explicitMode = .preview
             }
@@ -99,6 +101,10 @@ public enum ActionResultDelivery {
         explicitMode: ActionResultDeliveryMode?,
         previewOnSecondary: Bool = false
     ) -> ActionResult {
+        // A color is Show-only on every route: recommendations, force-copy, and card commands cannot
+        // turn its canonical hex into text delivery.
+        if case .color = raw { return raw }
+
         if case .sequence(let items) = raw {
             return .sequence(items.map {
                 selectItem($0, clickIntent: clickIntent, explicitMode: explicitMode, previewOnSecondary: previewOnSecondary)

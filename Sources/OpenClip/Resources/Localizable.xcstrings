@@ -4565,6 +4565,34 @@
         }
       }
     },
+    "Color": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "颜色"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顏色"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couleur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラー"
+          }
+        }
+      }
+    },
     "Color Mode": {
       "localizations": {
         "zh-Hans": {
@@ -10133,6 +10161,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "1ページあたりのアクション数を増やす"
+          }
+        }
+      }
+    },
+    "Information": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "信息"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "資訊"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informations"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "情報"
           }
         }
       }

@@ -105,6 +105,13 @@ public enum PopupMetrics {
     public static let aiCardMaxWidth: CGFloat = 360
     public static let aiCardMinHeight: CGFloat = 200
     public static let aiCardMaxHeight: CGFloat = 280
+    /// Default body height for typed visual results (color) so they open with room to grow.
+    public static let typedCardNaturalHeight: CGFloat = 260
+    /// Color card: swatch bounds and fixed hex line metrics.
+    public static let colorSwatchMinSize: CGFloat = 40
+    public static let colorPreviewSpacing: CGFloat = 12
+    public static let colorPreviewPadding: CGFloat = 10
+    public static let colorHexLineHeight: CGFloat = 18
     /// Scrollable body max height; keeps the card plus `popupShadowInset` under `popupMaxHeight` to avoid clipping.
     public static let aiCardBodyHeight: CGFloat = 170
     /// Info/error toast auto-dismiss delay; loading toasts have no timer.

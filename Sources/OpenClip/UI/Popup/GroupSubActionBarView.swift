@@ -83,7 +83,7 @@ public struct GroupSubActionBarView: View {
 
     public static func estimatedButtonWidth(
         for action: any Action,
-        inlineResult: String? = nil,
+        inlineResult: InlineResultValue? = nil,
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
     ) -> CGFloat {
@@ -92,7 +92,7 @@ public struct GroupSubActionBarView: View {
 
     public static func computePages(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlineResultValue] = [:],
         maxBudget: CGFloat,
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
@@ -102,7 +102,7 @@ public struct GroupSubActionBarView: View {
 
     public static func measuredPageWidth(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlineResultValue] = [:],
         hasLeftChevron: Bool,
         hasRightChevron: Bool,
         scale: CGFloat = 1.0,
@@ -194,21 +194,22 @@ public struct GroupSubActionBarView: View {
     @ViewBuilder
     private func subActionButton(action: any Action, index: Int, isHovered: Bool) -> some View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-        let foregroundColor: Color = isHovered ? .white : restForeground
-        let backgroundColor: Color = isHovered ? PopupThemeModel.barHoverFill : Color.clear
+        let foregroundColor: Color = (isHovered && !action.chrome.displayOnly) ? .white : restForeground
+        let backgroundColor: Color = (isHovered && !action.chrome.displayOnly) ? PopupThemeModel.barHoverFill : Color.clear
 
-        // Inline results replace the icon once InlineResultEvaluator publishes a value.
+        // Inline results replace the icon once InlineResultEvaluator publishes a typed value.
         let labelView = Group {
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                Text(resolved)
-                    .font(.system(size: 15 * scale, weight: .regular))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundColor(foregroundColor)
-                    .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
+                InlineResultLabel(
+                    value: resolved,
+                    surface: .bar,
+                    scale: scale,
+                    foreground: (isHovered && !action.chrome.displayOnly) ? .white : restForeground
+                )
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                     .popupBarHighlight(backgroundColor, scale: scale, isText: true, leadingEdge: index == 0, trailingEdge: index == pagedSubActions.count - 1 && !hasLeftChevron && !hasRightChevron, outerInset: 3 - PopupMetrics.subBarEndInset, isHovered: isHovered, namespace: hoverHighlightNamespace)
+                    .helpIfPresent(action.chrome.displayOnly ? resolved.rawValue : nil)
                     .transition(.opacity)
             } else {
                 ActionIconView(icon: action.displayIcon(using: presenter), size: 15.5, scale: scale)
@@ -226,6 +227,8 @@ public struct GroupSubActionBarView: View {
 
         Button {
             guard action.isEnabled(for: context) else { return }
+            // Informational items never execute, deliver, record usage, or close the sub-bar.
+            guard !action.chrome.displayOnly else { return }
             // Capture intent once, synchronously, so perform context and delivery agree.
             let clickIntent = onClickIntent()
             if ActionIdentity.isAIPreset(action) {
@@ -236,34 +239,19 @@ public struct GroupSubActionBarView: View {
                 onRunLoadingAction(action, clickIntent)
                 return
             }
-            if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
+            if action.chrome.isInlineResult {
                 guard onWillPerformAction(action, clickIntent) else { return }
                 onActionPerformed(action.id)
-                onResult(.text(resolved))
-                return
-            }
-            // Join an in-flight inline evaluation rather than re-running it; empty falls back to perform.
-            if action.chrome.isInlineResult, let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
-                Task {
-                    guard onWillPerformAction(action, clickIntent) else { return }
-                    onActionPerformed(action.id)
-                    do {
-                        if let text = await inFlight.value, !text.isEmpty {
-                            onResult(.text(text))
-                            return
-                        }
-                        let match = action.matchInfo(for: context)
-                        let performContext = ActionContext(
-                            selection: context.selection,
-                            modifiers: context.modifiers,
-                            isSecondaryClick: clickIntent == .secondary,
-                            match: match
-                        )
-                        let result = try await action.perform(performContext)
+                if let resolved = modeStore.inlineResults[action.id] {
+                    onResult(resolved.inlineActionResult)
+                    return
+                }
+                Task { @MainActor in
+                    if let result = await InlineResultActivation.invoke(
+                        action: action,
+                        context: context
+                    ) {
                         onResult(result)
-                    } catch {
-                        Log.presentation.error("Sub-bar action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                        onResult(.toast(StatusFeedback(error: error)))
                     }
                 }
                 return
@@ -293,7 +281,11 @@ public struct GroupSubActionBarView: View {
         .accessibilityLabel({
             let title = action.displayTitle(using: presenter)
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                return "\(title): \(resolved)"
+                return InlineResultLayout.accessibilityLabel(
+                    title: title,
+                    value: resolved,
+                    displayOnly: action.chrome.displayOnly
+                )
             }
             return title
         }())

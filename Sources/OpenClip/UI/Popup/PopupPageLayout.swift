@@ -18,18 +18,17 @@ public enum PopupPageLayout {
     /// CJK, emoji and other full-width characters are about one em wide at 15 pt.
     private static let estimatedWideGlyphWidth: CGFloat = 15.0
 
-    /// Width of one action button. Inline-result actions size to their rendered preview text (capped), so pages
+    /// Width of one action button. Inline-result actions size to their rendered typed preview (capped), so pages
     /// never overflow once previews land; before a result lands the button packs at icon width.
     public static func estimatedItemWidth(
         for action: any Action,
-        inlineResult: String? = nil,
+        inlineResult: InlineResultValue? = nil,
         scale: CGFloat = 1.0,
         presenter: any ActionPresenting = ActionCustomizationManager.shared
     ) -> CGFloat {
-        if action.chrome.isInlineResult, let inlineResult, !inlineResult.isEmpty {
-            let textWidth = min(estimatedTextWidth(inlineResult, scale: scale),
-                                PopupMetrics.inlineResultMaxWidth * scale)
-            let padded = textWidth + 2 * PopupMetrics.inlineResultHorizontalPadding * scale
+        if action.chrome.isInlineResult, let inlineResult {
+            let contentWidth = InlineResultLayout.width(for: inlineResult, surface: .bar, scale: scale)
+            let padded = contentWidth + 2 * PopupMetrics.inlineResultHorizontalPadding * scale
             return max(PopupMetrics.actionButtonWidth * scale, padded)
         }
         let icon = action.displayIcon(using: presenter)
@@ -52,7 +51,7 @@ public enum PopupPageLayout {
     /// Leading and trailing widths are reserved for persistent controls.
     public static func computePages(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlineResultValue] = [:],
         leadingWidth: CGFloat = 0,
         trailingWidth: CGFloat = 0,
         maxBudget: CGFloat,
@@ -116,7 +115,7 @@ public enum PopupPageLayout {
     /// Measures the total horizontal width in points for a given page configuration.
     public static func measuredBarWidth(
         actions: [any Action],
-        inlineResults: [String: String] = [:],
+        inlineResults: [String: InlineResultValue] = [:],
         hasLeftChevron: Bool,
         hasRightChevron: Bool,
         leadingWidth: CGFloat = 0,

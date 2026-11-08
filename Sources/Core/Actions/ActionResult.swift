@@ -20,6 +20,11 @@ public indirect enum ActionResult: Sendable {
     /// Implicitly returned text (JS return, AppleScript output, shell stdout). Carries no delivery decision:
     /// the "When an action returns text" preference picks preview/paste/copy. Explicit effects are never re-decided.
     case text(String)
+    /// A typed inline color: shown as a swatch card with explicit Copy/Save; automatic delivery is Show-only.
+    case color(InlineColor)
+    /// Carrier for a validated typed inline return; the inline evaluator converts it to a
+    /// deliverable result after checking the action's declared output kind.
+    case inlineValue(InlineResultValue)
     case showServices(String)
 
     /// Look Up popover for `word`. Nothing is copied and the popup stays open to keep the anchor.
@@ -101,7 +106,7 @@ extension ActionResult {
         switch self {
         case .toast(let feedback):
             return !feedback.keepVisible
-        case .text, .file, .showDefinition:
+        case .text, .file, .showDefinition, .color:
             // Kept open for in-card preview; the Look Up popover is anchored to the panel, so it stays too.
             return false
         case .sequence(let items):
@@ -124,7 +129,7 @@ extension ActionResult {
     public var containsToast: Bool {
         switch self {
         case .toast: return true
-        case .text, .file: return false
+        case .text, .file, .color: return false
         case .sequence(let items): return items.contains(where: \.containsToast)
         default: return false
         }

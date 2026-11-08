@@ -7,6 +7,7 @@ import Foundation
 
 public enum ExtensionOutputKind: String, Sendable, Codable, Equatable, CaseIterable {
     case text
+    case color
     case file
     case none
     case dynamic
@@ -30,6 +31,8 @@ public enum ExtensionOutputContract {
         switch output {
         case .text:
             return result == .preview || result == .paste || result == .copy || result == .pasteOrCopy
+        case .color:
+            return result == .preview
         case .file:
             return result == .preview || result == .open || result == .save || result == .copy
         case .dynamic:
@@ -44,6 +47,8 @@ public enum ExtensionOutputContract {
         switch output {
         case .text:
             return .pasteOrCopy
+        case .color:
+            return .preview
         case .file, .dynamic:
             return .preview
         case .none:
@@ -69,7 +74,7 @@ public enum ExtensionOutputContract {
     /// 2. Manifest-level root defaults
     /// 3. Cross-derivation (output implies default result, result implies output kind)
     /// 4. Compatibility checks (dropping incompatible result with fallback)
-    /// 5. Inline action flag (inline: true implies output: .text)
+    /// 5. Inline action flag (inline: true defaults an omitted output to .text)
     public static func resolveEffective(
         declaredOutput: ExtensionOutputKind?,
         declaredResult: ExtensionResultDelivery?,
@@ -85,7 +90,10 @@ public enum ExtensionOutputContract {
         var hadIncompatible = false
 
         if inline == true {
-            output = .text
+            // Typed inline actions keep their declared kind; legacy inline actions still fall back to text.
+            if output == nil || output == ExtensionOutputKind.none {
+                output = .text
+            }
         }
 
         if output == nil, let r = result {

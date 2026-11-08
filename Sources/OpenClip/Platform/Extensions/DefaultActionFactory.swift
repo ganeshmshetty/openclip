@@ -277,6 +277,14 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             }
         }
 
+        let isInline = metadata.inline == true
+        // `displayOnly` is only meaningful for a valid synchronous JS inline action; anything else
+        // must not create a visible-but-nonfunctional item.
+        let isDisplayOnly = metadata.displayOnly == true
+            && isInline
+            && metadata.kind == .js
+            && metadata.isAsync != true
+
         let extensionChrome = ActionChrome(
             badge: .extensionPkg(manifest.name),
             rowStyle: .standard,
@@ -284,9 +292,10 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             source: .extensionPkg(packageID: manifest.identifier),
             requiresLiveSelection: metadata.requirements?.input == .liveSelection
                 || metadata.requirements?.input == .editableSelection,
-            showsLoading: metadata.loading ?? false,
+            showsLoading: !isInline && (metadata.loading ?? false),
             loadingMessage: metadata.loadingMessage,
-            isInlineResult: metadata.inline == true,
+            isInlineResult: isInline,
+            displayOnly: isDisplayOnly,
             outputKind: resolvedOutputKind,
             recommendedResult: resolvedResult
         )

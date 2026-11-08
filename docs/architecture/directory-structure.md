@@ -23,6 +23,7 @@ Sources/
 │   │   ├── ActionResultDelivery.swift        # Select → Probe → Toast: paste-vs-copy delivery decision (resolves (result, toast))
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
 │   │   ├── ActionVisibility.swift            # Pure visibility & requirement evaluation logic
+│   │   ├── InlineResultValue.swift           # Typed inline values (text/sRGB color), validation bounds, delivery capability
 │   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, Calculate, Calendar, Define, Search)
 │   │   │   ├── CalculateAction.swift
 │   │   │   ├── CalendarAction.swift
@@ -160,6 +161,10 @@ Sources/
     │   ├── PasteboardCopyEngine.swift        # Transient pasteboard archive-and-restore copy engine
     │   ├── PasteboardSnapshot.swift          # Pasteboard item state capture
     │   ├── PermissionManager.swift           # Accessibility permission manager
+    │   ├── Inline/                           # Typed inline result evaluation and explicit invocation
+    │   │   ├── InlineColorExport.swift       # Color card Save: canonical hex as a temporary .txt file
+    │   │   ├── InlineResultActivation.swift  # Shared invocation seam: no unrestricted fallback, display-only guard
+    │   │   └── InlineResultEvaluator.swift   # Restricted JS preview, typed outcomes, bounded session cache
     │   ├── Runtimes/                         # Runtime action executors requiring AppKit / JavaScriptCore
     │   │   ├── AppleScriptAction.swift       # AppleScript action runtime
     │   │   ├── JavaScriptAction.swift        # Manifests JS actions; short-circuits to .openConfiguration when required option unresolved, else delegates to OpenClipJSHost
@@ -197,6 +202,7 @@ Sources/
         │   └── PermissionRecoveryWindowController.swift # Permission recovery window controller
         ├── Popup/                            # Floating popup panel
         │   ├── GroupSubActionBarView.swift   # Sub-bar action items view
+        │   ├── InlineResultPresentation.swift # Shared typed inline renderer/swatch + width metrics (bar, sub-bar, search)
         │   ├── PopupGesturePolicy.swift      # Derived popup interaction policy from chrome + conformance (App target, UI-only)
         │   ├── PopupHoverSupport.swift       # Shared popup hover-state singleton + hover-target/frame preference keys (bar)
         │   ├── PopupMetrics.swift            # UI-only popup/search/AI-card sizing + placement/dismissal constants (App target, not Core)
