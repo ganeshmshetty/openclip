@@ -175,15 +175,11 @@ public final class InlineResultEvaluator {
             switch value {
             case .text(let text):
                 return InlineResultValue.makeText(text, displayOnly: displayOnly)
-            case .emoji(let emoji):
-                return InlineResultValue.makeEmoji(emoji)
             case .color(let color):
                 return .color(color)
             }
         case .text(let text):
             return InlineResultValue.makeLegacyString(text, for: output, displayOnly: displayOnly)
-        case .emoji(let emoji):
-            return InlineResultValue.makeEmoji(emoji)
         case .color(let color):
             return output == .color ? .color(color) : nil
         default:

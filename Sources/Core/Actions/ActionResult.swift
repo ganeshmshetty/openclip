@@ -22,8 +22,6 @@ public indirect enum ActionResult: Sendable {
     case text(String)
     /// A typed inline color: shown as a swatch card with explicit Copy/Save; automatic delivery is Show-only.
     case color(InlineColor)
-    /// A typed inline emoji: shown large in the card, delivered as text on Paste/Copy.
-    case emoji(String)
     /// Carrier for a validated typed inline return; the inline evaluator converts it to a
     /// deliverable result after checking the action's declared output kind.
     case inlineValue(InlineResultValue)
@@ -108,7 +106,7 @@ extension ActionResult {
         switch self {
         case .toast(let feedback):
             return !feedback.keepVisible
-        case .text, .file, .showDefinition, .color, .emoji:
+        case .text, .file, .showDefinition, .color:
             // Kept open for in-card preview; the Look Up popover is anchored to the panel, so it stays too.
             return false
         case .sequence(let items):
@@ -131,7 +129,7 @@ extension ActionResult {
     public var containsToast: Bool {
         switch self {
         case .toast: return true
-        case .text, .file, .color, .emoji: return false
+        case .text, .file, .color: return false
         case .sequence(let items): return items.contains(where: \.containsToast)
         default: return false
         }

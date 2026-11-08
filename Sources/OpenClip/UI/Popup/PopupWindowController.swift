@@ -709,11 +709,10 @@ public class PopupWindowController {
         overrideOriginal: Bool = false,
         canFollowUp: Bool = true,
         file: FileOutputPayload? = nil,
-        color: InlineColor? = nil,
-        emoji: String? = nil
+        color: InlineColor? = nil
     ) {
         guard session == aiSessionID else { return }
-        let showsVersions = canFollowUp && !isError && !isStreaming && file == nil && color == nil && emoji == nil
+        let showsVersions = canFollowUp && !isError && !isStreaming && file == nil && color == nil
         let versionCount = showsVersions ? (cardConversation.map { $0.steps.count + redoSteps.count } ?? 1) : 1
         let versionIndex = showsVersions ? (cardConversation?.steps.count ?? 1) : 1
         if toastController.isLoading {
@@ -732,7 +731,6 @@ public class PopupWindowController {
             canFollowUp: canFollowUp,
             file: file,
             color: color,
-            emoji: emoji,
             versionIndex: versionIndex,
             versionCount: versionCount
         )
@@ -2426,19 +2424,6 @@ public class PopupWindowController {
                         session: aiSessionID,
                         canFollowUp: false,
                         color: color
-                    )
-                    ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
-                    return
-                }
-                if case .emoji(let emoji) = resolved.result {
-                    showResultCard(
-                        text: emoji,
-                        isError: false,
-                        title: delivery?.actionTitle ?? String(localized: "Emoji"),
-                        icon: delivery?.actionIcon,
-                        session: aiSessionID,
-                        canFollowUp: false,
-                        emoji: emoji
                     )
                     ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
                     return

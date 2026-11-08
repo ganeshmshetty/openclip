@@ -138,7 +138,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var copyFile: URL?
         public var saveFile: URL?
         public var returnValue: String?
-        /// A validated typed inline value (text/emoji/color) returned by the script.
+        /// A typed inline value (text/color) returned by the script.
         public var inlineValue: InlineResultValue?
         /// A structured inline object was present but malformed; never reinterpret it as text.
         public var invalidInlineValue = false

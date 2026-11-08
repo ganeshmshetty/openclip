@@ -258,7 +258,7 @@ areas; stale debt notes are worse than none.
 
 ## Typed inline results
 
-- Inline values are `InlineResultValue` (text, emoji, canonical sRGB color). `PopupModeStore`
+- Inline values are `InlineResultValue` (text, canonical sRGB color). `PopupModeStore`
   publishes typed values; the shared `InlineResultLabel` renderer and `InlineResultLayout` width
   math serve the main bar, group sub-bar, and search accessory. Core owns validation, bounds, and
   delivery capability; AppKit/SwiftUI presentation stays in `Sources/OpenClip/`.
@@ -274,18 +274,18 @@ areas; stale debt notes are worse than none.
 - The shared JavaScript execution gate rejects a request when its in-flight cap is reached rather
   than queueing it; inline queue waiting therefore surfaces as a failed preview. Visible-row
   prioritisation and a bounded queue remain follow-up work.
-- Typed color and emoji cards own their body. The color swatch grows with the card while the hex
-  keeps its fixed type size; the card offers explicit Copy (hex) and Save (plain-text hex), but a
-  color still never enters automatic Paste/Copy delivery. Emoji cards render the glyph large and
-  centered, growing to a fixed cap, with normal Copy/Paste controls.
+- The typed color card owns its body. The color swatch grows with the card while the hex keeps its
+  fixed type size; the card offers explicit Copy (hex) and Save (plain-text hex), but a color still
+  never enters automatic Paste/Copy delivery. Emoji glyphs are ordinary text: same row metrics,
+  same Paste/Copy controls, delivered verbatim.
 - `displayOnly` is action-level on leaf inline JavaScript actions and requires
   `minOpenClipVersion` 1.10.0 or newer. It is enforced at the shared invocation seams
   (`canPerformAction`, `runBoundAction`, the evaluator, and each surface's activation handler), not
   only in SwiftUI click closures. `project.yml` sets `MARKETING_VERSION` to 1.10.0 for this release;
   keep `InlineResultValue.minimumOpenClipVersion` and the app version in step.
 - Extension-author documentation, validator rules, and examples for `displayOnly`, `output:
-  "emoji"`, `output: "color"`, and typed JavaScript returns belong to the separate
-  `openclip-extensions` repository.
+  "color"`, and typed JavaScript returns belong to the separate `openclip-extensions`
+  repository.
 
 ## Action-search palette and popup growth
 

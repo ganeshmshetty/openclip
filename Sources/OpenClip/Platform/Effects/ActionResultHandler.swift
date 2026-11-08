@@ -383,7 +383,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             if let padding { writeSmartClipboard(padding.original, marker: true) }
 
         // Presenter-owned results: no-ops here, which keeps the switch exhaustive.
-        case .toast, .openConfiguration, .sequence, .text, .file, .color, .emoji, .inlineValue:
+        case .toast, .openConfiguration, .sequence, .text, .file, .color, .inlineValue:
             break
 
         // keyPress posts a synthetic keystroke; runShortcut runs under the subprocess watchdog.

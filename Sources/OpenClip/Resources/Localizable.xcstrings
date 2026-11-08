@@ -7897,34 +7897,6 @@
         }
       }
     },
-    "Emoji": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "表情符号"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "表情符號"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Émoji"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "絵文字"
-          }
-        }
-      }
-    },
     "Empty group. Drag actions into this group in the actions list.": {
       "localizations": {
         "zh-Hans": {

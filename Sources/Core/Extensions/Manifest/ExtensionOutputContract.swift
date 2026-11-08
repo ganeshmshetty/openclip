@@ -7,7 +7,6 @@ import Foundation
 
 public enum ExtensionOutputKind: String, Sendable, Codable, Equatable, CaseIterable {
     case text
-    case emoji
     case color
     case file
     case none
@@ -30,7 +29,7 @@ public typealias ActionResultDeliveryMode = ExtensionResultDelivery
 public enum ExtensionOutputContract {
     public static func isCompatible(output: ExtensionOutputKind, result: ExtensionResultDelivery) -> Bool {
         switch output {
-        case .text, .emoji:
+        case .text:
             return result == .preview || result == .paste || result == .copy || result == .pasteOrCopy
         case .color:
             return result == .preview
@@ -46,7 +45,7 @@ public enum ExtensionOutputContract {
     /// Used when `result` is omitted.
     public static func defaultResult(for output: ExtensionOutputKind) -> ExtensionResultDelivery? {
         switch output {
-        case .text, .emoji:
+        case .text:
             return .pasteOrCopy
         case .color:
             return .preview

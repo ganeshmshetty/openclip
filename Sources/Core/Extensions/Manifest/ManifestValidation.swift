@@ -152,7 +152,7 @@ public struct ManifestValidator: Sendable {
             manifest.minOpenClipVersion,
             required: InlineResultValue.minimumOpenClipVersion
         )
-        if !typedInlineVersionSatisfied, manifest.output == .emoji || manifest.output == .color {
+        if !typedInlineVersionSatisfied, manifest.output == .color {
             issues.append(ManifestValidationIssue(
                 kind: .minimumVersionRequired(feature: "output: \(manifest.output?.rawValue ?? "")", version: InlineResultValue.minimumOpenClipVersion),
                 path: "manifest"
@@ -229,7 +229,7 @@ public struct ManifestValidator: Sendable {
         var issues: [ManifestValidationIssue] = []
         // Typed inline output is a new contract; older apps must not treat it as text.
         let effectiveOutput = action.output ?? (action.inline == true ? .text : inheritedOutput)
-        if !typedInlineVersionSatisfied, effectiveOutput == .emoji || effectiveOutput == .color {
+        if !typedInlineVersionSatisfied, effectiveOutput == .color {
             issues.append(ManifestValidationIssue(
                 kind: .minimumVersionRequired(feature: "output: \(effectiveOutput?.rawValue ?? "")", version: InlineResultValue.minimumOpenClipVersion),
                 path: path

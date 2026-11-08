@@ -2,7 +2,7 @@
 // OpenClip
 //
 // Shared native rendering and width measurement for typed inline results across the main bar,
-// group sub-bar, and search palette. Host owns every visual: bounded swatch/emoji slots and a
+// group sub-bar, and search palette. Host owns every visual: a bounded swatch slot and a
 // single-line text preview.
 import SwiftUI
 import Core
@@ -17,13 +17,6 @@ enum InlineResultLayout {
             switch self {
             case .bar: return 15
             case .search: return 11
-            }
-        }
-
-        var emojiFontSize: CGFloat {
-            switch self {
-            case .bar: return 16
-            case .search: return 12
             }
         }
 
@@ -67,15 +60,13 @@ enum InlineResultLayout {
                 total + (ActionTextIconStyle.rendersFullWidth(character) ? wide : narrow)
             }
             return min(intrinsic, surface.maxContentWidth * scale)
-        case .emoji:
-            return min(surface.emojiFontSize * scale + 4 * scale, surface.maxContentWidth * scale)
         case .color:
             // Inline surfaces show the swatch only; the full code stays in the card and accessibility label.
             return min(surface.swatchSize * scale, surface.maxContentWidth * scale)
         }
     }
 
-    /// The accessibility/value presentation: full bounded text, exact emoji, or the canonical hex.
+    /// The accessibility/value presentation: full bounded text or the canonical hex.
     static func accessibilityValue(for value: InlineResultValue) -> String {
         value.rawValue
     }
@@ -106,12 +97,6 @@ struct InlineResultLabel: View {
                 .foregroundColor(foreground)
                 .frame(maxWidth: InlineResultLayout.width(for: value, surface: surface, scale: scale),
                        alignment: .leading)
-        case .emoji:
-            Text(value.rawValue)
-                .font(.system(size: surface.emojiFontSize * scale, weight: .regular))
-                .lineLimit(1)
-                .foregroundColor(foreground)
-                .frame(width: InlineResultLayout.width(for: value, surface: surface, scale: scale))
         case .color(let color):
             InlineColorSwatch(color: color, size: surface.swatchSize * scale)
                 .frame(width: InlineResultLayout.width(for: value, surface: surface, scale: scale))

@@ -1,7 +1,7 @@
 // InlineResultValue.swift
 // OpenClip
 //
-// Platform-independent typed inline result values: text, emoji, and normalized sRGB color.
+// Platform-independent typed inline result values: text and normalized sRGB color.
 // Presentation (fonts, swatches, layout) lives in the app target; this file owns validation,
 // canonicalization, bounds, and delivery capability.
 import Foundation
@@ -73,7 +73,6 @@ public struct InlineColor: Sendable, Equatable, Hashable {
 /// The value an inline action returns: display data, never display instructions.
 public enum InlineResultValue: Sendable, Equatable, Hashable {
     case text(String)
-    case emoji(String)
     case color(InlineColor)
 
     /// The release that introduced typed inline values and `displayOnly`.
@@ -82,7 +81,6 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
     public static let maxAutomaticTextUTF8Bytes = 64 * 1024
     public static let maxDisplayOnlyTextGraphemes = 256
     public static let maxDisplayOnlyTextUTF8Bytes = 4 * 1024
-    public static let maxEmojiUTF8Bytes = 128
 
     /// Builds and validates a typed value. `nil` means the value is not an inline result.
     /// `displayOnly` applies the tighter informational-text bounds.
@@ -90,8 +88,6 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
         switch type.lowercased() {
         case "text":
             return makeText(value, displayOnly: displayOnly)
-        case "emoji":
-            return makeEmoji(value)
         case "color":
             guard let color = InlineColor(hex: value) else { return nil }
             return .color(color)
@@ -112,37 +108,10 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
         return .text(value)
     }
 
-    public static func makeEmoji(_ value: String) -> InlineResultValue? {
-        guard value.count == 1, value.utf8.count <= maxEmojiUTF8Bytes else { return nil }
-        // One extended grapheme cluster that is actually emoji-presented. Plain ASCII digits,
-        // '#', and '*' report `isEmoji` but are not emoji on their own.
-        let scalars = value.unicodeScalars
-        let hasEmojiPresentation = scalars.contains { $0.properties.isEmojiPresentation }
-        let hasEmojiModifier = scalars.contains {
-            $0.properties.isEmojiModifier || $0.properties.isEmojiModifierBase
-        }
-        let scalarArray = Array(scalars)
-        let keycapBases: Set<UInt32> = Set(0x30...0x39).union([0x23, 0x2A])
-        let hasVariationSelector = scalarArray.enumerated().contains { index, scalar in
-            index > 0 && scalar.value == 0xFE0F && scalarArray[index - 1].properties.isEmoji
-                && !keycapBases.contains(scalarArray[index - 1].value)
-        }
-        let hasKeycap = scalarArray.enumerated().contains { index, scalar in
-            guard scalar.value == 0x20E3, index > 0 else { return false }
-            let baseIndex = scalarArray[index - 1].value == 0xFE0F ? index - 2 : index - 1
-            return baseIndex >= 0 && keycapBases.contains(scalarArray[baseIndex].value)
-        }
-        let hasRegionalIndicator = scalars.contains { (0x1F1E6...0x1F1FF).contains($0.value) }
-        guard hasEmojiPresentation || hasEmojiModifier || hasVariationSelector || hasKeycap || hasRegionalIndicator else {
-            return nil
-        }
-        return .emoji(value)
-    }
-
     /// The complete value used for Paste/Copy and the card; never a truncated label.
     public var rawValue: String {
         switch self {
-        case .text(let value), .emoji(let value):
+        case .text(let value):
             return value
         case .color(let color):
             return color.hex
@@ -158,7 +127,7 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
                 .replacingOccurrences(of: "\n", with: " ")
                 .replacingOccurrences(of: "\r", with: " ")
                 .replacingOccurrences(of: "\t", with: " ")
-        case .emoji, .color:
+        case .color:
             return rawValue
         }
     }
@@ -166,7 +135,6 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
     public var kind: ExtensionOutputKind {
         switch self {
         case .text: return .text
-        case .emoji: return .emoji
         case .color: return .color
         }
     }
@@ -175,23 +143,19 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
         switch self {
         case .text(let value):
             return .text(value)
-        case .emoji(let value):
-            return .emoji(value)
         case .color(let color):
             return .color(color)
         }
     }
 
     /// Coerces an untyped JavaScript string return using the action's declared inline output.
-    /// A legacy inline action (no declared output) stays text; declared emoji/color validate the string.
+    /// A legacy inline action (no declared output) stays text; a declared color validates the string.
     public static func makeLegacyString(
         _ value: String,
         for output: ExtensionOutputKind,
         displayOnly: Bool
     ) -> InlineResultValue? {
         switch output {
-        case .emoji:
-            return makeEmoji(value)
         case .file:
             return nil
         case .color:
@@ -203,13 +167,11 @@ public enum InlineResultValue: Sendable, Equatable, Hashable {
     }
 
     /// Whether a decoded value is compatible with the action's declared inline output.
-    /// Legacy inline actions declare `.text`, so a typed color/emoji is a mismatch, not a reinterpretation.
+    /// Legacy inline actions declare `.text`, so a typed color is a mismatch, not a reinterpretation.
     public func matches(declaredOutput: ExtensionOutputKind) -> Bool {
         switch declaredOutput {
         case .text, .dynamic, .none:
             return kind == .text
-        case .emoji:
-            return kind == .emoji
         case .color:
             return kind == .color
         case .file:

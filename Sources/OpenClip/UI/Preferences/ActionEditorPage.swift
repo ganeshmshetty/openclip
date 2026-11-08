@@ -211,7 +211,7 @@ public struct ActionEditorPage: View {
         if action.chrome.displayOnly { return false }
         // AI presets stream through the controller's AI flow, not the ordinary delivery preference.
         if isAIPreset { return false }
-        if action.chrome.outputKind == .text || action.chrome.outputKind == .dynamic || action.chrome.outputKind == .emoji {
+        if action.chrome.outputKind == .text || action.chrome.outputKind == .dynamic {
             return true
         }
         if action.chrome.outputKind == .none || action.chrome.outputKind == .file || action.chrome.outputKind == .color {

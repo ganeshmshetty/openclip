@@ -30,21 +30,12 @@ final class TypedInlineResultsTests: XCTestCase {
         XCTAssertNil(InlineColor(hex: "FF8800"))
     }
 
-    func testEmojiAcceptsOneExtendedGraphemeCluster() {
-        for emoji in ["🎉", "🇺🇸", "👍🏽", "❤️", "1️⃣", "👨‍👩‍👧‍👦"] {
-            XCTAssertEqual(InlineResultValue.makeEmoji(emoji), .emoji(emoji), "\(emoji) must be a single emoji value")
-        }
-        XCTAssertNil(InlineResultValue.makeEmoji("🎉🎉"))
-        XCTAssertNil(InlineResultValue.makeEmoji("ab"))
-        XCTAssertNil(InlineResultValue.makeEmoji(" "))
-        // `isEmoji` is also true for ASCII digits and a few symbols; those are not emoji alone.
-        XCTAssertNil(InlineResultValue.makeEmoji("5"))
-        XCTAssertNil(InlineResultValue.makeEmoji("#"))
-        XCTAssertNil(InlineResultValue.makeEmoji("*"))
-        XCTAssertNil(InlineResultValue.makeEmoji("❤"))
-        XCTAssertNil(InlineResultValue.makeEmoji("A\u{FE0F}"))
-        XCTAssertNil(InlineResultValue.makeEmoji("A\u{20E3}"))
-        XCTAssertNil(InlineResultValue.makeEmoji("1\u{FE0F}"))
+    func testEmojiGlyphsAreOrdinaryText() {
+        let value = InlineResultValue.makeText("🎉")
+        XCTAssertEqual(value, .text("🎉"))
+        XCTAssertEqual(value?.rawValue, "🎉")
+        XCTAssertEqual(value?.displayText, "🎉")
+        XCTAssertEqual(InlineResultValue.makeText("👨‍👩‍👧‍👦")?.rawValue, "👨‍👩‍👧‍👦")
     }
 
     func testTextPreservesValueButCollapsesDisplayLineBreaks() {
@@ -74,24 +65,19 @@ final class TypedInlineResultsTests: XCTestCase {
         XCTAssertEqual(InlineResultValue.makeLegacyString("hello", for: .text, displayOnly: false), .text("hello"))
     }
 
-    func testOutputContractSupportsEmojiAndColor() {
-        XCTAssertTrue(ExtensionOutputContract.isCompatible(output: .emoji, result: .paste))
-        XCTAssertTrue(ExtensionOutputContract.isCompatible(output: .emoji, result: .copy))
-        XCTAssertTrue(ExtensionOutputContract.isCompatible(output: .emoji, result: .preview))
+    func testOutputContractSupportsTextAndColor() {
+        XCTAssertTrue(ExtensionOutputContract.isCompatible(output: .text, result: .paste))
+        XCTAssertTrue(ExtensionOutputContract.isCompatible(output: .text, result: .copy))
         XCTAssertTrue(ExtensionOutputContract.isCompatible(output: .color, result: .preview))
         XCTAssertFalse(ExtensionOutputContract.isCompatible(output: .color, result: .paste))
         XCTAssertFalse(ExtensionOutputContract.isCompatible(output: .color, result: .copy))
-        XCTAssertEqual(ExtensionOutputContract.defaultResult(for: .emoji), .pasteOrCopy)
+        XCTAssertEqual(ExtensionOutputContract.defaultResult(for: .text), .pasteOrCopy)
         XCTAssertEqual(ExtensionOutputContract.defaultResult(for: .color), .preview)
     }
 
     func testInlineDeclarationPreservesTypedOutputsButStillDefaultsToText() {
         let legacy = ExtensionOutputContract.resolveEffective(declaredOutput: nil, declaredResult: nil, inline: true)
         XCTAssertEqual(legacy.output, .text)
-
-        let emoji = ExtensionOutputContract.resolveEffective(declaredOutput: .emoji, declaredResult: nil, inline: true)
-        XCTAssertEqual(emoji.output, .emoji)
-        XCTAssertEqual(emoji.result, .pasteOrCopy)
 
         let color = ExtensionOutputContract.resolveEffective(declaredOutput: .color, declaredResult: .paste, inline: true)
         XCTAssertEqual(color.output, .color)
@@ -176,7 +162,7 @@ final class TypedInlineResultsTests: XCTestCase {
 
     // MARK: - Delivery
 
-    func testTextAndEmojiUseExistingDeliveryMatrix() {
+    func testTextUsesExistingDeliveryMatrix() {
         func resolve(_ kind: ExtensionOutputKind, _ intent: ActionResultDelivery.ClickIntent) -> ActionResult {
             ActionResultDelivery.resolve(
                 raw: .text("value"),
@@ -187,7 +173,7 @@ final class TypedInlineResultsTests: XCTestCase {
             ).result
         }
 
-        for kind in [ExtensionOutputKind.text, .emoji] {
+        for kind in [ExtensionOutputKind.text] {
             guard case .paste(let primary) = resolve(kind, .primary) else {
                 return XCTFail("primary must paste for \(kind)")
             }
@@ -266,54 +252,30 @@ final class TypedInlineResultsTests: XCTestCase {
         XCTAssertEqual(result, color)
     }
 
-    func testEmojiInlineValueKeepsTypedCardButDeliversAsText() {
-        let value = InlineResultValue.emoji("🎉")
-        guard case .emoji(let typed) = value.inlineActionResult else {
-            return XCTFail("emoji must keep its typed result for the card")
-        }
-        XCTAssertEqual(typed, "🎉")
-
+    func testEmojiGlyphAsTextPastesAndCopiesVerbatim() {
         let primary = ActionResultDelivery.resolve(
-            raw: .emoji("🎉"),
+            raw: .text("🎉"),
             clickIntent: .primary,
             canPaste: true,
             recommendedResult: .pasteOrCopy,
-            outputKind: .emoji
+            outputKind: .text
         ).result
         guard case .paste(let pasted) = primary else {
-            return XCTFail("primary emoji must paste")
+            return XCTFail("primary text must paste")
         }
         XCTAssertEqual(pasted, "🎉")
 
         let secondary = ActionResultDelivery.resolve(
-            raw: .emoji("🎉"),
+            raw: .text("🎉"),
             clickIntent: .secondary,
             canPaste: true,
             recommendedResult: .pasteOrCopy,
-            outputKind: .emoji
+            outputKind: .text
         ).result
         guard case .copy(let copied) = secondary else {
-            return XCTFail("secondary emoji must copy")
+            return XCTFail("secondary text must copy")
         }
         XCTAssertEqual(copied, "🎉")
-
-        let preview = ActionResultDelivery.resolve(
-            raw: .emoji("🎉"),
-            clickIntent: .primary,
-            canPaste: true,
-            recommendedResult: .preview,
-            outputKind: .emoji
-        ).result
-        guard case .emoji(let cardValue) = preview else {
-            return XCTFail("Show must preserve the typed emoji card")
-        }
-        XCTAssertEqual(cardValue, "🎉")
-    }
-
-    func testEmojiCardSizeGrowsUpToACap() {
-        XCTAssertEqual(ResultCardView.emojiPointSize(for: CGSize(width: 300, height: 170)), 119, accuracy: 0.001)
-        XCTAssertEqual(ResultCardView.emojiPointSize(for: CGSize(width: 2000, height: 2000)), 220)
-        XCTAssertEqual(ResultCardView.emojiPointSize(for: CGSize(width: 20, height: 20)), 64)
     }
 
     func testColorExportWritesCanonicalHexText() throws {
@@ -400,7 +362,7 @@ final class TypedInlineResultsTests: XCTestCase {
 
     // MARK: - JavaScript host
     func testTypedObjectsAreOnlyDecodedInRestrictedInlineMode() async throws {
-        let request = makeRequest(script: "function action() { return { type: 'emoji', value: '🎉' }; }")
+        let request = makeRequest(script: "function action() { return { type: 'color', value: '#f80' }; }")
         let result = try await OpenClipJSHost().run(request)
         guard case .success = result else {
             return XCTFail("non-inline actions must keep the old object-return behavior: \(result)")
@@ -409,7 +371,6 @@ final class TypedInlineResultsTests: XCTestCase {
 
     func testRestrictedHostDecodesTypedReturns() async throws {        let cases: [(String, InlineResultValue)] = [
             ("return { type: 'text', value: '144' };", .text("144")),
-            ("return { type: 'emoji', value: '🎉' };", .emoji("🎉")),
             ("return { type: 'color', value: '#f80' };", .color(InlineColor(hex: "#FF8800")!))
         ]
 
@@ -427,7 +388,8 @@ final class TypedInlineResultsTests: XCTestCase {
     func testRestrictedHostRejectsMalformedTypedObjects() async throws {
         for script in [
             "return { type: 'color', value: 'red' };",
-            "return { type: 'emoji', value: 'ab' };",
+            // Emoji is not an output kind in 1.10; the glyph is ordinary text.
+            "return { type: 'emoji', value: '🎉' };",
             "return { type: 'text', value: 144 };",
             "return { type: 'unknown', value: 'x' };",
             "return { type: 42, toString() { return 'unexpected'; } };",
@@ -493,19 +455,19 @@ final class TypedInlineResultsTests: XCTestCase {
     // MARK: - Evaluator typed validation
 
     func testEvaluatorAcceptsMatchingTypedOutputAndRejectsMismatch() async {
-        let emojiAction = makeAction(
-            id: "test.emoji",
-            script: "function action() { return { type: 'emoji', value: '🎉' }; }",
-            output: .emoji
+        let textAction = makeAction(
+            id: "test.text",
+            script: "function action() { return { type: 'text', value: '144' }; }",
+            output: .text
         )
         let context = ActionContext(selection: SelectionContext(text: "input"))
-        let emoji = await InlineResultEvaluator().evaluateAsync(action: emojiAction, context: context, timeout: 1.0)
-        XCTAssertEqual(emoji, .emoji("🎉"))
+        let text = await InlineResultEvaluator().evaluateAsync(action: textAction, context: context, timeout: 1.0)
+        XCTAssertEqual(text, .text("144"))
 
         let mismatched = makeAction(
             id: "test.mismatch",
-            script: "function action() { return { type: 'emoji', value: '🎉' }; }",
-            output: .text
+            script: "function action() { return { type: 'text', value: '144' }; }",
+            output: .color
         )
         let mismatchedValue = await InlineResultEvaluator().evaluateAsync(action: mismatched, context: context, timeout: 1.0)
         XCTAssertNil(mismatchedValue)

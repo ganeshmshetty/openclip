@@ -23,7 +23,7 @@ Sources/
 │   │   ├── ActionResultDelivery.swift        # Select → Probe → Toast: paste-vs-copy delivery decision (resolves (result, toast))
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
 │   │   ├── ActionVisibility.swift            # Pure visibility & requirement evaluation logic
-│   │   ├── InlineResultValue.swift           # Typed inline values (text/emoji/sRGB color), validation bounds, delivery capability
+│   │   ├── InlineResultValue.swift           # Typed inline values (text/sRGB color), validation bounds, delivery capability
 │   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, Calculate, Calendar, Define, Search)
 │   │   │   ├── CalculateAction.swift
 │   │   │   ├── CalendarAction.swift

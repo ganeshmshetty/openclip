@@ -221,8 +221,8 @@ public struct ResultCardView: View {
 
     private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError && payload.canFollowUp && payload.file == nil && !isTypedVisualResult }
 
-    /// Typed color/emoji cards have their own body; diff, follow-up, and text metrics do not apply.
-    private var isTypedVisualResult: Bool { payload.color != nil || payload.emoji != nil }
+    /// Typed color cards have their own body; diff, follow-up, and text metrics do not apply.
+    private var isTypedVisualResult: Bool { payload.color != nil }
 
     /// Diff and pin rest hidden until hover, but stay visible while active so a set state is never hidden.
     private var revealsSecondaryChrome: Bool {
@@ -788,9 +788,6 @@ public struct ResultCardView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-            } else if let emoji = payload.emoji {
-                emojiPreviewContent(emoji)
-                    .frame(maxWidth: .infinity)
             } else if let color = payload.color {
                 colorPreviewContent(color)
                     .frame(maxWidth: .infinity)
@@ -856,26 +853,6 @@ public struct ResultCardView: View {
         let height = available.height - PopupMetrics.colorHexLineHeight - PopupMetrics.colorPreviewSpacing - 2 * PopupMetrics.colorPreviewPadding
         let width = available.width - 2 * horizontalTextInset
         return max(PopupMetrics.colorSwatchMinSize, min(width, height))
-    }
-
-    /// Emoji keeps the platform glyph shape, centered; it grows with the card but stops at a cap.
-    private func emojiPreviewContent(_ emoji: String) -> some View {
-        GeometryReader { proxy in
-            Text(emoji)
-                .font(.system(size: Self.emojiPointSize(for: proxy.size)))
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .clipped()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(emoji)
-    }
-
-    static func emojiPointSize(for available: CGSize) -> CGFloat {
-        let side = min(available.width, available.height)
-        let scaled = side * PopupMetrics.emojiPointSizeFraction
-        return min(PopupMetrics.emojiPointSizeMax, max(PopupMetrics.emojiPointSizeMin, scaled))
     }
 
     // MARK: - Footer
