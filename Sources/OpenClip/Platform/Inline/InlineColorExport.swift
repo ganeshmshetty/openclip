@@ -21,6 +21,7 @@ enum InlineColorExport {
             stagedFiles.insert(url)
             return url
         } catch {
+            Log.resultHandler.error("Color export staging failed")
             try? FileManager.default.removeItem(at: directory)
             return nil
         }

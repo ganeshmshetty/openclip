@@ -190,7 +190,8 @@ public struct ManifestValidator: Sendable {
 
     private func validateActionWarnings(_ action: ExtensionActionMetadata, path: String, inheritedOutput: ExtensionOutputKind?) -> [ManifestValidationWarning] {
         var warnings: [ManifestValidationWarning] = []
-        let effectiveOutput = action.output ?? (action.inline == true ? .text : inheritedOutput)
+        // A package-level or group output applies to an inline leaf before the legacy text default.
+        let effectiveOutput = action.output ?? inheritedOutput ?? (action.inline == true ? .text : nil)
         if let output = effectiveOutput, let result = action.result {
             if !ExtensionOutputContract.isCompatible(output: output, result: result) {
                 warnings.append(ManifestValidationWarning(kind: .incompatibleOutputResult(output: output, result: result), path: path))
@@ -228,7 +229,7 @@ public struct ManifestValidator: Sendable {
 
         var issues: [ManifestValidationIssue] = []
         // Typed inline output is a new contract; older apps must not treat it as text.
-        let effectiveOutput = action.output ?? (action.inline == true ? .text : inheritedOutput)
+        let effectiveOutput = action.output ?? inheritedOutput ?? (action.inline == true ? .text : nil)
         if !typedInlineVersionSatisfied, effectiveOutput == .color {
             issues.append(ManifestValidationIssue(
                 kind: .minimumVersionRequired(feature: "output: \(effectiveOutput?.rawValue ?? "")", version: InlineResultValue.minimumOpenClipVersion),

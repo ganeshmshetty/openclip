@@ -319,6 +319,46 @@ final class TypedInlineResultsTests: XCTestCase {
         XCTAssertEqual(newer, .text("new"), "A newer selection must never receive the older evaluation's value")
     }
 
+    func testCacheIdentityIncludesExposedMarkup() async {
+        let evaluator = InlineResultEvaluator()
+        let action = makeAction(
+            id: "test.markup",
+            script: "function action() { return openclip.input.html; }",
+            output: .text
+        )
+        let first = await evaluator.evaluateAsync(
+            action: action,
+            context: ActionContext(selection: SelectionContext(text: "same", html: "<b>one</b>")),
+            timeout: 1.0
+        )
+        let second = await evaluator.evaluateAsync(
+            action: action,
+            context: ActionContext(selection: SelectionContext(text: "same", html: "<b>two</b>")),
+            timeout: 1.0
+        )
+        XCTAssertEqual(first, .text("<b>one</b>"))
+        XCTAssertEqual(second, .text("<b>two</b>"), "same text with different markup must not reuse the cached value")
+    }
+
+    func testInheritedColorOutputWarnsForInlineCopyResult() {
+        let manifest = ExtensionMetadata(
+            identifier: "com.test.inherit",
+            name: "Inherit",
+            actions: [ExtensionActionMetadata(
+                id: "brand",
+                title: "Brand",
+                type: "js",
+                scriptCode: "return '#f80'",
+                inline: true,
+                result: .copy
+            )],
+            output: .color
+        )
+        XCTAssertTrue(ManifestValidator.validateWarnings(manifest).contains {
+            $0.kind == .incompatibleOutputResult(output: .color, result: .copy)
+        })
+    }
+
     func testColorCardSwatchScalesWithAvailableBody() {
         let small = ResultCardView.colorSwatchSize(for: CGSize(width: 188, height: 110))
         let large = ResultCardView.colorSwatchSize(for: CGSize(width: 288, height: 170))
@@ -450,6 +490,20 @@ final class TypedInlineResultsTests: XCTestCase {
             return XCTFail("selection snapshot must remain available, got \(result)")
         }
         XCTAssertEqual(text, "input")
+    }
+
+    func testRestrictedPreviewNeverTurnsAFilePathIntoAFileResult() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try "contents".write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        var request = makeRequest(script: "function action() { return '\(url.path)'; }")
+        request.restrictedToPreview = true
+        let result = try await OpenClipJSHost().run(request)
+        guard case .text(let value) = result else {
+            return XCTFail("a restricted preview is value-only; got \(result)")
+        }
+        XCTAssertEqual(value, url.path)
     }
 
     // MARK: - Evaluator typed validation

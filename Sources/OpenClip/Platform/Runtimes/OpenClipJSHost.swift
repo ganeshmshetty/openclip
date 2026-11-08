@@ -487,7 +487,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             installRestrictedPreviewEnvironment(in: jsContext)
         }
         let asyncResolvers: FetchResolvers?
-        if request.isAsync, let promiseState {
+        // Preview is synchronous and network-free; never re-add fetch after capability removal.
+        if request.isAsync, !request.restrictedToPreview, let promiseState {
             asyncResolvers = registerAsyncBridge(
                 openclip: openclip,
                 context: jsContext,
@@ -1004,8 +1005,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         } else if collected.invalidInlineValue {
             raw = .none
         } else if let returnValue = evaluation.asyncReturnValue ?? collected.returnValue {
-            // A string naming an existing regular file becomes a file result.
-            if let fileResult = ShellResultMapper.detectFileResult(from: returnValue) {
+            // A restricted preview is value-only: a path-like string stays text, never a file result.
+            if !request.restrictedToPreview, let fileResult = ShellResultMapper.detectFileResult(from: returnValue) {
                 raw = fileResult
             } else {
                 raw = .text(returnValue)

@@ -19,11 +19,12 @@ public final class InlineResultEvaluator {
         case notApplicable
     }
 
-    /// Full request identity: captured text, action, script/options fingerprint, declared output,
-    /// display-only policy, and locale context.
+    /// Full request identity: captured text and markup, action, script/options fingerprint, declared
+    /// output, display-only policy, source app, and locale context.
     private struct MemoKey: Hashable {
         let textHash: Int
         let textCount: Int
+        let markupHash: Int
         let actionID: String
         let outputKind: String
         let displayOnly: Bool
@@ -119,9 +120,13 @@ public final class InlineResultEvaluator {
 
     private func memoKey(for action: any Action, context: ActionContext) -> MemoKey {
         let text = context.selection.text
+        var markup = Hasher()
+        markup.combine(context.selection.html)
+        markup.combine(context.selection.rtf)
         return MemoKey(
             textHash: text.hashValue,
             textCount: text.count,
+            markupHash: markup.finalize(),
             actionID: action.id,
             outputKind: action.chrome.outputKind.rawValue,
             displayOnly: action.chrome.displayOnly,
@@ -288,6 +293,7 @@ public final class InlineResultEvaluator {
             }
             if automaticFailures.contains(key) { continue }
             if let existing = prewarmedTasks[action.id], existing.key == key { continue }
+            prewarmedTasks[action.id]?.task.cancel()
             let task = Task { @MainActor [weak self] () -> Outcome? in
                 guard let self else { return nil }
                 let outcome = await self.evaluateOutcome(action: action, context: context, timeout: PopupMetrics.inlineEvaluationTimeout)

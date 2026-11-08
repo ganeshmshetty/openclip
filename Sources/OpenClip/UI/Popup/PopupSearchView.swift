@@ -743,7 +743,7 @@ public struct PopupSearchView: View {
     }
 
     private func accessibilityValue(for action: any Action) -> String {
-        guard action.chrome.displayOnly, let value = modeStore.inlineResults[action.id] else { return "" }
+        guard let value = modeStore.inlineResults[action.id] else { return "" }
         return InlineResultLayout.accessibilityValue(for: value)
     }
 

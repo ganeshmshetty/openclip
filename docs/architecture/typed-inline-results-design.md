@@ -24,7 +24,10 @@ A separate extension function is not a requirement. V1 reuses existing synchrono
 - A new extension function, script file, or `inlinePreview` manifest key.
 - Changes to unrelated non-inline actions or file output.
 
-## 2. Current implementation
+## 2. Baseline before this change (pre-1.10.0)
+
+This section records the code as it stood when the design was written; sections 3–8 describe the
+shipped 1.10.0 behavior.
 
 - `Sources/OpenClip/Platform/Inline/InlineResultEvaluator.swift` prewarms, evaluates, caches, and publishes strings. Automatic evaluation calls the action implementation and accepts only nonblank `.text` results.
 - `Sources/OpenClip/UI/Popup/PopupModeStore.swift` stores `[String: String]` results.
