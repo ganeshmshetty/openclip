@@ -1,110 +1,9 @@
 // CLIProvider.swift
 // OpenClip
 //
-// AI text processing via local command-line tools (Claude Code, Codex CLI, GitHub Copilot, custom scripts).
-// Leverages existing user terminal subscriptions with zero extra API key configuration.
+// AI text processing via local command-line tools. Preset details live in CLIToolCatalog.
 import Foundation
 import Core
-
-public enum CLIPreset: String, CaseIterable, Identifiable, Sendable {
-    case claude = "claude"
-    case codex = "codex"
-    case copilot = "copilot"
-    case custom = "custom"
-
-    public var id: String { rawValue }
-
-    public var displayName: String {
-        switch self {
-        case .claude: return "Claude Code (claude)"
-        case .codex: return "Codex CLI (codex)"
-        case .copilot: return "GitHub Copilot (gh copilot)"
-        case .custom: return "Custom Command"
-        }
-    }
-
-    public var binaryName: String {
-        switch self {
-        case .claude: return "claude"
-        case .codex: return "codex"
-        case .copilot: return "gh"
-        case .custom: return ""
-        }
-    }
-
-    public var defaultModels: [String] {
-        switch self {
-        case .claude:
-            return ["default", "sonnet", "haiku", "opus", "claude-3-7-sonnet-latest", "claude-3-5-haiku-latest"]
-        case .codex:
-            return ["default", "gpt-5.6-terra", "o3", "o3-mini", "o1", "gpt-4o", "gpt-4o-mini"]
-        case .copilot:
-            return ["default", "gpt-4o", "claude-3.5-sonnet", "o1"]
-        case .custom:
-            return ["default"]
-        }
-    }
-
-    public var primaryModel: String {
-        switch self {
-        case .claude: return "sonnet"
-        case .codex: return "gpt-5.6-terra"
-        case .copilot: return "gpt-4o"
-        case .custom: return "default"
-        }
-    }
-
-    public var loginCommand: String {
-        switch self {
-        case .claude: return "claude auth login"
-        case .codex: return "codex"
-        case .copilot: return "gh auth login"
-        case .custom: return ""
-        }
-    }
-
-    public var authHelpText: String {
-        switch self {
-        case .claude:
-            return "Run “claude auth login” in Terminal to sign in with your active Claude Pro, Team, or Max subscription."
-        case .codex:
-            return "Codex automatically detects your ChatGPT account or API credentials. To authenticate, launch “codex” in Terminal to sign in with your ChatGPT Plus, Team, or Enterprise subscription."
-        case .copilot:
-            return "Run “gh auth login” in Terminal to authenticate your GitHub account with GitHub Copilot access."
-        case .custom:
-            return "Custom CLI tools can authenticate via shell environment variables (e.g. API keys in ~/.zshrc), session credentials, or local execution without credentials."
-        }
-    }
-
-    public var installationHint: String {
-        switch self {
-        case .claude:
-            return "Install: npm install -g @anthropic-ai/claude-code"
-        case .codex:
-            return "Install: brew install codex"
-        case .copilot:
-            return "Install: brew install gh && gh extension install github/gh-copilot"
-        case .custom:
-            return "Specify any CLI command that accepts stdin or prompt arguments"
-        }
-    }
-
-    /// Env vars that skip the CLI's thinking pass where a documented switch exists. Copilot and custom commands have none.
-    public var thinkingDisabledEnvironment: [String: String] {
-        switch self {
-        case .claude: return ["MAX_THINKING_TOKENS": "0"]
-        case .codex, .copilot, .custom: return [:]
-        }
-    }
-
-    /// Config-override flags that skip the thinking pass (Codex only).
-    public var thinkingDisabledArguments: [String] {
-        switch self {
-        case .codex: return ["-c", "model_reasoning_effort=none"]
-        case .claude, .copilot, .custom: return []
-        }
-    }
-}
 
 @MainActor
 public final class CLIProvider: AIProvider {
@@ -147,7 +46,7 @@ public final class CLIProvider: AIProvider {
                         modelOverride: modelOverride
                     )
 
-                    try await Self.runStreamingProcess(invocation: invocation, preset: preset, continuation: continuation)
+                    try await Self.runStreamingProcess(invocation: invocation, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -158,10 +57,195 @@ public final class CLIProvider: AIProvider {
         }
     }
 
-    // MARK: - Binary Resolution
+    // MARK: - Status
+
+    nonisolated public static func readiness(
+        for preset: CLIPreset,
+        customCommand: String = "",
+        customAuthCommand: String = ""
+    ) async -> CLIReadiness {
+        await Task.detached(priority: .utility) {
+            readinessBlocking(for: preset, customCommand: customCommand, customAuthCommand: customAuthCommand)
+        }.value
+    }
+
+    nonisolated private static func readinessBlocking(
+        for preset: CLIPreset,
+        customCommand: String,
+        customAuthCommand: String
+    ) -> CLIReadiness {
+        if preset == .custom {
+            return customReadiness(command: customCommand, authCommand: customAuthCommand)
+        }
+        guard let tool = CLITool.tool(for: preset) else {
+            return .notInstalled(command: "")
+        }
+        guard let binary = resolveBinary(in: tool.binaries) else {
+            return CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: tool)
+        }
+        let version = versionString(binary: binary, arguments: tool.versionArguments)
+        let authenticated = evaluate(tool.auth, presetBinary: binary)
+        return CLIReadinessPlan.builtin(binaryFound: true, version: version, authenticated: authenticated, tool: tool)
+    }
+
+    nonisolated private static func customReadiness(command: String, authCommand: String) -> CLIReadiness {
+        let cmd = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cmd.isEmpty {
+            return CLIReadiness(state: .notInstalled, version: nil, hint: "Enter a command", fixCommand: nil)
+        }
+        let firstWord = cmd.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
+        guard resolveBinaryPath(for: firstWord) != nil else {
+            return CLIReadiness(state: .notInstalled, version: nil, hint: "Binary “\(firstWord)” not found", fixCommand: nil)
+        }
+        let auth = authCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        if auth.isEmpty {
+            return .ready(version: nil)
+        }
+        let result = runCaptured(
+            executable: "/bin/zsh",
+            arguments: ["-l", "-c", auth],
+            timeout: 8
+        )
+        if result.timedOut || result.exitCode != 0 {
+            return .signInNeeded(command: auth)
+        }
+        return .ready(version: nil)
+    }
+
+    nonisolated private static func versionString(binary: String, arguments: [String]) -> String? {
+        let result = runCaptured(executable: binary, arguments: arguments, timeout: 4)
+        guard !result.timedOut, result.exitCode == 0 else { return nil }
+        let line = result.stdout
+            .split(whereSeparator: \.isNewline)
+            .first
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard let line, !line.isEmpty else { return nil }
+        return line.count > 80 ? String(line.prefix(80)) : line
+    }
+
+    nonisolated private static func evaluate(_ check: CLIAuthCheck, presetBinary: String) -> Bool {
+        switch check {
+        case .any(let checks):
+            return checks.contains { evaluate($0, presetBinary: presetBinary) }
+        case .environmentNonEmpty(let keys):
+            let env = ProcessInfo.processInfo.environment
+            return keys.contains { key in
+                let value = env[key]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                return !value.isEmpty
+            }
+        case .keychainService(let service):
+            let result = runCaptured(
+                executable: "/usr/bin/security",
+                arguments: ["find-generic-password", "-s", service],
+                timeout: 3
+            )
+            return !result.timedOut && result.exitCode == 0
+        case .homeRelativeFile(let relative):
+            let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(relative)
+            return FileManager.default.fileExists(atPath: url.path)
+        case .command(let binaryName, let arguments, let rule):
+            let binary: String?
+            if let binaryName {
+                binary = resolveBinaryPath(for: binaryName)
+            } else {
+                binary = presetBinary
+            }
+            guard let binary, !binary.isEmpty else { return false }
+            let result = runCaptured(executable: binary, arguments: arguments, timeout: 8)
+            if result.timedOut { return false }
+            return CLIAuthOutput.passes(rule: rule, exitCode: result.exitCode, output: result.stdout + result.stderr)
+        }
+    }
+
+    nonisolated public static func inspectConfiguredModel(for preset: CLIPreset) -> String? {
+        guard let tool = CLITool.tool(for: preset), case .codexConfig = tool.models else { return nil }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let configPath = "\(home)/.codex/config.toml"
+        guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else { return nil }
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("model"), trimmed.contains("=") else { continue }
+            let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { continue }
+            var value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            if !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    nonisolated public static func fetchAvailableModels(for preset: CLIPreset) async -> [String] {
+        await Task.detached(priority: .utility) {
+            fetchAvailableModelsBlocking(for: preset)
+        }.value
+    }
+
+    nonisolated private static func fetchAvailableModelsBlocking(for preset: CLIPreset) -> [String] {
+        guard let tool = CLITool.tool(for: preset) else { return [] }
+        let configured = inspectConfiguredModel(for: preset)
+        switch tool.models {
+        case .none, .codexConfig:
+            return fallbackModels(tool, configured: configured)
+        case .command(let arguments, let parse):
+            guard let binary = resolveBinary(in: tool.binaries) else {
+                return fallbackModels(tool, configured: configured)
+            }
+            let result = runCaptured(executable: binary, arguments: arguments, timeout: 15)
+            let parsed = result.timedOut ? [] : CLIModelListParser.parse(result.stdout, format: parse)
+            return parsed.isEmpty ? fallbackModels(tool, configured: configured) : parsed
+        }
+    }
+
+    nonisolated private static func fallbackModels(_ tool: CLITool, configured: String?) -> [String] {
+        var models: [String] = []
+        if let configured, !configured.isEmpty {
+            models.append(configured)
+        }
+        for alias in tool.documentedAliases where !models.contains(alias) {
+            models.append(alias)
+        }
+        return models
+    }
+
+    nonisolated public static func detectionStatus(for preset: CLIPreset, customCommand: String = "") -> (isFound: Bool, details: String) {
+        let status = readinessBlocking(for: preset, customCommand: customCommand, customAuthCommand: "")
+        switch status.state {
+        case .ready:
+            return (true, status.version.map { "Ready (\($0))" } ?? "Ready")
+        case .signInNeeded, .notInstalled:
+            return (false, status.hint.isEmpty ? status.title : status.hint)
+        }
+    }
+
+    // MARK: - Invocation Building
+
+    private struct ProcessInvocation: Sendable {
+        let executableURL: URL
+        let arguments: [String]
+        let environment: [String: String]
+        let stdinText: String?
+        let output: CLIOutputKind
+    }
+
+    nonisolated private static func cliEnvironment(extra: [String: String] = [:]) -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let extraPaths = [
+            "\(home)/.local/bin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(home)/.cargo/bin"
+        ]
+        let currentPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+        env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
+        for (key, value) in extra {
+            env[key] = value
+        }
+        return env
+    }
 
     /// Timeout-bounded: a stuck login shell or auth command counts as a failed check.
-    nonisolated private static func waitForExit(_ process: Process, timeout: TimeInterval = 10) -> Bool {
+    nonisolated private static func waitForExit(_ process: Process, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning {
             let remaining = deadline.timeIntervalSinceNow
@@ -192,10 +276,8 @@ public final class CLIProvider: AIProvider {
             "/bin/\(trimmed)"
         ]
 
-        for path in standardCandidates {
-            if FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
+        for path in standardCandidates where FileManager.default.isExecutableFile(atPath: path) {
+            return path
         }
 
         // Login shell picks up the user's PATH, which GUI launches lack.
@@ -210,7 +292,7 @@ public final class CLIProvider: AIProvider {
         } catch {
             return nil
         }
-        guard waitForExit(process) else { return nil }
+        guard waitForExit(process, timeout: 5) else { return nil }
 
         if process.terminationStatus == 0 {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -219,195 +301,16 @@ public final class CLIProvider: AIProvider {
                 return output
             }
         }
-
         return nil
     }
 
-    nonisolated public static func inspectConfiguredModel(for preset: CLIPreset) -> String? {
-        switch preset {
-        case .codex:
-            let home = FileManager.default.homeDirectoryForCurrentUser.path
-            let configPath = "\(home)/.codex/config.toml"
-            if let content = try? String(contentsOfFile: configPath, encoding: .utf8) {
-                for line in content.components(separatedBy: .newlines) {
-                    let trimmed = line.trimmingCharacters(in: .whitespaces)
-                    if trimmed.hasPrefix("model") && trimmed.contains("=") {
-                        let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
-                        if parts.count == 2 {
-                            var val = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                            val = val.trimmingCharacters(in: CharacterSet(charactersIn: "\"\'"))
-                            if !val.isEmpty { return val }
-                        }
-                    }
-                }
+    nonisolated private static func resolveBinary(in names: [String]) -> String? {
+        for name in names {
+            if let path = resolveBinaryPath(for: name) {
+                return path
             }
-            return nil
-        default:
-            return nil
         }
-    }
-
-    nonisolated public static func fetchAvailableModels(for preset: CLIPreset) async throws -> [String] {
-        switch preset {
-        case .claude:
-            guard resolveBinaryPath(for: "claude") != nil else {
-                throw AIError.providerUnavailable("Claude Code CLI not installed")
-            }
-            return ["sonnet", "haiku", "opus", "claude-3-7-sonnet-latest", "claude-3-5-haiku-latest"]
-
-        case .codex:
-            guard resolveBinaryPath(for: "codex") != nil else {
-                throw AIError.providerUnavailable("Codex CLI not installed")
-            }
-            var models = ["gpt-5.6-terra", "o3", "o3-mini", "o1", "gpt-4o", "gpt-4o-mini"]
-            if let configured = inspectConfiguredModel(for: .codex), !models.contains(configured) {
-                models.insert(configured, at: 0)
-            }
-            return models
-
-        case .copilot:
-            guard resolveBinaryPath(for: "gh") != nil else {
-                throw AIError.providerUnavailable("GitHub CLI not installed")
-            }
-            return ["gpt-4o", "claude-3.5-sonnet", "o1"]
-
-        case .custom:
-            return []
-        }
-    }
-
-    nonisolated public static func checkAuthStatus(
-        for preset: CLIPreset,
-        customCommand: String = "",
-        customAuthCommand: String = ""
-    ) async -> (isAuthenticated: Bool, message: String) {
-        if preset == .custom {
-            let authCmd = customAuthCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !authCmd.isEmpty {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-                process.arguments = ["-l", "-c", authCmd]
-                process.standardOutput = Pipe()
-                process.standardError = Pipe()
-                do {
-                    try process.run()
-                    guard waitForExit(process) else { return (false, "Auth Failed") }
-                    return (process.terminationStatus == 0, process.terminationStatus == 0 ? "Authenticated" : "Auth Failed")
-                } catch {
-                    return (false, "Auth Failed")
-                }
-            }
-
-            let execCmd = customCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-            if execCmd.isEmpty {
-                return (false, "Command Required")
-            }
-            let firstWord = execCmd.components(separatedBy: .whitespaces).first ?? ""
-            if resolveBinaryPath(for: firstWord) != nil {
-                return (true, "Executable Ready")
-            }
-            return (false, "Not Found")
-        }
-
-        guard let binaryPath = resolveBinaryPath(for: preset.binaryName) else {
-            return (false, "Not Installed")
-        }
-
-        switch preset {
-        case .claude:
-            let pipe = Pipe()
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = ["-l", "-c", "\(binaryPath) auth status"]
-            process.standardOutput = pipe
-            process.standardError = Pipe()
-            do {
-                try process.run()
-                guard waitForExit(process) else { return (false, "Not Authenticated") }
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                if output.contains("\"loggedIn\": true") || output.contains("\"loggedIn\":true") {
-                    return (true, "Authenticated")
-                } else if output.contains("\"loggedIn\": false") || output.contains("\"loggedIn\":false") {
-                    return (false, "Not Authenticated")
-                }
-                return (process.terminationStatus == 0, process.terminationStatus == 0 ? "Authenticated" : "Not Authenticated")
-            } catch {
-                return (false, "Not Authenticated")
-            }
-
-        case .codex:
-            let pipe = Pipe()
-            let errPipe = Pipe()
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = ["-l", "-c", "\(binaryPath) login status"]
-            process.standardOutput = pipe
-            process.standardError = errPipe
-            do {
-                try process.run()
-                guard waitForExit(process) else { return (false, "Not Authenticated") }
-                let outData = pipe.fileHandleForReading.readDataToEndOfFile()
-                let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-                let output = (String(data: outData, encoding: .utf8) ?? "") + (String(data: errData, encoding: .utf8) ?? "")
-                if process.terminationStatus == 0 && output.localizedCaseInsensitiveContains("logged in") && !output.localizedCaseInsensitiveContains("not logged in") {
-                    return (true, "Authenticated")
-                }
-                return (false, "Not Authenticated")
-            } catch {
-                return (false, "Not Authenticated")
-            }
-
-        case .copilot:
-            let pipe = Pipe()
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = ["-l", "-c", "\(binaryPath) auth status"]
-            process.standardOutput = pipe
-            process.standardError = Pipe()
-            do {
-                try process.run()
-                guard waitForExit(process) else { return (false, "Not Authenticated") }
-                if process.terminationStatus == 0 {
-                    return (true, "Authenticated")
-                }
-                return (false, "Not Authenticated")
-            } catch {
-                return (false, "Not Authenticated")
-            }
-
-        case .custom:
-            return (true, "Ready")
-        }
-    }
-
-    nonisolated public static func detectionStatus(for preset: CLIPreset, customCommand: String = "") -> (isFound: Bool, details: String) {
-        if preset == .custom {
-            let cmd = customCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-            if cmd.isEmpty {
-                return (false, "Enter a command")
-            }
-            let firstWord = cmd.components(separatedBy: .whitespaces).first ?? ""
-            if let path = resolveBinaryPath(for: firstWord) {
-                return (true, "Executable found at \(path)")
-            }
-            return (false, "Binary “\(firstWord)” not found")
-        }
-
-        let binary = preset.binaryName
-        if let path = resolveBinaryPath(for: binary) {
-            return (true, "Found at \(path)")
-        }
-        return (false, preset.installationHint)
-    }
-
-    // MARK: - Invocation Building
-
-    private struct ProcessInvocation: Sendable {
-        let executableURL: URL
-        let arguments: [String]
-        let environment: [String: String]
-        let stdinText: String?
+        return nil
     }
 
     nonisolated private static func buildInvocation(
@@ -417,93 +320,94 @@ public final class CLIProvider: AIProvider {
         customCommand: String,
         modelOverride: String
     ) throws -> ProcessInvocation {
-        var env = ProcessInfo.processInfo.environment
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let extraPaths = [
-            "\(home)/.local/bin",
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "\(home)/.cargo/bin"
-        ]
-        let currentPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
-        env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
-
-        for (key, value) in preset.thinkingDisabledEnvironment {
-            env[key] = value
-        }
-
-        switch preset {
-        case .claude:
-            guard let binary = resolveBinaryPath(for: "claude") else {
-                throw AIError.providerUnavailable("Claude Code CLI ('claude') not found. \(CLIPreset.claude.installationHint)")
-            }
-            var args = ["-p", "--tools", "", "--no-session-persistence", "--system-prompt", systemPrompt]
-            if !modelOverride.isEmpty {
-                args.append(contentsOf: ["--model", modelOverride])
-            }
-            return ProcessInvocation(
-                executableURL: URL(fileURLWithPath: binary),
-                arguments: args,
-                environment: env,
-                stdinText: userContent
-            )
-
-        case .codex:
-            guard let binary = resolveBinaryPath(for: "codex") else {
-                throw AIError.providerUnavailable("Codex CLI ('codex') not found. \(CLIPreset.codex.installationHint)")
-            }
-            var args = [
-                "exec"
-            ] + preset.thinkingDisabledArguments + [
-                systemPrompt,
-                "--skip-git-repo-check",
-                "--ephemeral",
-                "--sandbox",
-                "read-only",
-                "--json"
-            ]
-            if !modelOverride.isEmpty {
-                args.append(contentsOf: ["-m", modelOverride])
-            }
-            return ProcessInvocation(
-                executableURL: URL(fileURLWithPath: binary),
-                arguments: args,
-                environment: env,
-                stdinText: userContent
-            )
-
-        case .copilot:
-            guard let binary = resolveBinaryPath(for: "gh") else {
-                throw AIError.providerUnavailable("GitHub CLI ('gh') not found. \(CLIPreset.copilot.installationHint)")
-            }
-            let fullInstruction = "\(systemPrompt)\n\n\(userContent)"
-            return ProcessInvocation(
-                executableURL: URL(fileURLWithPath: binary),
-                arguments: ["copilot", "-p", fullInstruction],
-                environment: env,
-                stdinText: nil
-            )
-
-        case .custom:
+        if preset == .custom {
             guard !customCommand.isEmpty else {
                 throw AIError.providerUnavailable("Custom CLI command is empty. Configure it in Preferences → AI.")
             }
+            var env = cliEnvironment()
             env["OPENCLIP_PROMPT"] = systemPrompt
             env["OPENCLIP_TEXT"] = userContent
             return ProcessInvocation(
                 executableURL: URL(fileURLWithPath: "/bin/zsh"),
                 arguments: ["-l", "-c", customCommand],
                 environment: env,
-                stdinText: userContent
+                stdinText: userContent,
+                output: .plainText
             )
         }
+
+        guard let tool = CLITool.tool(for: preset) else {
+            throw AIError.providerUnavailable("Unknown CLI preset.")
+        }
+        switch tool.runner {
+        case .subprocess:
+            break
+        }
+        guard let binary = resolveBinary(in: tool.binaries) else {
+            throw AIError.providerUnavailable("\(tool.displayName) was not found. Install: \(tool.installCommand)")
+        }
+        let args = CLIArgumentPlan.arguments(
+            template: tool.invocation,
+            thinkingArguments: tool.thinkingArguments,
+            systemPrompt: systemPrompt,
+            userContent: userContent,
+            model: modelOverride
+        )
+        let stdin: String? = tool.invocation.stdin == .userText ? userContent : nil
+        return ProcessInvocation(
+            executableURL: URL(fileURLWithPath: binary),
+            arguments: args,
+            environment: cliEnvironment(extra: tool.invocation.environment),
+            stdinText: stdin,
+            output: tool.invocation.output
+        )
     }
 
     // MARK: - Process Execution
 
+    private struct CommandCapture: Sendable {
+        var exitCode: Int32
+        var timedOut: Bool
+        var stdout: String
+        var stderr: String
+    }
+
+    nonisolated private static func runCaptured(executable: String, arguments: [String], timeout: TimeInterval) -> CommandCapture {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.environment = cliEnvironment()
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        let stdinPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        process.standardInput = stdinPipe
+
+        let stdoutBuffer = DataBuffer(handle: stdoutPipe.fileHandleForReading)
+        let stderrBuffer = DataBuffer(handle: stderrPipe.fileHandleForReading)
+        stdoutBuffer.start()
+        stderrBuffer.start()
+
+        do {
+            try process.run()
+        } catch {
+            return CommandCapture(exitCode: 1, timedOut: false, stdout: "", stderr: error.localizedDescription)
+        }
+        try? stdinPipe.fileHandleForWriting.close()
+
+        let exited = waitForExit(process, timeout: timeout)
+        let stdout = String(data: stdoutBuffer.finish(), encoding: .utf8) ?? ""
+        let stderr = String(data: stderrBuffer.finish(), encoding: .utf8) ?? ""
+        if !exited {
+            return CommandCapture(exitCode: 1, timedOut: true, stdout: stdout, stderr: stderr)
+        }
+        return CommandCapture(exitCode: process.terminationStatus, timedOut: false, stdout: stdout, stderr: stderr)
+    }
+
     nonisolated private static func runStreamingProcess(
         invocation: ProcessInvocation,
-        preset: CLIPreset,
         continuation: AsyncThrowingStream<String, Error>.Continuation
     ) async throws {
         try Task.checkCancellation()
@@ -521,7 +425,7 @@ public final class CLIProvider: AIProvider {
         process.standardInput = stdInPipe
 
         let outAccumulator = LineStreamAccumulator(handle: stdOutPipe.fileHandleForReading) { line in
-            if let parsed = parseOutputLine(line, preset: preset), !parsed.isEmpty {
+            if let parsed = parseOutputLine(line, output: invocation.output), !parsed.isEmpty {
                 continuation.yield(parsed)
             }
         }
@@ -543,9 +447,10 @@ public final class CLIProvider: AIProvider {
 
                 outAccumulator.finish()
                 let errStr = errAccumulator.finish().trimmingCharacters(in: .whitespacesAndNewlines)
+                let stdoutText = outAccumulator.capturedText()
 
                 if process.terminationStatus != 0 {
-                    let message = errStr.isEmpty ? "CLI process exited with code \(process.terminationStatus)" : errStr
+                    let message = failureMessage(stderr: errStr, stdout: stdoutText, status: process.terminationStatus)
                     continuation.finish(throwing: AIError.providerUnavailable(message))
                     return
                 }
@@ -559,15 +464,23 @@ public final class CLIProvider: AIProvider {
         }
     }
 
-    nonisolated private static func parseOutputLine(_ line: String, preset: CLIPreset) -> String? {
+    nonisolated private static func failureMessage(stderr: String, stdout: String, status: Int32) -> String {
+        let stderrTrimmed = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stdoutTrimmed = stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = stderrTrimmed.isEmpty ? stdoutTrimmed : stderrTrimmed
+        if raw.isEmpty {
+            return "CLI process exited with code \(status)"
+        }
+        return raw.count > 500 ? String(raw.prefix(500)) : raw
+    }
+
+    nonisolated private static func parseOutputLine(_ line: String, output: CLIOutputKind) -> String? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        switch preset {
-        case .codex:
-            guard trimmed.hasPrefix("{") && trimmed.hasSuffix("}") else {
-                return nil
-            }
+        switch output {
+        case .codexJSONL:
+            guard trimmed.hasPrefix("{"), trimmed.hasSuffix("}") else { return nil }
             guard let data = trimmed.data(using: .utf8) else { return nil }
 
             struct CodexEvent: Decodable {
@@ -598,7 +511,7 @@ public final class CLIProvider: AIProvider {
             }
             return nil
 
-        case .claude, .copilot, .custom:
+        case .plainText:
             return line + "\n"
         }
     }
@@ -606,10 +519,43 @@ public final class CLIProvider: AIProvider {
 
 // MARK: - Thread-safe Accumulators
 
+private final class DataBuffer: @unchecked Sendable {
+    private let handle: FileHandle
+    private let lock = NSLock()
+    private var data = Data()
+
+    init(handle: FileHandle) {
+        self.handle = handle
+    }
+
+    func start() {
+        handle.readabilityHandler = { [weak self] fh in
+            guard let self else { return }
+            let available = fh.availableData
+            guard !available.isEmpty else { return }
+            self.lock.lock()
+            self.data.append(available)
+            self.lock.unlock()
+        }
+    }
+
+    func finish() -> Data {
+        handle.readabilityHandler = nil
+        let tail = handle.availableData
+        lock.lock()
+        data.append(tail)
+        let result = data
+        data.removeAll(keepingCapacity: false)
+        lock.unlock()
+        return result
+    }
+}
+
 private final class LineStreamAccumulator: @unchecked Sendable {
     private let handle: FileHandle
     private let lock = NSLock()
     private var lineBuffer = ""
+    private var captured = ""
     private let onLine: @Sendable (String) -> Void
 
     init(handle: FileHandle, onLine: @escaping @Sendable (String) -> Void) {
@@ -626,6 +572,7 @@ private final class LineStreamAccumulator: @unchecked Sendable {
             var linesToEmit: [String] = []
             self.lock.lock()
             self.lineBuffer += chunk
+            self.captured += chunk
             while let newlineIndex = self.lineBuffer.firstIndex(of: "\n") {
                 let line = String(self.lineBuffer[..<newlineIndex])
                 self.lineBuffer = String(self.lineBuffer[self.lineBuffer.index(after: newlineIndex)...])
@@ -641,6 +588,13 @@ private final class LineStreamAccumulator: @unchecked Sendable {
 
     func finish() {
         handle.readabilityHandler = nil
+        let tail = handle.availableData
+        if let chunk = String(data: tail, encoding: .utf8), !chunk.isEmpty {
+            lock.lock()
+            lineBuffer += chunk
+            captured += chunk
+            lock.unlock()
+        }
         lock.lock()
         let remaining = lineBuffer
         lineBuffer = ""
@@ -648,6 +602,12 @@ private final class LineStreamAccumulator: @unchecked Sendable {
         if !remaining.isEmpty {
             onLine(remaining)
         }
+    }
+
+    func capturedText() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return captured
     }
 }
 
@@ -673,8 +633,11 @@ private final class StderrAccumulator: @unchecked Sendable {
 
     func finish() -> String {
         handle.readabilityHandler = nil
+        let tail = handle.availableData
         lock.lock()
-        defer { lock.unlock() }
-        return String(data: data, encoding: .utf8) ?? ""
+        data.append(tail)
+        let result = data
+        lock.unlock()
+        return String(data: result, encoding: .utf8) ?? ""
     }
 }

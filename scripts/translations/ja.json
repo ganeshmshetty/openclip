@@ -871,5 +871,11 @@
   "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "有効なキーボード入力言語のいずれかで単語が正しく綴られている場合、候補を表示しません。",
   "Inline": "インライン",
   "As contextual action": "コンテキストアクションとして",
-  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。"
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。",
+  "Not installed": "未インストール",
+  "Sign in needed": "サインインが必要",
+  "Ready": "準備完了",
+  "Checking…": "確認中…",
+  "Copy Install Command": "インストールコマンドをコピー",
+  "Copy Sign-In Command": "サインインコマンドをコピー"
 }

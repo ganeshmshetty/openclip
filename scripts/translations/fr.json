@@ -871,5 +871,11 @@
   "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "Masque les suggestions lorsque le mot est correctement orthographié dans l’une des langues de clavier activées.",
   "Inline": "Dans la barre",
   "As contextual action": "Comme action contextuelle",
-  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher.",
+  "Not installed": "Non installé",
+  "Sign in needed": "Connexion requise",
+  "Ready": "Prêt",
+  "Checking…": "Vérification…",
+  "Copy Install Command": "Copier la commande d'installation",
+  "Copy Sign-In Command": "Copier la commande de connexion"
 }
