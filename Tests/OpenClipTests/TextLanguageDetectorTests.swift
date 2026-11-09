@@ -162,6 +162,36 @@ final class TextLanguageDetectorTests: XCTestCase {
         XCTAssertFalse(SystemTextSpellChecker.isAvailable("en", available: []))
     }
 
+    func testDictionaryHitRequiresARealCheck() {
+        XCTAssertFalse(SystemTextSpellChecker.countsAsDictionaryHit(wordCount: 0, misspelled: false, hasCompletions: false, flagsUnknownWords: true))
+        XCTAssertFalse(SystemTextSpellChecker.countsAsDictionaryHit(wordCount: 1, misspelled: false, hasCompletions: false, flagsUnknownWords: false))
+        XCTAssertTrue(SystemTextSpellChecker.countsAsDictionaryHit(wordCount: 1, misspelled: false, hasCompletions: false, flagsUnknownWords: true))
+        XCTAssertTrue(SystemTextSpellChecker.countsAsDictionaryHit(wordCount: 1, misspelled: true, hasCompletions: false, flagsUnknownWords: false))
+        XCTAssertTrue(SystemTextSpellChecker.countsAsDictionaryHit(wordCount: 1, misspelled: false, hasCompletions: true, flagsUnknownWords: false))
+    }
+
+    func testLiveSpellCheckerKeepsEnglishTyposAndAcceptsHello() {
+        TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
+        let typo = SystemTextSpellChecker.shared.assessments(for: "recieve")
+        XCTAssertTrue(TextLanguageDetector.isMisspelledInAllPreferred(typo))
+        XCTAssertFalse(TextLanguageDetector.suggestions(for: "recieve", assessments: typo).isEmpty)
+
+        let hello = SystemTextSpellChecker.shared.assessments(for: "hello")
+        XCTAssertFalse(TextLanguageDetector.isMisspelledInAllPreferred(hello))
+        XCTAssertEqual(
+            TextLanguageDetector.textLanguageCode(for: "hello"),
+            hello.first { $0.checked && !$0.misspelled }?.language
+        )
+
+        let hej = SystemTextSpellChecker.shared.assessments(for: "hej")
+        if let english = hej.first(where: { $0.language == "en" || $0.language.hasPrefix("en_") || $0.language.hasPrefix("en-") }),
+           let swedish = hej.first(where: { $0.language == "sv" || $0.language.hasPrefix("sv_") || $0.language.hasPrefix("sv-") }) {
+            XCTAssertTrue(english.checked && english.misspelled)
+            XCTAssertTrue(swedish.checked && !swedish.misspelled)
+            XCTAssertFalse(TextLanguageDetector.isMisspelledInAllPreferred(hej))
+        }
+    }
+
     func testScriptActionPublishesDetectedTextLanguageWithoutReplacingUILanguage() async throws {
         let script = FileManager.default.temporaryDirectory.appendingPathComponent("text_lang_\(UUID().uuidString).sh")
         defer { try? FileManager.default.removeItem(at: script) }
