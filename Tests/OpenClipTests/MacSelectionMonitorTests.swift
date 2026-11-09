@@ -1805,6 +1805,38 @@ final class MacSelectionMonitorTests: XCTestCase {
             frontmostPID: frontmost, selfPID: selfPID, displayBounds: display))
     }
 
+    /// Regression (#220): after a system screenshot, `screencaptureui` can leave its full-screen
+    /// layer-24 backdrop on screen. That leftover must not suppress copy. A live capture still
+    /// owns an extreme-layer picker beside the backdrop, and that session must still suppress.
+    func testOverlayGateIgnoresStaleSystemScreenshotBackdrop() {
+        let selfPID: pid_t = 100
+        let frontmost: pid_t = 200
+        let display = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+        let point = CGPoint(x: 800, y: 500)
+        let stale = [
+            OnScreenWindowInfo(ownerPID: 999, ownerBundleID: "com.apple.screencaptureui", layer: 24, frame: display),
+            OnScreenWindowInfo(ownerPID: frontmost, ownerBundleID: "com.apple.Safari", layer: 0, frame: display)
+        ]
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: stale, at: point,
+            frontmostPID: frontmost, selfPID: selfPID, displayBounds: display))
+        XCTAssertFalse(CopyTriggerGate.isForeignOverlay(
+            windows: stale, at: point,
+            frontmostPID: frontmost, selfPID: selfPID, displayBounds: display,
+            intent: .explicitUserCopy))
+
+        let live = [
+            OnScreenWindowInfo(ownerPID: 999, ownerBundleID: "com.apple.screencaptureui", layer: 24, frame: display),
+            OnScreenWindowInfo(ownerPID: 999, ownerBundleID: "com.apple.screencaptureui", layer: 1499,
+                               frame: CGRect(x: 400, y: 0, width: 800, height: 90)),
+            OnScreenWindowInfo(ownerPID: frontmost, ownerBundleID: "com.apple.Safari", layer: 0, frame: display)
+        ]
+        XCTAssertTrue(CopyTriggerGate.isForeignOverlay(
+            windows: live, at: point,
+            frontmostPID: frontmost, selfPID: selfPID, displayBounds: display),
+                      "a live system capture picker must still suppress copy")
+    }
+
     func testOverlayGateAllowsWhenFrontmostOwnsTopWindow() {
         let selfPID: pid_t = 100
         let frontmost: pid_t = 200

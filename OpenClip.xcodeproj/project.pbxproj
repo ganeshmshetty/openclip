@@ -2715,7 +2715,7 @@
 			repositoryURL = "https://github.com/ganeshmshetty/OpenSelection.git";
 			requirement = {
 				kind = exactVersion;
-				version = 2.16.0;
+				version = 2.16.1;
 			};
 		};
 		6F6B418BC685195C47AA367E /* XCRemoteSwiftPackageReference "SDWebImageSVGCoder" */ = {
