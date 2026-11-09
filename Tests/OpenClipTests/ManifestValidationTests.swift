@@ -534,6 +534,30 @@ final class ManifestValidationTests: XCTestCase {
         })
     }
 
+    func testPredicateSymlinkCannotEscapePackage() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let dir = base.appendingPathComponent("package")
+        let outside = base.appendingPathComponent("outside.js")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        try "module.exports = function() { return true; };"
+            .write(to: outside, atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(
+            at: dir.appendingPathComponent("visible.js"),
+            withDestinationURL: outside
+        )
+
+        let manifest = try decodeManifest("""
+        {"identifier":"com.test.predicate","name":"Predicate","minOpenClipVersion":"1.10.0","actions":[
+          {"type":"js","scriptCode":"return 'x';","requirements":{"predicate":"visible.js"}}
+        ]}
+        """)
+        XCTAssertTrue(ManifestPackageValidation.validate(manifest, directory: dir).contains {
+            if case .unsafePredicatePath = $0.kind { return true }
+            return false
+        })
+    }
+
     func testPredicateFileSizeIsBounded() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

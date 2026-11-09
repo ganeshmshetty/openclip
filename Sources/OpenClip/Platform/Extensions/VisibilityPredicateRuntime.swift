@@ -38,10 +38,13 @@ public final class VisibilityPredicateRuntime: VisibilityPredicateEvaluating, @u
         environments.removeAll()
     }
 
+    /// Evaluates the predicate associated with the request. Returns nil when the predicate could
+    /// not be loaded or run; callers treat nil as fail-open.
     @MainActor
     public func evaluate(_ request: VisibilityPredicateRequest) -> Bool? {
+        let predicatePath = request.predicatePath.trimmingCharacters(in: .whitespacesAndNewlines)
         let fileURL = request.packageRoot
-            .appendingPathComponent(request.predicatePath)
+            .appendingPathComponent(predicatePath)
             .resolvingSymlinksInPath()
             .standardizedFileURL
         guard Constants.isPathSafe(destinationURL: fileURL, baseDirectory: request.packageRoot),
@@ -55,7 +58,7 @@ public final class VisibilityPredicateRuntime: VisibilityPredicateEvaluating, @u
         if let cached = environments[key] {
             environment = cached
         } else {
-            guard let built = buildEnvironment(request: request, fileURL: fileURL) else { return nil }
+            guard let built = buildEnvironment(request: request, predicatePath: predicatePath, fileURL: fileURL) else { return nil }
             environments[key] = built
             environment = built
         }
@@ -64,10 +67,10 @@ public final class VisibilityPredicateRuntime: VisibilityPredicateEvaluating, @u
     }
 
     @MainActor
-    private func buildEnvironment(request: VisibilityPredicateRequest, fileURL: URL) -> Environment? {
-        let specifier = request.predicatePath.hasPrefix("./")
-            ? request.predicatePath
-            : "./\(request.predicatePath)"
+    private func buildEnvironment(request: VisibilityPredicateRequest, predicatePath: String, fileURL: URL) -> Environment? {
+        let specifier = predicatePath.hasPrefix("./")
+            ? predicatePath
+            : "./\(predicatePath)"
         let resolved: ResolvedModule
         do {
             resolved = try OpenClipModuleLoader.load(
@@ -105,15 +108,33 @@ public final class VisibilityPredicateRuntime: VisibilityPredicateEvaluating, @u
         }
         context.setObject(resolver, forKeyedSubscript: "__openclipResolveModule" as NSString)
 
-        let script = OpenClipCommonJS.prelude(
+        let prelude = OpenClipCommonJS.prelude(
             entryDirectory: resolved.directoryURL.path,
             resolverExpression: "__openclipResolveModule",
             deleteResolverGlobal: true
-        ) + "\n" + resolved.source + "\n;(typeof module.exports === 'function' ? module.exports : null);"
+        )
 
         let timeoutFlag = TimeoutFlag()
         let limit = JSExecutionTimeLimit(context: context, timeout: 0.05, timeoutFlag: timeoutFlag)
-        let exported = context.evaluateScript(script)
+        _ = context.evaluateScript(prelude)
+        guard context.exception == nil,
+              let wrapper = context.evaluateScript("""
+              (function(require, module, exports, __dirname, source) {
+                  (new Function('require', 'module', 'exports', '__dirname', source))(require, module, exports, __dirname);
+                  return (typeof module.exports === 'function') ? module.exports : null;
+              })
+              """),
+              let requireValue = context.objectForKeyedSubscript("require"),
+              let moduleValue = context.objectForKeyedSubscript("module"),
+              let exportsValue = context.objectForKeyedSubscript("exports"),
+              let dirnameValue = context.objectForKeyedSubscript("__dirname"),
+              let sourceValue = JSValue(object: resolved.source, in: context) else {
+            limit.clear()
+            context.exception = nil
+            Log.extensions.error("Visibility predicate \(request.actionID, privacy: .public) could not initialize CommonJS")
+            return nil
+        }
+        let exported = wrapper.call(withArguments: [requireValue, moduleValue, exportsValue, dirnameValue, sourceValue])
         limit.clear()
         if timeoutFlag.isTimedOut {
             context.exception = nil
@@ -123,8 +144,8 @@ public final class VisibilityPredicateRuntime: VisibilityPredicateEvaluating, @u
         guard let exported,
               !exported.isNull,
               !exported.isUndefined else {
-            if let exception = context.exception {
-                Log.extensions.error("Visibility predicate \(request.actionID, privacy: .public) evaluation failed: \(exception.toString() ?? "unknown error")")
+            if context.exception != nil {
+                Log.extensions.error("Visibility predicate \(request.actionID, privacy: .public) evaluation failed with a JavaScript exception")
             } else {
                 Log.extensions.error("Visibility predicate \(request.actionID, privacy: .public) must export a function")
             }
@@ -172,9 +193,9 @@ public final class VisibilityPredicateRuntime: VisibilityPredicateEvaluating, @u
             Log.extensions.error("Visibility predicate \(request.actionID, privacy: .public) timed out")
             return nil
         }
-        if let exception = context.exception {
+        if context.exception != nil {
             context.exception = nil
-            Log.extensions.error("Visibility predicate \(request.actionID, privacy: .public) threw: \(exception.toString() ?? "unknown error")")
+            Log.extensions.error("Visibility predicate \(request.actionID, privacy: .public) threw a JavaScript exception")
             return nil
         }
         return result?.toBool() ?? false

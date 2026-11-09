@@ -157,6 +157,27 @@ final class ExtensionPackageHashResolverTests: XCTestCase {
         XCTAssertEqual(hash1, hash2, "outside script via symlink must be ignored by packageHash")
     }
 
+    func testPredicateFileChangesPackageHashEvenWhenHidden() throws {
+        let pkg = tempDir.appendingPathComponent("predicate.openclipext")
+        try FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
+        let manifestURL = pkg.appendingPathComponent("openclip.json")
+        let predicateURL = pkg.appendingPathComponent(".visible.js")
+        try """
+        {"identifier":"com.t.predicate","name":"Predicate","actions":[
+          {"title":"A","type":"js","scriptCode":"return text;","requirements":{"predicate":".visible.js"}}
+        ]}
+        """.write(to: manifestURL, atomically: true, encoding: .utf8)
+        try "module.exports = function() { return true; };"
+            .write(to: predicateURL, atomically: true, encoding: .utf8)
+
+        let manifest = ExtensionManifestStore.readManifest(at: manifestURL)!
+        let before = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        try "module.exports = function() { return false; };"
+            .write(to: predicateURL, atomically: true, encoding: .utf8)
+        let after = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        XCTAssertNotEqual(before, after, "a predicate edit must change the package hash even when the file is hidden")
+    }
+
     private func writePackage(identifier: String, manifestURL: URL, scriptURL: URL, script: String) throws {
         try """
         {"identifier":"\(identifier)","name":"Pkg","actions":[{"title":"A","type":"script","script":"main.sh"}]}

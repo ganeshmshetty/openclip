@@ -101,12 +101,21 @@ final class VisibilityPredicateTests: XCTestCase {
         XCTAssertFalse(action.isEnabled(for: ActionContext(predicateText: "prefix plain text suffix")))
     }
 
+    func testPredicateEntrySupportsCommonJSTopLevelReturn() async throws {
+        let action = try await makeAction(
+            files: ["visible.js": "module.exports = function() { return false; };\nreturn;"],
+            actionJSON: #"{"id":"run","title":"Run","type":"javascript","scriptCode":"return text;","requirements":{"predicate":"visible.js"}}"#
+        )
+        XCTAssertFalse(action.isEnabled(for: ActionContext(predicateText: "anything")))
+    }
+
     func testPredicateInputIsReadOnly() async throws {
         let action = try await makeAction(
             files: ["visible.js": "module.exports = function(input) { input.text = 'changed'; return input.text === 'original'; };"],
             actionJSON: #"{"id":"run","title":"Run","type":"javascript","scriptCode":"return text;","requirements":{"predicate":"visible.js"}}"#
         )
         XCTAssertTrue(action.isEnabled(for: ActionContext(predicateText: "original")))
+        XCTAssertFalse(action.isEnabled(for: ActionContext(predicateText: "different")))
     }
 
     func testPredicateCanRequirePackageLocalHelper() async throws {

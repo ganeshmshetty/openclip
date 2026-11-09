@@ -159,6 +159,10 @@ public final class InlineResultEvaluator {
             return javaScriptAction(from: decorated.base)
         case let decorated as MenuDecoratedAction:
             return javaScriptAction(from: decorated.base)
+        case let decorated as PredicateDecoratedAction:
+            return javaScriptAction(from: decorated.base)
+        case let decorated as RichInputAction:
+            return javaScriptAction(from: decorated.base)
         default:
             return nil
         }

@@ -5,6 +5,7 @@
 // Core only decides when to call it and how to combine its answer with the base action's gates.
 import Foundation
 
+/// One predicate evaluation request. The host runtime resolves `predicatePath` inside `packageRoot`.
 public struct VisibilityPredicateRequest: Sendable {
     public let actionID: String
     public let predicatePath: String
@@ -38,6 +39,8 @@ public protocol VisibilityPredicateEvaluating: Sendable {
     @MainActor func evaluate(_ request: VisibilityPredicateRequest) -> Bool?
 }
 
+/// Wraps an extension action with `requirements.predicate`. Identity and behavior forward to the
+/// base action; `isEnabled` combines the base gates with the predicate's fail-open answer.
 public struct PredicateDecoratedAction: Action, ActionWithRules, ConfigurableAction, SubActionProviding {
     public let base: any Action
     public let rules: ExtensionActionRules?

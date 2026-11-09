@@ -51,7 +51,9 @@ public enum ManifestPackageValidation {
                     }
                     var isDirectory: ObjCBool = false
                     guard FileManager.default.fileExists(atPath: canonicalFile.path, isDirectory: &isDirectory),
-                          !isDirectory.boolValue else {
+                          !isDirectory.boolValue,
+                          let values = try? canonicalFile.resourceValues(forKeys: [.isRegularFileKey]),
+                          values.isRegularFile == true else {
                         issues.append(ManifestValidationIssue(kind: .missingPredicateFile(predicate), path: actionPath))
                         continue
                     }

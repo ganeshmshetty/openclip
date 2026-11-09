@@ -5,6 +5,7 @@
 // User settings (global toggle, per-action disable) are applied by the registry and views outside this policy.
 import Foundation
 
+/// Why a contextual decision was reached. User settings are applied by callers, not this policy.
 public enum ContextualReason: Sendable, Equatable {
     case explicitTrue
     case explicitFalse
@@ -14,6 +15,7 @@ public enum ContextualReason: Sendable, Equatable {
     case standard
 }
 
+/// The resolved author-intent decision for one action.
 public struct ContextualDecision: Sendable, Equatable {
     public let isContextual: Bool
     public let reason: ContextualReason
@@ -24,7 +26,9 @@ public struct ContextualDecision: Sendable, Equatable {
     }
 }
 
+/// Resolves explicit `contextual` intent and the uniform narrowing-requirement rule.
 public enum ContextualPolicy {
+    /// Returns the action's contextual tier and the reason for diagnostics.
     public static func decision(for action: any Action) -> ContextualDecision {
         if let explicit = action.chrome.contextualOverride {
             return ContextualDecision(isContextual: explicit, reason: explicit ? .explicitTrue : .explicitFalse)
