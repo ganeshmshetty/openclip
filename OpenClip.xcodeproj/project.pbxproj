@@ -309,6 +309,9 @@
 		A95CFBF7177D576096EA9F86 /* JavaScriptCustomActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570FD239E4C99E29B20DFEB1 /* JavaScriptCustomActionTests.swift */; };
 		AA19224760C8ABFCB9783FAC /* ExtensionUpdatePlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FADAC40972B146605441712F /* ExtensionUpdatePlannerTests.swift */; };
 		AA4C8F95DCFD439591C9FA05 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E803385A2D8E9D1D257F00 /* Constants.swift */; };
+		8D2F0B15C7E35901B2D4F6C8 /* TextLanguageDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1E9A04B6D248F0A1C3E5B7 /* TextLanguageDetector.swift */; };
+		AF412D37E9057B23D4F618EA /* SystemTextSpellChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E301C26D8F46A12C3E507D9 /* SystemTextSpellChecker.swift */; };
+		C1634F590B279D45F6183A0C /* TextLanguageDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0523E48FA168C34E50729FB /* TextLanguageDetectorTests.swift */; };
 		AA905209842701F51E2A5712 /* SelectionRetrievalMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3573C5F0E0C00C1A562BBBDC /* SelectionRetrievalMode.swift */; };
 		ACCD0DDEFEB27D40BA433024 /* LocalLLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D0B6A4A79189F0D076BE588 /* LocalLLMProvider.swift */; };
 		AD118FFD5F5D03FF31363446 /* ActionSettingsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEC5413B7D4BB13F4F703A50 /* ActionSettingsRow.swift */; };
@@ -542,6 +545,9 @@
 		171CC0405F553E737A32C250 /* ExtensionsStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreView.swift; sourceTree = "<group>"; };
 		17DB79BD7DD5DE10308EEC89 /* AnySettingKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnySettingKey.swift; sourceTree = "<group>"; };
 		17E803385A2D8E9D1D257F00 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		7C1E9A04B6D248F0A1C3E5B7 /* TextLanguageDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextLanguageDetector.swift; sourceTree = "<group>"; };
+		9E301C26D8F46A12C3E507D9 /* SystemTextSpellChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTextSpellChecker.swift; sourceTree = "<group>"; };
+		B0523E48FA168C34E50729FB /* TextLanguageDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextLanguageDetectorTests.swift; sourceTree = "<group>"; };
 		182E96BF128E3FFA77FCE3C4 /* PopupMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupMetrics.swift; sourceTree = "<group>"; };
 		1830B25888AE1D0532D00813 /* SettingKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingKey.swift; sourceTree = "<group>"; };
 		19586F8007DF263B04E46EBD /* LocalExtensionInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalExtensionInstaller.swift; sourceTree = "<group>"; };
@@ -1128,6 +1134,7 @@
 				4BB115DCDCB4749A1DDB8222 /* PermissionManager.swift */,
 				9B9D14F126A7A6B0BAF69C1B /* QuickLookPresenter.swift */,
 				BF33081FB4BA95A0DF2F7A87 /* SecretStore.swift */,
+				9E301C26D8F46A12C3E507D9 /* SystemTextSpellChecker.swift */,
 				CD6C339B374DBE3884DA21E9 /* UnifiedIconProvider.swift */,
 				78620BB3753CCE3EB7427378 /* BuiltinActions */,
 				7928B12FA5832F823984C11D /* DebugLogging */,
@@ -1552,11 +1559,20 @@
 				22616C5B520658998EE5CCE6 /* Lifecycle */,
 				356174667B20DD6A3B64C248 /* Rules */,
 				E06D4C5394CBB861B32012B1 /* Selection */,
+				7C1E9A04B6D248F0A1C3E5B8 /* Language */,
 				57AD04DA94DC729E76272AFE /* Settings */,
 				0BBE48F575F811D54A447525 /* Utils */,
 			);
 			name = Core;
 			path = Sources/Core;
+			sourceTree = "<group>";
+		};
+		7C1E9A04B6D248F0A1C3E5B8 /* Language */ = {
+			isa = PBXGroup;
+			children = (
+				7C1E9A04B6D248F0A1C3E5B7 /* TextLanguageDetector.swift */,
+			);
+			path = Language;
 			sourceTree = "<group>";
 		};
 		E06D4C5394CBB861B32012B1 /* Selection */ = {
@@ -1638,6 +1654,7 @@
 				7868E801C23A535DE6B1E663 /* CaptureTextGeometryTests.swift */,
 				7DF50320C6F302EFD2DF6CAD /* CloudModelCatalogTests.swift */,
 				0CF97DDF5B196383416AB162 /* CompletionActionTests.swift */,
+				B0523E48FA168C34E50729FB /* TextLanguageDetectorTests.swift */,
 				896D4183D6755AC6E9642EF5 /* ContextualActionClassifierTests.swift */,
 				9ACC606EEF879A9BCA003756 /* ContextualFilteringTests.swift */,
 				AB4D31C4F3399F8C4AE9BF7A /* CursorClassifierTests.swift */,
@@ -2041,6 +2058,7 @@
 				F1F3954D6FA609E1F9A1D41F /* TextDiffTests.swift in Sources */,
 				9A7F163119972B733595F05C /* TextPlaceholderEngineTests.swift in Sources */,
 				2BA13E2C55DB83FBD4B84666 /* TextSanitizerTests.swift in Sources */,
+				C1634F590B279D45F6183A0C /* TextLanguageDetectorTests.swift in Sources */,
 				1FE3827A972D8AE670A453F4 /* TopLevelActionResolverTests.swift in Sources */,
 				DD643471ECCF08B5884A7C79 /* TypedInlineResultsTests.swift in Sources */,
 			);
@@ -2156,6 +2174,7 @@
 				5F17CA4DBAD195FC86891D22 /* TextDiff.swift in Sources */,
 				1FA8CFA55755A2903AE4D934 /* TextPlaceholderEngine.swift in Sources */,
 				76E559C066D1B00D899DB613 /* TextRetrieving.swift in Sources */,
+				8D2F0B15C7E35901B2D4F6C8 /* TextLanguageDetector.swift in Sources */,
 				725D32116586CE2D6613A0C4 /* TopLevelActionItem.swift in Sources */,
 				62694BC577DF6210819143D5 /* URLTemplateAction.swift in Sources */,
 				330E6AC76C1203C9E55305DA /* WordCompletionProviding.swift in Sources */,
@@ -2335,6 +2354,7 @@
 				43B5991EB10B6C3126082E09 /* ShortcutsPage.swift in Sources */,
 				347BC45A9963D64295CFF368 /* StarPrompt.swift in Sources */,
 				4C5773E0C53E2A28F2664CD5 /* StatusBarController.swift in Sources */,
+				AF412D37E9057B23D4F618EA /* SystemTextSpellChecker.swift in Sources */,
 				4346AFE56D4072E93C047646 /* SubBarAim.swift in Sources */,
 				1A9BDA5FEA591677DF2852AC /* SubBarPanel.swift in Sources */,
 				45FA6444DD666AFCF3443BD1 /* SubBarPanelController.swift in Sources */,

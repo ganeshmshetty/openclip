@@ -45,8 +45,9 @@ interface OpenClipBridge {
   options: Record<string, string>; // Resolved option values (values only, read-only)
   option(id: string): string | undefined; // Functional form of options[id]
   locale: string;          // User's active locale identifier (e.g. "zh_CN", "en_US")
-  language: string;        // Active language/script tag (e.g. "zh-Hans", "en")
-  i18n(dict: Record<string, string>): string; // Resolves dictionary against active language with fallbacks
+  language: string;        // Active UI language/script tag (e.g. "zh-Hans", "en")
+  textLanguage: string;    // Language of the selected text (e.g. "en", "sv", "zh-Hans"), or "" when unknown
+  i18n(dict: Record<string, string>): string; // Resolves dictionary against active UI language with fallbacks
   pasteboard: {
     text: string;          // Plain text content (getter/setter emits openclip.copy)
     html: string;          // HTML content (getter/setter emits openclip.copyContent({ html }))
@@ -85,6 +86,13 @@ interface OpenClipBridge {
 Modifier names accepted by `keyPress`: `command`/`cmd`, `shift`, `option`/`alt`,
 `control`/`ctrl`. The key is a macOS virtual-key name (QWERTY/ANSI layout is assumed), e.g.
 letters `a` through `z`, digits `0` through `9`, or named keys like `return`, `space`, `escape`.
+
+`openclip.language` and `openclip.locale` are the macOS UI language. `openclip.textLanguage`
+is the language of the selected text: a sentence is recognized by the system language
+identifier, and a word or two is reported only when one of the user's spelling languages
+accepts it. It is an empty string when OpenClip cannot tell (including a word that is
+misspelled in every spelling language). `openclip.i18n` keeps using `language`, not
+`textLanguage`.
 
 The former canvas bridge (`showContent(tree, { size })` / `h()`) has been **removed**; calling
 those names surfaces a JS error (`.toast(.error)`).

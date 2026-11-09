@@ -16,6 +16,7 @@ enum TestIsolation {
         InlineResultEvaluator.shared.clearPrewarmed()
         AIServiceManager.shared.providerOverride = nil
         CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+        TextSpellCheckerRegistry.checker = nil
     }
 
     /// Serializes tests accessing shared process-wide gates/locks (e.g. `OpenClipJSHost.syncEvaluationGate`).

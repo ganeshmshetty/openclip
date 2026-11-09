@@ -35,6 +35,7 @@ CORE_TEST_FLAGS=(
     -only-testing:OpenClipTests/CalculateActionTests
     -only-testing:OpenClipTests/ManifestValidationTests
     -only-testing:OpenClipTests/TextSanitizerTests
+    -only-testing:OpenClipTests/TextLanguageDetectorTests
     -only-testing:OpenClipTests/TextPlaceholderEngineTests
     -only-testing:OpenClipTests/SettingsStoreTests
     -only-testing:OpenClipTests/RuleEngineTests

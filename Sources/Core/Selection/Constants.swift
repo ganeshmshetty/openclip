@@ -74,6 +74,9 @@ public enum Constants {
     public static let envVarActionID: String = "OPENCLIP_ACTION_ID"
     public static let envVarLocale: String = "OPENCLIP_LOCALE"
     public static let envVarLanguage: String = "OPENCLIP_LANGUAGE"
+    /// BCP-47-style tag of the selected text. Absent when the language cannot be told.
+    /// `envVarLanguage` stays the macOS UI language.
+    public static let envVarTextLanguage: String = "OPENCLIP_TEXT_LANGUAGE"
     public static let shortcutsBinaryPath: String = "/usr/bin/shortcuts"
     public static let maxHeaderLinesToScan: Int = 50
 
