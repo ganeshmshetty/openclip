@@ -103,6 +103,14 @@ xcodegen generate
 - **Issues:** [Report a bug](https://github.com/ganeshmshetty/openclip/issues)
 - **Sponsor:** [GitHub Sponsors](https://github.com/sponsors/ganeshmshetty) · [Buy Me a Coffee](https://buymeacoffee.com/ganeshmshetty) · [Ko-fi](https://ko-fi.com/ganeshmshetty)
 
+## Sponsors
+
+<a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link">
+  <img src="docs/images/sponsors/infistar.png" alt="Infistar" width="140">
+</a>
+
+[Infistar](https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link) is a sponsor of OpenClip. This is a referral link — I may earn a share if you sign up through it.
+
 ## License
 
 [AGPL-3.0](LICENSE) © 2026 Ganesh M and OpenClip Contributors. See [NOTICE.md](NOTICE.md).
