@@ -39,6 +39,14 @@ Download the latest `.dmg` from [Releases](https://github.com/ganeshmshetty/open
 
 ---
 
+## Sponsors
+
+<a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link">
+  <img src="https://assets.getopenclip.app/sponsor-infistar.png" alt="Infistar" width="140">
+</a>
+
+[Infistar](https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link) is a sponsor of OpenClip. This is a referral link — I may earn a share if you sign up through it.
+
 ## Features
 
 - **Contextual bar**: Appears instantly near your selection with relevant actions (case transform, search, copy/cut, math, or custom scripts).
@@ -102,14 +110,6 @@ xcodegen generate
 - **Discord:** [Join Community](https://discord.gg/acYYdzM7jR)
 - **Issues:** [Report a bug](https://github.com/ganeshmshetty/openclip/issues)
 - **Sponsor:** [GitHub Sponsors](https://github.com/sponsors/ganeshmshetty) · [Buy Me a Coffee](https://buymeacoffee.com/ganeshmshetty) · [Ko-fi](https://ko-fi.com/ganeshmshetty)
-
-## Sponsors
-
-<a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link">
-  <img src="docs/images/sponsors/infistar.png" alt="Infistar" width="140">
-</a>
-
-[Infistar](https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link) is a sponsor of OpenClip. This is a referral link — I may earn a share if you sign up through it.
 
 ## License
 
