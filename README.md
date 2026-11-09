@@ -37,8 +37,6 @@ Download the latest `.dmg` from [Releases](https://github.com/ganeshmshetty/open
 
 > **Note:** Requires **Accessibility** permission (`System Settings → Privacy & Security → Accessibility`) to detect selected text without relying on clipboard polling.
 
----
-
 ## Sponsors
 
 <a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link"><img src="https://assets.getopenclip.app/sponsor-infistar.png" alt="Infistar" width="48" align="middle"></a>&nbsp; [Infistar](https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link) sponsors OpenClip.
@@ -51,8 +49,6 @@ Download the latest `.dmg` from [Releases](https://github.com/ganeshmshetty/open
 - **Native & fast**: Written in Swift 6 with strict concurrency; lightweight background footprint.
 - **Optional AI actions**: Run text through local Ollama models, Apple Intelligence, or OpenAI/Anthropic keys.
 - **Privacy-first**: Zero telemetry, no analytics, 100% local execution.
-
----
 
 ## Extensions
 
@@ -75,8 +71,6 @@ Extensions are simple folders in `~/.openclip/extensions/`. A basic URL lookup e
 
 Install community extensions from **Preferences → Extension Store**, or read the [extension docs](docs/developer-guide/index.md).
 
----
-
 ## Building from Source
 
 **Prerequisites:** macOS 14+, Xcode 16+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
@@ -97,8 +91,6 @@ xcodegen generate
 # Package release DMG
 ./scripts/package_app.sh
 ```
-
----
 
 ## Community & Support
 
