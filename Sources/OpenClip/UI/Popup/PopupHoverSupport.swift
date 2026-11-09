@@ -36,6 +36,8 @@ public enum PopupHoverTarget: Hashable, Sendable {
     case action(Int)
     case subAction(Int)
     case completion(Int)
+    /// The single contextual button that expands into word suggestions.
+    case completionOffer
     case chevron(String)
     case search
 }

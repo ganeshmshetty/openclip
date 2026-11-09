@@ -52,6 +52,20 @@ public enum ContextualPillPosition: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Where Word Completion shows its suggestions: in the bar, or behind one contextual button.
+public enum CompletionDisplayMode: String, Codable, CaseIterable, Sendable {
+    case inline
+    case contextual
+
+    public var opensWithSuggestionsVisible: Bool { self == .inline }
+
+    public var showsInlineChevron: Bool { self == .inline }
+
+    public func showsContextualButton(hasSuggestions: Bool, suggestionsExpanded: Bool) -> Bool {
+        self == .contextual && hasSuggestions && !suggestionsExpanded
+    }
+}
+
 /// Vertical placement mode of the popup bar relative to the cursor/selection ("auto" | "above" | "below").
 public enum PopupVerticalPosition: String, Codable, CaseIterable, Sendable {
     case auto
@@ -112,6 +126,8 @@ public extension SettingKey where Value == Bool {
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
     static var captureTextAutoCopy: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoCopy", defaultValue: true) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
+    /// When true, Word Completion appears only if the word is misspelled in every preferred spelling language.
+    static var completionOnlyMisspelled: SettingKey<Bool> { SettingKey<Bool>("completionOnlyMisspelled", defaultValue: true) }
     /// True once the one-time migration (auto-trust existing installs) has run.
     static var extensionTrustMigrated: SettingKey<Bool> { SettingKey<Bool>("extension.trustMigrated", defaultValue: false) }
     static var automaticallyChecksForUpdates: SettingKey<Bool> { SettingKey<Bool>("automaticallyChecksForUpdates", defaultValue: true) }
@@ -155,6 +171,8 @@ public extension SettingKey where Value == String {
     static var lastAnnouncedAppUpdateVersion: SettingKey<String> { SettingKey<String>("lastAnnouncedAppUpdateVersion", defaultValue: "") }
     /// Which side of the main bar the contextual actions island sits on; see `ContextualPillPosition`.
     static var contextualPillPosition: SettingKey<String> { SettingKey<String>("contextualPillPosition", defaultValue: ContextualPillPosition.auto.rawValue) }
+    /// `CompletionDisplayMode` raw value: inline suggestion row, or one contextual button.
+    static var completionDisplayMode: SettingKey<String> { SettingKey<String>("completionDisplayMode", defaultValue: CompletionDisplayMode.inline.rawValue) }
     static var calendarProvider: SettingKey<String> { SettingKey<String>("action.calendar.provider", defaultValue: "native") }
     static var searchURL: SettingKey<String> { SettingKey<String>("action.search.url", defaultValue: "https://www.google.com/search?q={query}") }
 

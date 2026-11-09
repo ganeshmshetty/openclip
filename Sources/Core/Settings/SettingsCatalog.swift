@@ -37,6 +37,8 @@ public enum SettingsCatalog {
             SettingKey.hasDismissedStarPrompt.erased,
             SettingKey.startAtLogin.erased,
             SettingKey.completionCopyToClipboard.erased,
+            SettingKey.completionOnlyMisspelled.erased,
+            SettingKey.completionDisplayMode.erased,
             SettingKey.captureTextAutoCopy.erased,
             SettingKey.playActionSound.erased,
             SettingKey.actionSoundName.erased,

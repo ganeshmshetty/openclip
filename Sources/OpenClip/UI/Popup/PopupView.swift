@@ -103,6 +103,7 @@ public struct PopupView: View {
     }
     
     @Setting(SettingKey.completionCopyToClipboard) private var completionCopyToClipboard
+    @Setting(SettingKey.completionDisplayMode) private var completionDisplayModeRaw
     
     @State private var currentPage = 0
     /// Deliberately not `@ObservedObject`: `location` publishes on every mouse move. Subscribing only to
@@ -122,7 +123,7 @@ public struct PopupView: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
-    @State private var isShowingCompletions: Bool = true
+    @State private var isShowingCompletions: Bool
     @State private var isProcessingAI: Bool = false
     @State private var aiTask: Task<Void, Never>? = nil
     /// Captured once per show, never re-read from the mouse, to avoid jitter.
@@ -197,6 +198,7 @@ public struct PopupView: View {
         _contextualPillPosition = Setting(SettingKey.contextualPillPosition, store: settingsStore)
         _popupAlignment = Setting(SettingKey.popupAlignment, store: settingsStore)
         _completionCopyToClipboard = Setting(SettingKey.completionCopyToClipboard, store: settingsStore)
+        _completionDisplayModeRaw = Setting(SettingKey.completionDisplayMode, store: settingsStore)
         self.actions = actions
         self.allActions = allActions ?? actions
         self.context = context
@@ -239,6 +241,8 @@ public struct PopupView: View {
         self.onEnterSearch = onEnterSearch
         self.onExitSearch = onExitSearch
         self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
+        let presentation = CompletionDisplayMode(rawValue: settingsStore.get(.completionDisplayMode)) ?? .inline
+        self._isShowingCompletions = State(initialValue: presentation.opensWithSuggestionsVisible)
         self._cachedCompletions = State(initialValue: Self.resolveCompletions(actions: actions, context: context))
     }
 
@@ -251,6 +255,18 @@ public struct PopupView: View {
 
     private var hasCompletions: Bool {
         return !cachedCompletions.isEmpty
+    }
+
+    private var completionPresentation: CompletionDisplayMode {
+        CompletionDisplayMode(rawValue: completionDisplayModeRaw) ?? .inline
+    }
+
+    private var showsInlineCompletionChevron: Bool {
+        hasCompletions && completionPresentation.showsInlineChevron
+    }
+
+    private var showsContextualCompletionButton: Bool {
+        completionPresentation.showsContextualButton(hasSuggestions: hasCompletions, suggestionsExpanded: isShowingCompletions)
     }
 
     private var inCompletionMode: Bool {
@@ -304,7 +320,7 @@ public struct PopupView: View {
     }
 
     private var pages: [[any Action]] {
-        let leadingWidth = hasCompletions ? (chevronWidth) : 0
+        let leadingWidth = showsInlineCompletionChevron ? (chevronWidth) : 0
         let trailingWidth = showSearchAllActions ? buttonWidth : 0
         // Reads `inlineResults` so a preview landing re-packs the page at the button's real width.
         return PopupPageLayout.computePages(
@@ -470,7 +486,7 @@ public struct PopupView: View {
                     colorScheme: effectiveColorScheme
                 )
                 .environment(\.colorScheme, effectiveColorScheme)
-        } else if contextualActions.isEmpty {
+        } else if contextualActions.isEmpty && !showsContextualCompletionButton {
             standardIsland
                 .overlay(processingGlowBorder)
                 .environment(\.colorScheme, effectiveColorScheme)
@@ -700,11 +716,14 @@ public struct PopupView: View {
 
     private var contextualIsland: some View {
         HStack(spacing: 0) {
+            if showsContextualCompletionButton {
+                completionOfferButton(leadingEdge: true, trailingEdge: contextualActions.isEmpty)
+            }
             ForEach(Array(contextualActions.enumerated()), id: \.element.id) { offset, action in
                 let index = contextualIslandTrailing ? pagedStandardActions.count + offset : offset
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
-                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0, trailingEdge: offset == contextualActions.count - 1)
+                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0 && !showsContextualCompletionButton, trailingEdge: offset == contextualActions.count - 1)
             }
         }
         .fixedSize()
@@ -719,7 +738,7 @@ public struct PopupView: View {
     private var standardIsland: some View {
         HStack(spacing: 0) {
             // Completion toggle on the far left; pagination chevrons together on the right.
-            if hasCompletions {
+            if showsInlineCompletionChevron {
                 chevronButton(systemImage: "chevron.down", label: "Show completions") {
                     onPaginationAnchor?(.left)
                     isShowingCompletions = true
@@ -730,7 +749,7 @@ public struct PopupView: View {
                 let index = contextualIslandTrailing ? offset : contextualActions.count + offset
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
-                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0 && !hasCompletions, trailingEdge: offset == pagedStandardActions.count - 1 && !hasLeftChevron && !hasRightChevron && !showSearchAllActions)
+                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0 && !showsInlineCompletionChevron, trailingEdge: offset == pagedStandardActions.count - 1 && !hasLeftChevron && !hasRightChevron && !showSearchAllActions)
             }
 
             // The AI launcher is a normal action row; its click opens AI mode via actionButton.
@@ -777,6 +796,38 @@ public struct PopupView: View {
             effectiveTheme: effectiveTheme,
             colorScheme: effectiveColorScheme
         )
+    }
+
+    private var completionIcon: ActionIcon {
+        if let provider = actions.first(where: { $0 is any WordCompletionProviding }) {
+            return provider.icon
+        }
+        return .symbol("text.badge.plus")
+    }
+
+    @ViewBuilder
+    private func completionOfferButton(leadingEdge: Bool, trailingEdge: Bool) -> some View {
+        let target = PopupHoverTarget.completionOffer
+        let isHovered = hoveredTarget == target
+        let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
+        let suggestion = cachedCompletions.first ?? ""
+        Button {
+            onPaginationAnchor?(.left)
+            isShowingCompletions = true
+        } label: {
+            iconView(for: completionIcon)
+                .foregroundColor(isHovered ? .white : restForeground)
+                .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
+                .popupBarHighlight(isHovered ? PopupThemeModel.barHoverFill : .clear, scale: scale, leadingEdge: leadingEdge, trailingEdge: trailingEdge, isHovered: isHovered, namespace: hoverHighlightNamespace)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(suggestion)
+        .accessibilityHint("Show completions")
+        .popupHoverTarget(target)
+        .onHover { isHovering in
+            useLocalHoverFallback(for: target, isHovering: isHovering)
+        }
     }
 
     // MARK: - Completion Button
@@ -1084,6 +1135,8 @@ public struct PopupView: View {
         case .completion(let index):
             guard index < cachedCompletions.count else { return nil }
             return cachedCompletions[index]
+        case .completionOffer:
+            return cachedCompletions.first
         }
     }
 
