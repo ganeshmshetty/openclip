@@ -20,6 +20,11 @@ public struct ManifestValidationIssue: Sendable, Equatable {
         case invalidInlineAction
         case invalidDisplayOnlyAction
         case minimumVersionRequired(feature: String, version: String)
+        case unsafePredicatePath(String)
+        case missingPredicateFile(String)
+        case predicateTooLarge(String)
+        case missingVersionFloor(String)
+        case invalidVersionFloor(String)
     }
 
     public let kind: Kind
@@ -52,6 +57,16 @@ extension ManifestValidationIssue: CustomStringConvertible {
             return "\(path): `displayOnly: true` requires `inline: true` on a synchronous javascript action"
         case .minimumVersionRequired(let feature, let version):
             return "\(path): `\(feature)` requires `minOpenClipVersion` \(version) or newer"
+        case .unsafePredicatePath(let predicate):
+            return "\(path): predicate path must be a package-relative .js file inside the extension directory \"\(predicate)\""
+        case .missingPredicateFile(let predicate):
+            return "\(path): predicate file not found \"\(predicate)\""
+        case .predicateTooLarge(let predicate):
+            return "\(path): predicate file exceeds the 64 KiB limit \"\(predicate)\""
+        case .missingVersionFloor(let feature):
+            return "\(path): `\(feature)` requires a minOpenClipVersion that names the release which supports it"
+        case .invalidVersionFloor(let value):
+            return "\(path): minOpenClipVersion \"\(value)\" is not a valid semantic version"
         }
     }
 }
@@ -166,6 +181,15 @@ public struct ManifestValidator: Sendable {
                 typedInlineVersionSatisfied: typedInlineVersionSatisfied
             ))
         }
+        if usesVersionedFeature(manifest.actions) {
+            if let raw = manifest.minOpenClipVersion?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+                if SemanticVersion.parse(raw) == nil {
+                    issues.append(ManifestValidationIssue(kind: .invalidVersionFloor(raw), path: "manifest"))
+                }
+            } else {
+                issues.append(ManifestValidationIssue(kind: .missingVersionFloor("predicate/contextual"), path: "manifest"))
+            }
+        }
         return issues
     }
 
@@ -173,6 +197,14 @@ public struct ManifestValidator: Sendable {
         guard let minimum = SemanticVersion.parse(required) else { return false }
         guard let declared, let version = SemanticVersion.parse(declared) else { return false }
         return version >= minimum
+    }
+
+    private func usesVersionedFeature(_ actions: [ExtensionActionMetadata]) -> Bool {
+        actions.contains { action in
+            action.requirements?.predicate != nil
+                || action.contextual != nil
+                || usesVersionedFeature(action.subActions ?? [])
+        }
     }
 
     public func validateWarnings(_ manifest: ExtensionMetadata) -> [ManifestValidationWarning] {
@@ -205,6 +237,7 @@ public struct ManifestValidator: Sendable {
         return warnings
     }
 
+    /// Package-aware validation lives in `ManifestPackageValidation`; this validator stays pure.
     public func validate(_ manifest: ExtensionMetadata, data: Data?) -> ManifestValidationRecord {
         let issues = validate(manifest)
         let warnings = validateWarnings(manifest)
@@ -294,21 +327,18 @@ public struct ManifestValidator: Sendable {
         if let script = action.script, !isSafeScriptPath(script) {
             issues.append(ManifestValidationIssue(kind: .unsafeScriptPath(script), path: path))
         }
+        if let predicate = action.requirements?.predicate {
+            let trimmed = predicate.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isJS = trimmed.lowercased().hasSuffix(".js")
+            if trimmed.isEmpty || !isJS || !isSafeScriptPath(trimmed) {
+                issues.append(ManifestValidationIssue(kind: .unsafePredicatePath(predicate), path: path))
+            }
+        }
         return issues
     }
 
     private func isSafeScriptPath(_ script: String) -> Bool {
-        let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        guard !trimmed.hasPrefix("/"), !trimmed.hasPrefix("~"), !trimmed.contains(":") else {
-            return false
-        }
-        let dummyBase = URL(fileURLWithPath: "/extension_root")
-        let destination = dummyBase.appendingPathComponent(trimmed)
-        guard Constants.isPathSafe(destinationURL: destination, baseDirectory: dummyBase) else {
-            return false
-        }
-        return destination.standardized.path != dummyBase.standardized.path
+        ExtensionManifestPath.isSafeRelativePath(script)
     }
 
     private func validateOptions(_ options: [ExtensionOptionMetadata], path: String) -> [ManifestValidationIssue] {

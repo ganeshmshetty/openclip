@@ -10,7 +10,7 @@ The native content contract is introduced in the 1.9.0 source version. Catalog p
 
 `content` is a non-empty array of `url`, `email`, `date`, `path`, `phone`, or `address`. At least one occurrence of **any** listed type enables the content gate. Input, paste target, app restrictions, and regex requirements must also pass. A malformed legacy regex retains its previous fail-open behavior for that gate, but cannot bypass a content requirement. Unknown content types, empty arrays, nulls, and wrong shapes reject the manifest, including nested group actions.
 
-Declaring native content makes an action contextual, just as a regex does. User exclusions from contextual actions still apply. Required options are checked when invoked and open configuration rather than hiding the action.
+A narrowing requirement makes an action contextual by default, just as a regex does. Under the uniform rule, `apps`, `content`, `regex`, `predicate`, `requiresPasteTarget`, live/editable `input`, legacy `regex`, and `menuRelevance` all promote; `input: "optional"`, explicit `input: "text"`, and `requiredOptions` alone do not. The action-level `contextual` boolean overrides the auto rule, and user exclusions still apply. Required options are checked when invoked and open configuration rather than hiding the action.
 
 ## Detection and JavaScript input
 

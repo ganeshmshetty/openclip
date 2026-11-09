@@ -213,7 +213,8 @@ public final class InlineResultEvaluator {
                     selection: context.selection,
                     modifiers: context.modifiers,
                     isSecondaryClick: false,
-                    match: match
+                    match: match,
+                    visibilityMemo: context.visibilityMemo
                 )
             } else {
                 matchedContext = ActionContext(

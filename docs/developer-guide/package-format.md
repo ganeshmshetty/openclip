@@ -105,9 +105,11 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "toast" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only**, rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
 | `toast` | Object | Optional. Primary-click companion toast `{ "message": string | object, "style"?: "success" | "error" | "info" }` (default style `success`). Valid on all kinds. Message can be localized dictionary. |
 | `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. Dash alias: `secondary-toast`. |
-| `requirements.content` | Array | Non-empty list of `url`, `email`, `date`, `path`, `phone`, `address`; any detected type passes, makes the action contextual, and supplies `openclip.input.detected`. Requires 1.9.0. |
-| `requirements.input` | String | Input contract: `optional`, `text` (default), `liveSelection`, or `editableSelection`. Legacy `requiresSelection`/`requires-selection` maps `true` to `text` and `false` to `optional`; do not combine legacy and new keys. |
-| `requirements.requiresPasteTarget` | Boolean | Optional destination gate. `true` requires a confirmed Paste-capable target; `false` or omission means no paste target is required, not that paste is forbidden. Dash alias: `requires-paste-target`. |
+| `requirements.content` | Array | Non-empty list of `url`, `email`, `date`, `path`, `phone`, `address`; any detected type passes and supplies `openclip.input.detected`. A narrowing requirement makes the action contextual by default; `contextual` overrides. Requires 1.9.0. |
+| `requirements.input` | String | Input contract: `optional`, `text` (default), `liveSelection`, or `editableSelection`. Legacy `requiresSelection`/`requires-selection` maps `true` to `text` and `false` to `optional`; do not combine legacy and new keys. `liveSelection` and `editableSelection` are narrowing requirements for contextual promotion; `text` and `optional` are not. |
+| `requirements.requiresPasteTarget` | Boolean | Optional destination gate. `true` requires a confirmed Paste-capable target and is a narrowing requirement for contextual promotion; `false` or omission means no paste target is required, not that paste is forbidden. Dash alias: `requires-paste-target`. |
+| `requirements.predicate` | String | Optional package-relative `.js` file (64 KiB max) exporting one pure `(input) => boolean` function. ANDed after every other gate; fail-open on error/timeout; may `require` package-local helpers. Requires a `minOpenClipVersion` for the release that ships predicate support. |
+| `contextual` | Boolean | Optional contextual-promotion override. `true` promotes even without requirements; `false` prevents promotion even with requirements; absent uses the uniform narrowing-requirement rule. User settings override this value. |
 
 `text` accepts nonblank selection, clipboard, or OCR text. `liveSelection` requires text from the
 current live selection. `editableSelection` additionally requires confirmed editability of that
@@ -116,6 +118,29 @@ source, so clipboard-derived transformations can still be pasted into a confirme
 Older OpenClip releases ignore unknown manifest keys; do not publish catalog packages that rely on
 these gates until an enforcing release exists. The current source version 1.7.3 is not a confirmed
 compatibility floor, so `minOpenClipVersion` must wait for that release's version to be established.
+
+### Contextual promotion
+
+A parsed action is contextual by default when it declares a **narrowing** requirement: `apps`,
+`content`, `regex`/`regexNegated`, `predicate`, `requiresPasteTarget`, `input: "liveSelection"` or
+`"editableSelection"`, a legacy top-level `regex`, or `menuRelevance`.
+
+`input: "optional"`, explicit `input: "text"`, and `requiredOptions` on their own do not narrow when
+the action appears, so they do not promote it. If a narrowing requirement is also present, the
+action is contextual.
+
+`contextual: true` forces promotion; `contextual: false` prevents it. The user's global contextual
+toggle and per-action disable still win. Within the contextual tier, the user's action order remains
+authoritative; there is no author ranking.
+
+`requirements.predicate` points at a package-relative `.js` file. The file must be a CommonJS module
+exporting one function. It receives a read-only `input` object with `text`, `app`, `source`,
+`editable`, `pasteTarget`, `matchedText`, `captures`, and `detected` arrays, and may `require`
+package-local helpers. The predicate file's own directory is the `require` base. Helpers run with
+no `openclip.*` bridge, so they must be pure. The file is limited to 64 KiB. It has a 5 ms budget;
+errors and timeouts leave the action visible. The predicate runs only after the cheap gates pass.
+The module is ordinary CommonJS, so authors can test it in Node with a plain fixture object. The
+manifest must declare a `minOpenClipVersion` for the release that ships predicate support.
 
 The `secondary`/`toast`/`secondaryToast` keys map onto the per-action `Action.delivery` (see
 [`Extensions/AGENTS.md` §5b](../../Extensions/AGENTS.md)); the delivery decision (Select → Probe →

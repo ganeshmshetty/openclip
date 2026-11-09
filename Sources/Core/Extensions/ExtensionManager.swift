@@ -32,6 +32,8 @@ public final class ExtensionManager: Sendable {
     
     /// Trust events for the app target to surface as user notifications.
     public var onTrustChange: ((ExtensionTrustChange) -> Void)?
+    /// Called after a reload swaps the registered action set; the app target clears compiled predicates here.
+    public var onReloaded: (@MainActor () -> Void)?
     
     private init() {}
 
@@ -45,6 +47,7 @@ public final class ExtensionManager: Sendable {
         optionReader = nil
         settingsStore = nil
         onTrustChange = nil
+        onReloaded = nil
     }
     
     public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
@@ -87,6 +90,7 @@ public final class ExtensionManager: Sendable {
             onUnregister?(oldAction.id)
         }
         self.loadedActions = finalActions
+        onReloaded?()
     }
     
     /// Installs a package (.openclipext folder, .zip, or script file) into ~/.openclip/extensions.
@@ -627,18 +631,21 @@ public final class ExtensionManager: Sendable {
             return []
         }
 
-        // Unknown kinds, missing required fields, or unknown capabilities reject the whole package.
+        // Unknown kinds, missing required fields, unknown capabilities, or unsafe predicate files reject the whole package.
         let validator = ManifestValidator.shared
-        let record = validator.validate(manifest, data: data)
-        guard record.isValid else {
-            let details = record.issues.map(\.description).joined(separator: "; ")
+        var issues = validator.validate(manifest)
+        issues.append(contentsOf: ManifestPackageValidation.validate(manifest, directory: directoryURL))
+        guard issues.isEmpty else {
+            let details = issues.map(\.description).joined(separator: "; ")
             Log.extensions.error("Extension manifest rejected at \(manifestURL.path, privacy: .public): \(details, privacy: .public)")
             return []
         }
-        for warning in record.warnings {
+        let warnings = validator.validateWarnings(manifest)
+        for warning in warnings {
             Log.extensions.warning("Extension manifest warning at \(manifestURL.path, privacy: .public): \(warning.description, privacy: .public)")
         }
-        Log.extensions.notice("Loaded extension manifest \(manifest.identifier, privacy: .public) (v\(record.declaredVersion ?? "-", privacy: .public), schema \(record.schemaVersion, privacy: .public), \(manifest.actions.count) action(s), sha256 \(record.fingerprint, privacy: .public))")
+        let fingerprint = ContentFingerprint.sha256Hex(data)
+        Log.extensions.notice("Loaded extension manifest \(manifest.identifier, privacy: .public) (v\(manifest.version ?? "-", privacy: .public), schema \(validator.schemaVersion, privacy: .public), \(manifest.actions.count) action(s), sha256 \(fingerprint, privacy: .public))")
 
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {

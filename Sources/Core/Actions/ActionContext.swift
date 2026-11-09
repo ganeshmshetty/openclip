@@ -19,18 +19,22 @@ public struct ActionContext: Sendable {
     /// Paste destination evidence captured for this popup session; nil is unknown and only fails
     /// actions that explicitly require a paste destination.
     public let pasteTargetAvailable: Bool?
-    
+    /// Presentation-scoped cache shared by the bar, palette, and prewarm for this picker session.
+    public let visibilityMemo: VisibilityMemo
+
     public init(
         selection: SelectionContext,
         modifiers: ModifierFlags = [],
         isSecondaryClick: Bool = false,
         match: ActionMatchInfo? = nil,
-        pasteTargetAvailable: Bool? = nil
+        pasteTargetAvailable: Bool? = nil,
+        visibilityMemo: VisibilityMemo? = nil
     ) {
         self.selection = selection
         self.modifiers = modifiers
         self.isSecondaryClick = isSecondaryClick
         self.match = match
         self.pasteTargetAvailable = pasteTargetAvailable ?? selection.pasteTargetAvailable
+        self.visibilityMemo = visibilityMemo ?? VisibilityMemo()
     }
 }

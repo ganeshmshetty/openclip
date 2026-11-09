@@ -495,4 +495,88 @@ final class ManifestValidationTests: XCTestCase {
         XCTAssertThrowsError(try ExtensionManifestStore.decodeManifest(from: Data(json.utf8)))
     }
 
+    func testPredicatePathRejectsEscapeAndNonJS() throws {
+        let escaped = try decodeManifest("""
+        {"identifier":"com.test.predicate","name":"Predicate","minOpenClipVersion":"1.10.0","actions":[
+          {"type":"js","scriptCode":"return 'x';","requirements":{"predicate":"../visible.js"}}
+        ]}
+        """)
+        XCTAssertTrue(ManifestValidator.validate(escaped).contains {
+            if case .unsafePredicatePath = $0.kind { return true }
+            return false
+        })
+
+        let text = try decodeManifest("""
+        {"identifier":"com.test.predicate","name":"Predicate","minOpenClipVersion":"1.10.0","actions":[
+          {"type":"js","scriptCode":"return 'x';","requirements":{"predicate":"visible.txt"}}
+        ]}
+        """)
+        XCTAssertTrue(ManifestValidator.validate(text).contains {
+            if case .unsafePredicatePath = $0.kind { return true }
+            return false
+        })
+    }
+
+    func testPredicateFileMustExist() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let manifest = try decodeManifest("""
+        {"identifier":"com.test.predicate","name":"Predicate","minOpenClipVersion":"1.10.0","actions":[
+          {"type":"js","scriptCode":"return 'x';","requirements":{"predicate":"visible.js"}}
+        ]}
+        """)
+        let issues = ManifestPackageValidation.validate(manifest, directory: dir)
+        XCTAssertTrue(issues.contains {
+            if case .missingPredicateFile = $0.kind { return true }
+            return false
+        })
+    }
+
+    func testPredicateFileSizeIsBounded() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try String(repeating: "x", count: 65 * 1024)
+            .write(to: dir.appendingPathComponent("visible.js"), atomically: true, encoding: .utf8)
+
+        let manifest = try decodeManifest("""
+        {"identifier":"com.test.predicate","name":"Predicate","minOpenClipVersion":"1.10.0","actions":[
+          {"type":"js","scriptCode":"return 'x';","requirements":{"predicate":"visible.js"}}
+        ]}
+        """)
+        XCTAssertTrue(ManifestPackageValidation.validate(manifest, directory: dir).contains {
+            if case .predicateTooLarge = $0.kind { return true }
+            return false
+        })
+    }
+
+    func testContextualBooleanDecodes() throws {
+        let manifest = try decodeManifest("""
+        {"identifier":"com.test.contextual","name":"Contextual","actions":[
+          {"type":"js","scriptCode":"return 'x';","contextual":true},
+          {"type":"js","scriptCode":"return 'x';","contextual":false}
+        ]}
+        """)
+        XCTAssertEqual(manifest.actions[0].contextual, true)
+        XCTAssertEqual(manifest.actions[1].contextual, false)
+    }
+
+    func testContextualMustBeBoolean() {
+        let json = #"{"identifier":"com.test.contextual","name":"Contextual","actions":[{"type":"js","scriptCode":"return 'x';","contextual":"yes"}]}"#
+        XCTAssertThrowsError(try ExtensionManifestStore.decodeManifest(from: Data(json.utf8)))
+    }
+
+    func testPredicateRequiresVersionFloor() throws {
+        let manifest = try decodeManifest("""
+        {"identifier":"com.test.predicate","name":"Predicate","actions":[
+          {"type":"js","scriptCode":"return 'x';","requirements":{"predicate":"visible.js"}}
+        ]}
+        """)
+        XCTAssertTrue(ManifestValidator.validate(manifest).contains {
+            if case .missingVersionFloor = $0.kind { return true }
+            return false
+        })
+    }
 }

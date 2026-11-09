@@ -12,6 +12,7 @@ enum TestIsolation {
         ActionBindingStore.shared.reset()
         RuleEngine.shared.reset()
         ExtensionManager.shared.reset()
+        VisibilityPredicateRuntime.shared.invalidate()
         // Warm cache persists across popup sessions; start clean so a prior preview can't leak.
         InlineResultEvaluator.shared.clearPrewarmed()
         AIServiceManager.shared.providerOverride = nil

@@ -949,26 +949,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     /// Per-run module cache (cache-first, so cycles see partial exports) and a Node-style per-directory `require`.
     private static func modulePrelude(entryDirectory: String) -> String {
-        let escaped = entryDirectory
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        return """
-        var __moduleCache = {};
-        var __require = function(dir, specifier) {
-            var r = openclip.__resolveModule(dir, specifier);
-            if (!r.ok) throw new Error(r.message);
-            if (__moduleCache[r.path] !== undefined) return __moduleCache[r.path];
-            var m = { exports: {} };
-            __moduleCache[r.path] = m.exports;
-            (new Function('require', 'module', 'exports', '__dirname', r.source))(__require.bind(null, r.dir), m, m.exports, r.dir);
-            __moduleCache[r.path] = m.exports;
-            return m.exports;
-        };
-        var require = __require.bind(null, "\(escaped)");
-        var module = { exports: {} };
-        var exports = module.exports;
-        var __dirname = "\(escaped)";
-        """
+        OpenClipCommonJS.prelude(
+            entryDirectory: entryDirectory,
+            resolverExpression: "openclip.__resolveModule"
+        )
     }
 
     // MARK: - Effect → ActionResult

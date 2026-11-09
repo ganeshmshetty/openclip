@@ -46,6 +46,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let output: ExtensionOutputKind?
     /// Declares the recommended delivery for an uncommitted result ("preview", "paste", "copy", "paste-or-copy", "open", "save").
     public let result: ExtensionResultDelivery?
+    /// Explicit contextual promotion override. Nil uses the uniform auto rule.
+    public let contextual: Bool?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -81,7 +83,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         output: ExtensionOutputKind? = nil,
         result: ExtensionResultDelivery? = nil,
         captureRtf: Bool? = nil,
-        captureHtml: Bool? = nil
+        captureHtml: Bool? = nil,
+        contextual: Bool? = nil
     ) {
         self.id = id
         self.title = title ?? localizedTitle?.resolve()
@@ -113,6 +116,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.displayOnly = displayOnly
         self.output = output
         self.result = result
+        self.contextual = contextual
     }
 
     public init(
@@ -194,6 +198,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         } else {
             self.result = nil
         }
+        self.contextual = try container.decodeIfPresent(Bool.self, forKey: .contextual)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -234,6 +239,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(displayOnly, forKey: .displayOnly)
         try container.encodeIfPresent(output?.rawValue, forKey: .output)
         try container.encodeIfPresent(result?.rawValue, forKey: .result)
+        try container.encodeIfPresent(contextual, forKey: .contextual)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -278,6 +284,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case legacyOutput = "Output"
         case result = "result"
         case legacyResult = "Result"
+        case contextual = "contextual"
     }
 }
 
