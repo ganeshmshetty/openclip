@@ -76,7 +76,7 @@ public final class CloudAPIProvider: AIProvider {
                         continuation.finish(throwing: error)
                     }
                 }
-            case .openai, .deepseek, .groq, .openrouter, .custom:
+            case .openai, .deepseek, .groq, .openrouter, .mistral, .xai, .cerebras, .together, .fireworks, .custom:
                 let baseURL = effectiveBaseURL
                 streamTask = Task {
                     do {
@@ -345,7 +345,7 @@ public final class CloudAPIProvider: AIProvider {
             return try await fetchAnthropicModels(apiKey: trimmedKey, baseURL: baseURL)
         case .google:
             return try await fetchGeminiModels(apiKey: trimmedKey, baseURL: baseURL)
-        case .openai, .deepseek, .groq, .openrouter, .custom:
+        case .openai, .deepseek, .groq, .openrouter, .mistral, .xai, .cerebras, .together, .fireworks, .custom:
             return try await fetchOpenAICompatibleModels(apiKey: trimmedKey, baseURL: baseURL, provider: provider)
         }
     }

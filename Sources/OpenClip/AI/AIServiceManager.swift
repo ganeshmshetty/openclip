@@ -427,6 +427,11 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
     case deepseek = "deepseek"
     case groq = "groq"
     case openrouter = "openrouter"
+    case mistral = "mistral"
+    case xai = "xai"
+    case cerebras = "cerebras"
+    case together = "together"
+    case fireworks = "fireworks"
     case custom = "custom"
 
     public var id: String { rawValue }
@@ -439,6 +444,11 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return String(localized: "DeepSeek")
         case .groq: return String(localized: "Groq")
         case .openrouter: return String(localized: "OpenRouter")
+        case .mistral: return String(localized: "Mistral")
+        case .xai: return String(localized: "xAI")
+        case .cerebras: return String(localized: "Cerebras")
+        case .together: return String(localized: "Together AI")
+        case .fireworks: return String(localized: "Fireworks")
         case .custom: return String(localized: "Custom OpenAI-Compatible Endpoint")
         }
     }
@@ -451,6 +461,11 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return "deepseek-chat"
         case .groq: return "llama-3.3-70b-versatile"
         case .openrouter: return "openrouter/auto"
+        case .mistral: return "mistral-small-latest"
+        case .xai: return "grok-4.7"
+        case .cerebras: return "qwen-3.8-27b"
+        case .together: return "zai-org/GLM-5.3-Flash"
+        case .fireworks: return "accounts/fireworks/models/glm-5p3-flash"
         case .custom: return "default"
         }
     }
@@ -463,6 +478,11 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
         case .groq: return ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
         case .openrouter: return ["openrouter/auto"]
+        case .mistral: return ["mistral-small-latest", "mistral-large-latest"]
+        case .xai: return ["grok-4.7", "grok-4.6", "grok-4.5"]
+        case .cerebras: return ["qwen-3.8-27b", "gpt-oss-120b"]
+        case .together: return ["zai-org/GLM-5.3-Flash", "Qwen/Qwen3.8-Flash", "openai/gpt-oss-120b"]
+        case .fireworks: return ["accounts/fireworks/models/glm-5p3-flash", "accounts/fireworks/models/llama-v3p1-8b-instruct"]
         case .custom: return ["default"]
         }
     }
@@ -475,6 +495,11 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return "https://api.deepseek.com/v1"
         case .groq: return "https://api.groq.com/openai/v1"
         case .openrouter: return "https://openrouter.ai/api/v1"
+        case .mistral: return "https://api.mistral.ai/v1"
+        case .xai: return "https://api.x.ai/v1"
+        case .cerebras: return "https://api.cerebras.ai/v1"
+        case .together: return "https://api.together.ai/v1"
+        case .fireworks: return "https://api.fireworks.ai/inference/v1"
         case .custom: return ""
         }
     }

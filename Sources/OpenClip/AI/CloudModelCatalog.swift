@@ -16,7 +16,7 @@ enum CloudModelCatalog {
 
     private static let nonChatMarkers = [
         "embed", "whisper", "tts", "transcribe", "dall-e", "image", "imagen", "veo", "moderation",
-        "realtime", "audio", "speech", "aqa", "guard", "rerank", "vision-preview", "search-preview",
+        "realtime", "audio", "speech", "video", "voice", "aqa", "guard", "rerank", "vision-preview", "search-preview",
         "computer-use", "davinci", "babbage", "instruct"
     ]
 
@@ -67,6 +67,19 @@ enum CloudModelCatalog {
     private static func decode(_ json: String) -> [String: Snapshot] {
         guard let data = json.data(using: .utf8) else { return [:] }
         return (try? JSONDecoder().decode([String: Snapshot].self, from: data)) ?? [:]
+    }
+
+    /// Case-insensitive substring match on the id and an optional display label.
+    /// `selected` stays in the result when the query hides it, so a popup binding does not jump to another model.
+    static func matching(_ models: [String], query: String, keeping selected: String? = nil, label: (String) -> String = { $0 }) -> [String] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matched = trimmed.isEmpty ? models : models.filter { model in
+            model.localizedStandardContains(trimmed) || label(model).localizedStandardContains(trimmed)
+        }
+        guard let selected, !selected.isEmpty, selected != "custom", models.contains(selected), !matched.contains(selected) else {
+            return matched
+        }
+        return [selected] + matched
     }
 
     /// Live list if present, then the cached one, then the built-in fallback; the saved model is always kept selectable.

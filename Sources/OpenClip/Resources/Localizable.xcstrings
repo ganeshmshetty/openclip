@@ -3669,6 +3669,34 @@
         }
       }
     },
+    "Cerebras": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        }
+      }
+    },
     "ChatGPT (OpenAI)": {
       "localizations": {
         "zh-Hans": {
@@ -8961,6 +8989,34 @@
         }
       }
     },
+    "Filter models": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "筛选模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "篩選模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtrer les modèles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを絞り込む"
+          }
+        }
+      }
+    },
     "Finding OpenClip useful?": {
       "localizations": {
         "zh-Hans": {
@@ -9041,6 +9097,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "画面キャプチャを終了してからコピーしてください。"
+          }
+        }
+      }
+    },
+    "Fireworks": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
           }
         }
       }
@@ -11565,6 +11649,34 @@
         }
       }
     },
+    "Mistral": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        }
+      }
+    },
     "Model": {
       "localizations": {
         "zh-Hans": {
@@ -12653,6 +12765,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "一致するアクションがありません。"
+          }
+        }
+      }
+    },
+    "No matching models": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有相符的模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun modèle correspondant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致するモデルがありません"
           }
         }
       }
@@ -21449,6 +21589,34 @@
         }
       }
     },
+    "Together AI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        }
+      }
+    },
     "Toggle change highlighting": {
       "localizations": {
         "zh-Hans": {
@@ -23965,6 +24133,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "snake_case を camelCase に変換"
+          }
+        }
+      }
+    },
+    "xAI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
           }
         }
       }
