@@ -72,18 +72,16 @@ public enum TextLanguageDetector {
     @MainActor
     public static func textLanguageCode(for text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
+        guard !trimmed.isEmpty, trimmed.contains(where: { $0.isLetter }) else { return nil }
         let sample = sample(trimmed)
         let checker = TextSpellCheckerRegistry.checker
-        let preferred = checker?.preferredLanguages() ?? []
-        let assessments = checker?.assessments(for: sample) ?? []
         if prefersSpellCheck(for: sample) {
-            return languageOfCorrectSpelling(assessments)
+            return languageOfCorrectSpelling(checker?.assessments(for: sample) ?? [])
         }
-        if let recognized = dominantLanguageCode(for: sample, hints: preferred) {
+        if let recognized = dominantLanguageCode(for: sample, hints: checker?.preferredLanguages() ?? []) {
             return recognized
         }
-        return languageOfCorrectSpelling(assessments)
+        return languageOfCorrectSpelling(checker?.assessments(for: sample) ?? [])
     }
 
     /// Sets `OPENCLIP_TEXT_LANGUAGE` when detection succeeds and removes it otherwise,

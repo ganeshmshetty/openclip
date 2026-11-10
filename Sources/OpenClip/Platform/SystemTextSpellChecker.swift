@@ -11,8 +11,18 @@ import Core
 public final class SystemTextSpellChecker: TextSpellChecking {
     public static let shared = SystemTextSpellChecker()
 
+    private struct AssessmentCache {
+        let text: String
+        let languages: [String]
+        let value: [SpellLanguageAssessment]
+    }
+
     /// Whether `language` flags a nonsense probe. Languages that never do still report "not misspelled".
     private var unknownWordFlags: [String: Bool] = [:]
+
+    /// The popup asks for the same word while building one popup; keep the last result so only the
+    /// first call pays for `NSSpellChecker`.
+    private var assessmentCache: AssessmentCache?
 
     public func preferredLanguages() -> [String] {
         let checker = NSSpellChecker.shared
@@ -26,13 +36,21 @@ public final class SystemTextSpellChecker: TextSpellChecking {
     public func assessments(for text: String) -> [SpellLanguageAssessment] {
         let available = Set(NSSpellChecker.shared.availableLanguages)
         let usable = Self.unique(preferredLanguages()).filter { Self.isAvailable($0, available: available) }
+        let probe = Self.unknownWordProbe(for: text)
+        // The legacy path resolves `NSSpellChecker.language()` per call, so caching it by text alone
+        // would keep a stale language after the user changes the spelling language.
         if usable.isEmpty {
-            return [legacyAssessment(for: text)]
+            return [legacyAssessment(for: text, probe: probe)]
         }
-        return usable.map { assess(text, language: $0) }
+        if let cached = assessmentCache, cached.text == text, cached.languages == usable {
+            return cached.value
+        }
+        let value = usable.map { assess(text, language: $0, probe: probe) }
+        assessmentCache = AssessmentCache(text: text, languages: usable, value: value)
+        return value
     }
 
-    private func assess(_ text: String, language: String) -> SpellLanguageAssessment {
+    private func assess(_ text: String, language: String, probe: String?) -> SpellLanguageAssessment {
         let checker = NSSpellChecker.shared
         let range = NSRange(location: 0, length: text.utf16.count)
         var wordCount = 0
@@ -50,12 +68,11 @@ public final class SystemTextSpellChecker: TextSpellChecking {
             language: language,
             inSpellDocumentWithTag: 0
         ) ?? []
-        let guesses = checker.guesses(
-            forWordRange: range,
-            in: text,
-            language: language,
-            inSpellDocumentWithTag: 0
-        ) ?? []
+        // Guesses are only read when completions are empty; asking every dictionary for them was
+        // the most expensive part of the popup path.
+        let guesses = completions.isEmpty
+            ? checker.guesses(forWordRange: range, in: text, language: language, inSpellDocumentWithTag: 0) ?? []
+            : []
         let misspelled = misspelledRange.location != NSNotFound
         return SpellLanguageAssessment(
             language: language,
@@ -64,7 +81,7 @@ public final class SystemTextSpellChecker: TextSpellChecking {
                 misspelled: misspelled,
                 hasCompletions: !completions.isEmpty,
                 language: language,
-                sample: text
+                probe: probe
             ),
             misspelled: misspelled,
             completions: completions,
@@ -74,7 +91,7 @@ public final class SystemTextSpellChecker: TextSpellChecking {
 
     /// No preferred dictionary is installed. Keep the previous nil-language query so a machine
     /// without a matching dictionary still returns the completions it returned before.
-    private func legacyAssessment(for text: String) -> SpellLanguageAssessment {
+    private func legacyAssessment(for text: String, probe: String?) -> SpellLanguageAssessment {
         let checker = NSSpellChecker.shared
         let current = checker.language()
         let language = current.isEmpty ? (preferredLanguages().first ?? "en") : current
@@ -94,12 +111,9 @@ public final class SystemTextSpellChecker: TextSpellChecking {
             language: nil,
             inSpellDocumentWithTag: 0
         ) ?? []
-        let guesses = checker.guesses(
-            forWordRange: range,
-            in: text,
-            language: nil,
-            inSpellDocumentWithTag: 0
-        ) ?? []
+        let guesses = completions.isEmpty
+            ? checker.guesses(forWordRange: range, in: text, language: nil, inSpellDocumentWithTag: 0) ?? []
+            : []
         let misspelled = misspelledRange.location != NSNotFound
         return SpellLanguageAssessment(
             language: language,
@@ -108,7 +122,7 @@ public final class SystemTextSpellChecker: TextSpellChecking {
                 misspelled: misspelled,
                 hasCompletions: !completions.isEmpty,
                 language: nil,
-                sample: text
+                probe: probe
             ),
             misspelled: misspelled,
             completions: completions,
@@ -125,14 +139,16 @@ public final class SystemTextSpellChecker: TextSpellChecking {
         return flagsUnknownWords
     }
 
-    private func dictionaryChecked(wordCount: Int, misspelled: Bool, hasCompletions: Bool, language: String?, sample: String) -> Bool {
+    private func dictionaryChecked(wordCount: Int, misspelled: Bool, hasCompletions: Bool, language: String?, probe: String?) -> Bool {
         let flagsUnknownWords: Bool
         if misspelled || hasCompletions || wordCount == 0 {
             flagsUnknownWords = false
-        } else if let probe = Self.unknownWordProbe(for: sample) {
+        } else if let probe {
             flagsUnknownWords = self.flagsUnknownWords(language, probe: probe)
         } else {
-            flagsUnknownWords = true
+            // No probe means no dictionary was shown to check this script. Treating that as a hit
+            // made numbers and unsupported scripts report the first preferred language.
+            flagsUnknownWords = false
         }
         return Self.countsAsDictionaryHit(
             wordCount: wordCount,

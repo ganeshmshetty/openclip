@@ -35,6 +35,20 @@ final class TextLanguageDetectorTests: XCTestCase {
         XCTAssertNil(TextLanguageDetector.textLanguageCode(for: ""))
     }
 
+    func testTextWithoutLettersIsUnknown() {
+        XCTAssertNil(TextLanguageDetector.textLanguageCode(for: "12345"))
+        XCTAssertNil(TextLanguageDetector.textLanguageCode(for: "2026-11-10"))
+        XCTAssertNil(TextLanguageDetector.textLanguageCode(for: "!?…"))
+    }
+
+    func testUnsupportedScriptIsNotReportedAsTheFirstPreferredLanguage() {
+        TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
+        let korean = TextLanguageDetector.textLanguageCode(for: "안녕하세요")
+        XCTAssertTrue(korean == nil || korean == "ko", "unexpected language: \(korean ?? "nil")")
+        let thai = TextLanguageDetector.textLanguageCode(for: "สวัสดี")
+        XCTAssertTrue(thai == nil || thai == "th", "unexpected language: \(thai ?? "nil")")
+    }
+
     func testShortTextUsesTheFirstLanguageThatSpellsItCorrectly() {
         TextSpellCheckerRegistry.checker = StubTextSpellChecker(
             languages: ["en", "sv"],
