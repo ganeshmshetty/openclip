@@ -40,8 +40,8 @@ struct SearchableModelPicker: View {
     }
 
     private var listHeight: CGFloat {
-        let rows = filteredModels.count + 1 + (defaultTag == nil ? 0 : 1) + (showsNoMatch ? 1 : 0)
-        return min(CGFloat(rows) * 28 + 16, 320)
+        let rows = filteredModels.count + (defaultTag == nil ? 0 : 1) + (showsNoMatch ? 1 : 0)
+        return min(max(CGFloat(rows) * 28 + 16, 44), 300)
     }
 
     var body: some View {
@@ -58,7 +58,7 @@ struct SearchableModelPicker: View {
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
-            .frame(width: 240, alignment: .leading)
+            .fixedSize()
         }
         .buttonStyle(.bordered)
         .controlSize(.regular)
@@ -100,17 +100,18 @@ struct SearchableModelPicker: View {
                                 .padding(.horizontal, 10)
                                 .frame(height: 28)
                         }
-                        Divider()
-                        SearchableModelPickerRow(
-                            label: Text(customTitle),
-                            isSelected: selection == customTag
-                        ) {
-                            choose(customTag)
-                        }
                     }
                     .padding(.vertical, 4)
                 }
                 .frame(height: listHeight)
+                Divider()
+                SearchableModelPickerRow(
+                    label: Text(customTitle),
+                    isSelected: selection == customTag
+                ) {
+                    choose(customTag)
+                }
+                .padding(.vertical, 4)
             }
             .frame(width: 280)
         }
