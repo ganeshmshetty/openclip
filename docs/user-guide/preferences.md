@@ -60,7 +60,7 @@ Dragging an action changes its position in the popup bar. [`SettingsStore`](../.
 
 Search, Copy, Cut, Paste, Calculate, Define, Add Event, Open Link, Reveal in Finder, and Word Completion each have a row in the sidebar's second group. The page opens with the same header an extension's page has, showing the action's icon and name. Below it are the name and icon shown in the popup bar, the alias and hotkey, and any options the action declares (Search's engine, for example). The action's switch is in the toolbar. **Revert** discards unsaved edits and **Save Changes** applies them.
 
-Word Completion's page also has **Only suggest for misspelled words** (on by default) and **Show completions**. Both apply as soon as they change. A word counts as spelled correctly when any language in the macOS spelling list accepts it. **Inline**, the default, opens the suggestion row in the bar. **As contextual action** shows one button, using the `text.badge.plus` icon and the top suggestion as its tooltip. Tapping it expands the three or four suggestions in the popup; picking one pastes it, and **Back** returns to the action row. The button stays hidden when there is nothing to suggest.
+Word Completion's page also has **Only suggest for misspelled words** (on by default) and **Show completions**. Both apply as soon as they change. A word counts as spelled correctly when any enabled keyboard input language accepts it. **Inline**, the default, opens the suggestion row in the bar. **As contextual action** shows the Word Completion group in the contextual island: hovering it opens the suggestions sub-bar, and clicking it opens a scoped search palette. Picking a suggestion pastes it. The group stays hidden when there is nothing to suggest.
 
 ## Custom actions
 

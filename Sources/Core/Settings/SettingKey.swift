@@ -126,7 +126,7 @@ public extension SettingKey where Value == Bool {
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
     static var captureTextAutoCopy: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoCopy", defaultValue: true) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
-    /// When true, Word Completion appears only if the word is misspelled in every preferred spelling language.
+    /// When true, Word Completion appears only if the word is misspelled in every enabled keyboard input language.
     static var completionOnlyMisspelled: SettingKey<Bool> { SettingKey<Bool>("completionOnlyMisspelled", defaultValue: true) }
     /// True once the one-time migration (auto-trust existing installs) has run.
     static var extensionTrustMigrated: SettingKey<Bool> { SettingKey<Bool>("extension.trustMigrated", defaultValue: false) }

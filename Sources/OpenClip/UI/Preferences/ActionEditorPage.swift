@@ -803,19 +803,10 @@ public struct ActionEditorPage: View {
                     SettingsCard("Suggestions") {
                         SettingsToggleRow(
                             title: "Only suggest for misspelled words",
-                            subtitle: "Hide suggestions when the word is spelled correctly in any spelling language.",
-                            systemImage: "textformat.abc",
-                            plainIcon: true,
                             isOn: $completionOnlyMisspelled
                         )
                         SettingsDivider()
-                        SettingsRow(
-                            title: "Show completions",
-                            subtitle: "Inline shows suggestions in the bar. Contextual shows one button that opens them.",
-                            systemImage: "text.badge.plus",
-                            plainIcon: true,
-                            descriptionOnHover: true
-                        ) {
+                        SettingsRow(title: "Show completions") {
                             Picker("Show completions", selection: $completionDisplayMode) {
                                 Text("Inline").tag(CompletionDisplayMode.inline.rawValue)
                                 Text("As contextual action").tag(CompletionDisplayMode.contextual.rawValue)

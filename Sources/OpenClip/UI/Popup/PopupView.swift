@@ -309,6 +309,22 @@ public struct PopupView: View {
         }
     }
 
+    /// The contextual suggestion offer uses the normal group path so hover and click match every
+    /// other group.
+    private var contextualCompletionAction: (any Action)? {
+        guard showsContextualCompletionButton else { return nil }
+        return WordCompletionGroupAction(
+            words: cachedCompletions,
+            title: completionGroupTitle,
+            icon: completionGroupIcon
+        )
+    }
+
+    private var contextualIslandActions: [any Action] {
+        guard let contextualCompletionAction else { return contextualActions }
+        return [contextualCompletionAction] + contextualActions
+    }
+
     /// Remaining non-contextual actions shown in the standard actions island.
     private var standardActions: [any Action] {
         if contextualActions.isEmpty {
@@ -355,7 +371,7 @@ public struct PopupView: View {
 
     /// Bar actions in left-to-right order; `.action(index)` hover targets index into this list.
     private var visibleBarActions: [any Action] {
-        contextualIslandTrailing ? pagedStandardActions + contextualActions : contextualActions + pagedStandardActions
+        contextualIslandTrailing ? pagedStandardActions + contextualIslandActions : contextualIslandActions + pagedStandardActions
     }
 
     private var hasLeftChevron: Bool { currentPage > 0 }
@@ -716,14 +732,11 @@ public struct PopupView: View {
 
     private var contextualIsland: some View {
         HStack(spacing: 0) {
-            if showsContextualCompletionButton {
-                completionOfferButton(leadingEdge: true, trailingEdge: contextualActions.isEmpty)
-            }
-            ForEach(Array(contextualActions.enumerated()), id: \.element.id) { offset, action in
+            ForEach(Array(contextualIslandActions.enumerated()), id: \.element.id) { offset, action in
                 let index = contextualIslandTrailing ? pagedStandardActions.count + offset : offset
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
-                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0 && !showsContextualCompletionButton, trailingEdge: offset == contextualActions.count - 1)
+                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0, trailingEdge: offset == contextualIslandActions.count - 1)
             }
         }
         .fixedSize()
@@ -746,7 +759,7 @@ public struct PopupView: View {
             }
 
             ForEach(Array(pagedStandardActions.enumerated()), id: \.element.id) { offset, action in
-                let index = contextualIslandTrailing ? offset : contextualActions.count + offset
+                let index = contextualIslandTrailing ? offset : contextualIslandActions.count + offset
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
                 actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0 && !showsInlineCompletionChevron, trailingEdge: offset == pagedStandardActions.count - 1 && !hasLeftChevron && !hasRightChevron && !showSearchAllActions)
@@ -798,36 +811,18 @@ public struct PopupView: View {
         )
     }
 
-    private var completionIcon: ActionIcon {
-        if let provider = actions.first(where: { $0 is any WordCompletionProviding }) {
-            return provider.icon
+    private var completionGroupTitle: String {
+        guard let provider = actions.first(where: { $0 is any WordCompletionProviding }) else {
+            return String(localized: "Word Completion")
         }
-        return .symbol("text.badge.plus")
+        return provider.displayTitle(using: presenter)
     }
 
-    @ViewBuilder
-    private func completionOfferButton(leadingEdge: Bool, trailingEdge: Bool) -> some View {
-        let target = PopupHoverTarget.completionOffer
-        let isHovered = hoveredTarget == target
-        let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
-        let suggestion = cachedCompletions.first ?? ""
-        Button {
-            onPaginationAnchor?(.left)
-            isShowingCompletions = true
-        } label: {
-            iconView(for: completionIcon)
-                .foregroundColor(isHovered ? .white : restForeground)
-                .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
-                .popupBarHighlight(isHovered ? PopupThemeModel.barHoverFill : .clear, scale: scale, leadingEdge: leadingEdge, trailingEdge: trailingEdge, isHovered: isHovered, namespace: hoverHighlightNamespace)
-                .contentShape(Rectangle())
+    private var completionGroupIcon: ActionIcon {
+        guard let provider = actions.first(where: { $0 is any WordCompletionProviding }) else {
+            return .symbol("text.badge.plus")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(suggestion)
-        .accessibilityHint("Show completions")
-        .popupHoverTarget(target)
-        .onHover { isHovering in
-            useLocalHoverFallback(for: target, isHovering: isHovering)
-        }
+        return provider.displayIcon(using: presenter)
     }
 
     // MARK: - Completion Button
@@ -1135,8 +1130,6 @@ public struct PopupView: View {
         case .completion(let index):
             guard index < cachedCompletions.count else { return nil }
             return cachedCompletions[index]
-        case .completionOffer:
-            return cachedCompletions.first
         }
     }
 
@@ -1163,6 +1156,36 @@ public struct PopupView: View {
     @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {
         ActionIconView(icon: icon, size: 15.5, scale: scale)
+    }
+}
+
+/// Synthetic group row for contextual Word Completion. Its children are the current suggestions,
+/// so hover and click use the same sub-bar and scoped-search paths as every other group.
+private struct WordCompletionGroupAction: Action, SubActionProviding {
+    let words: [String]
+    let title: String
+    let icon: ActionIcon
+
+    var id: String { "builtin.completionGroup" }
+    var chrome: ActionChrome {
+        ActionChrome(
+            badge: .none,
+            rowStyle: .standard,
+            popupBehavior: .showSubActions,
+            source: .builtin,
+            requiresLiveSelection: true
+        )
+    }
+
+    @MainActor
+    func isEnabled(for context: ActionContext) -> Bool { !words.isEmpty }
+
+    @MainActor
+    func perform(_ context: ActionContext) async throws -> ActionResult { .none }
+
+    @MainActor
+    func subActions(in catalog: [any Action]) -> [any Action] {
+        words.map { WordCompletionCandidateAction(word: $0) }
     }
 }
 
