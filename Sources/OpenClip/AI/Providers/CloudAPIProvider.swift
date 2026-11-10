@@ -115,6 +115,16 @@ public final class CloudAPIProvider: AIProvider {
         return lower.hasPrefix("o1") || lower.hasPrefix("o3")
     }
 
+    /// OpenCode routes requests by conversation; Go rejects requests without the session header.
+    private static let openCodeSessionID = UUID().uuidString
+
+    private static func applyOpenCodeHeaders(to request: inout URLRequest, provider: CloudServiceProvider) {
+        guard provider == .opencode || provider == .opencodeGo else { return }
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        request.setValue(openCodeSessionID, forHTTPHeaderField: "x-opencode-session")
+        request.setValue("OpenClip/\(version)", forHTTPHeaderField: "User-Agent")
+    }
+
     // MARK: - OpenAI-compatible chat completions
 
     private func streamOpenAICompatible(systemPrompt: String, messages: [AIChatMessage], baseURL: String) -> AsyncThrowingStream<String, Error> {
@@ -132,6 +142,7 @@ public final class CloudAPIProvider: AIProvider {
                     request.httpMethod = "POST"
                     request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    Self.applyOpenCodeHeaders(to: &request, provider: serviceProvider)
 
                     let systemRole = isOpenAIReasoningModel(model) ? "developer" : "system"
                     let body = OpenAIChatRequest(
@@ -360,6 +371,7 @@ public final class CloudAPIProvider: AIProvider {
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
+        applyOpenCodeHeaders(to: &request, provider: provider)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
