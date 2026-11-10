@@ -25,6 +25,12 @@
 
 Select text in any app, and OpenClip pops up with contextual actions — transform text, run shell scripts, trigger shortcuts, evaluate math expressions, or query AI models.
 
+## Sponsors
+
+<table><tr>
+<td><a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link"><img src="https://assets.getopenclip.app/sponsor-infistar.png" alt="Infistar" width="48"></a></td>
+<td>Thanks to <a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link">Infistar</a> for sponsoring OpenClip.</td>
+</tr></table>
 ## Installation
 
 ### Homebrew (Recommended)
@@ -35,10 +41,6 @@ brew install --cask openclip
 ### Direct Download
 Download the latest `.dmg` from [Releases](https://github.com/ganeshmshetty/openclip/releases).
 
-> **Note:** Requires **Accessibility** permission (`System Settings → Privacy & Security → Accessibility`) to detect selected text without relying on clipboard polling.
-
----
-
 ## Features
 
 - **Contextual bar**: Appears instantly near your selection with relevant actions (case transform, search, copy/cut, math, or custom scripts).
@@ -47,8 +49,6 @@ Download the latest `.dmg` from [Releases](https://github.com/ganeshmshetty/open
 - **Native & fast**: Written in Swift 6 with strict concurrency; lightweight background footprint.
 - **Optional AI actions**: Run text through local Ollama models, Apple Intelligence, or OpenAI/Anthropic keys.
 - **Privacy-first**: Zero telemetry, no analytics, 100% local execution.
-
----
 
 ## Extensions
 
@@ -71,8 +71,6 @@ Extensions are simple folders in `~/.openclip/extensions/`. A basic URL lookup e
 
 Install community extensions from **Preferences → Extension Store**, or read the [extension docs](docs/developer-guide/index.md).
 
----
-
 ## Building from Source
 
 **Prerequisites:** macOS 14+, Xcode 16+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
@@ -93,8 +91,6 @@ xcodegen generate
 # Package release DMG
 ./scripts/package_app.sh
 ```
-
----
 
 ## Community & Support
 
