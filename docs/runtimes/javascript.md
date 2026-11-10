@@ -89,10 +89,10 @@ letters `a` through `z`, digits `0` through `9`, or named keys like `return`, `s
 
 `openclip.language` and `openclip.locale` are the macOS UI language. `openclip.textLanguage`
 is the language of the selected text: a sentence is recognized by the system language
-identifier, and a word or two is reported only when one of the user's spelling languages
-accepts it. It is an empty string when OpenClip cannot tell (including a word that is
-misspelled in every spelling language). `openclip.i18n` keeps using `language`, not
-`textLanguage`.
+identifier, and a word or two is reported only when one of the languages of the enabled
+keyboard input sources accepts it. It is an empty string when OpenClip cannot tell (including
+a word that is misspelled in every one of those languages). `openclip.i18n` keeps using
+`language`, not `textLanguage`.
 
 The former canvas bridge (`showContent(tree, { size })` / `h()`) has been **removed**; calling
 those names surfaces a JS error (`.toast(.error)`).

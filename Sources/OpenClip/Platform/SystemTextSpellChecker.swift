@@ -3,8 +3,9 @@
 //
 // NSSpellChecker adapter for TextLanguageDetector. The older completions/guesses methods use the
 // single language from setLanguage when `language` is nil; automatic identification only applies
-// to the unified text-checking API. Each preferred spelling language is passed explicitly.
+// to the unified text-checking API. Each enabled keyboard input source's language is passed explicitly.
 import AppKit
+import Carbon
 import Core
 
 @MainActor
@@ -24,13 +25,47 @@ public final class SystemTextSpellChecker: TextSpellChecking {
     /// first call pays for `NSSpellChecker`.
     private var assessmentCache: AssessmentCache?
 
+    private var cachedPreferredLanguages: [String]?
+    private var inputSourcesObserver: NSObjectProtocol?
+
+    private init() {
+        inputSourcesObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name(kTISNotifyEnabledKeyboardInputSourcesChanged as String),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.cachedPreferredLanguages = nil
+            }
+        }
+    }
+
     public func preferredLanguages() -> [String] {
-        let checker = NSSpellChecker.shared
-        let preferred = checker.userPreferredLanguages.filter { !$0.isEmpty }
-        if !preferred.isEmpty { return preferred }
-        let current = checker.language()
-        if !current.isEmpty { return [current] }
-        return ["en"]
+        if let cachedPreferredLanguages { return cachedPreferredLanguages }
+        let available = Set(NSSpellChecker.shared.availableLanguages)
+        let languages = Self.keyboardInputLanguages(available: available)
+        let result = languages.isEmpty ? ["en"] : languages
+        cachedPreferredLanguages = result
+        return result
+    }
+
+    private static func keyboardInputLanguages(available: Set<String>) -> [String] {
+        let filter = [kTISPropertyInputSourceCategory: kTISCategoryKeyboardInputSource] as CFDictionary
+        guard let unmanaged = TISCreateInputSourceList(filter, false) else { return [] }
+        let sources = unmanaged.takeRetainedValue() as NSArray
+        var seen = Set<String>()
+        var languages: [String] = []
+        for case let source as TISInputSource in sources {
+            guard let property = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) else { continue }
+            let tags = Unmanaged<CFArray>.fromOpaque(property).takeUnretainedValue() as? [String] ?? []
+            // The first tag is the language the source is intended for; the rest are every language
+            // the layout can type (ABC lists 98), which would make the short list pointless.
+            guard let tag = tags.first(where: { !$0.isEmpty }),
+                  Self.isAvailable(tag, available: available),
+                  seen.insert(tag.lowercased()).inserted else { continue }
+            languages.append(tag)
+        }
+        return languages
     }
 
     public func assessments(for text: String) -> [SpellLanguageAssessment] {
