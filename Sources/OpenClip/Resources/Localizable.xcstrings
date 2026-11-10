@@ -3669,6 +3669,34 @@
         }
       }
     },
+    "Cerebras": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        }
+      }
+    },
     "ChatGPT (OpenAI)": {
       "localizations": {
         "zh-Hans": {
@@ -5881,30 +5909,30 @@
         }
       }
     },
-    "Custom OpenAI-Compatible Endpoint": {
+    "Custom Endpoint": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "自定义 OpenAI 兼容接口"
+            "value": "自定义端点"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "自訂 OpenAI 相容端點"
+            "value": "自訂端點"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Point de terminaison personnalisé compatible OpenAI"
+            "value": "Point de terminaison personnalisé"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "カスタムOpenAI互換エンドポイント"
+            "value": "カスタムエンドポイント"
           }
         }
       }
@@ -9045,6 +9073,34 @@
         }
       }
     },
+    "Fireworks": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        }
+      }
+    },
     "Fix Code": {
       "localizations": {
         "zh-Hans": {
@@ -11565,6 +11621,34 @@
         }
       }
     },
+    "Mistral": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        }
+      }
+    },
     "Model": {
       "localizations": {
         "zh-Hans": {
@@ -12653,6 +12737,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "一致するアクションがありません。"
+          }
+        }
+      }
+    },
+    "No matching models": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有相符的模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun modèle correspondant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致するモデルがありません"
           }
         }
       }
@@ -14137,6 +14249,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipはデフォルトですべてのアプリケーションで動作します。「アプリケーションを追加」をクリックして、アプリごとのルールや除外設定を構成してください。"
+          }
+        }
+      }
+    },
+    "OpenCode": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        }
+      }
+    },
+    "OpenCode Go": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
           }
         }
       }
@@ -18089,6 +18257,34 @@
         }
       }
     },
+    "Search models": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher des modèles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを検索"
+          }
+        }
+      }
+    },
     "Search settings": {
       "localizations": {
         "zh-Hans": {
@@ -18449,6 +18645,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "より広い範囲を選択してください"
+          }
+        }
+      }
+    },
+    "Select a model": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionner un modèle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを選択"
           }
         }
       }
@@ -21449,6 +21673,34 @@
         }
       }
     },
+    "Together AI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        }
+      }
+    },
     "Toggle change highlighting": {
       "localizations": {
         "zh-Hans": {
@@ -23965,6 +24217,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "snake_case を camelCase に変換"
+          }
+        }
+      }
+    },
+    "xAI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
           }
         }
       }

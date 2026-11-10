@@ -13,6 +13,8 @@ struct NativeSearchField: NSViewRepresentable {
     var placeholder: String
     var controlSize: NSControl.ControlSize = .regular
     var focusRingType: NSFocusRingType = .default
+    /// Focuses the field once it lands in a window, for search fields inside popovers.
+    var autoFocus: Bool = false
     /// Called when the user presses Return; searches that are too expensive to
     /// run per keystroke (the Iconify catalog) hang off this instead of `text`.
     var onSubmit: ((String) -> Void)?
@@ -44,6 +46,12 @@ struct NativeSearchField: NSViewRepresentable {
         if field.stringValue != text {
             field.stringValue = text
         }
+        if autoFocus, !context.coordinator.didAutoFocus, let window = field.window {
+            context.coordinator.didAutoFocus = true
+            DispatchQueue.main.async {
+                window.makeFirstResponder(field)
+            }
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -53,6 +61,7 @@ struct NativeSearchField: NSViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, NSSearchFieldDelegate {
         var parent: NativeSearchField
+        var didAutoFocus = false
 
         init(parent: NativeSearchField) {
             self.parent = parent

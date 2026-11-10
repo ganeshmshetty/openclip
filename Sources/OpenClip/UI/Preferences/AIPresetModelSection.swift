@@ -40,13 +40,14 @@ struct AIPresetModelSection: View {
                     SettingsDivider(insetLeading: SettingsDesignTokens.sectionCardPaddingH)
 
                     SettingsRow(title: "Model") {
-                        Picker("Model", selection: modelSelection) {
-                            Text("Default").tag("")
-                            ForEach(choices, id: \.self) { Text($0).tag($0) }
-                            Text("Custom…").tag(Self.customTag)
-                        }
-                        .labelsHidden()
-                        .fixedSize()
+                        SearchableModelPicker(
+                            title: "Model",
+                            selection: modelSelection,
+                            models: choices,
+                            customTag: Self.customTag,
+                            defaultTag: "",
+                            displayName: { $0 }
+                        )
                     }
 
                     if isCustom {

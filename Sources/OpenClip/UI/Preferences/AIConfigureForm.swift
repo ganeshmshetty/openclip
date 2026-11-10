@@ -271,12 +271,15 @@ public struct AIConfigureForm: View {
                         }
 
                     HStack(spacing: 8) {
-                        Picker("Model", selection: $aiManager.cloudModel) {
-                            ForEach(resolvedCloudModels, id: \.self) { m in
-                                Text(modelDisplayName(m)).tag(m)
-                            }
-                            Text("Custom…").tag("custom")
-                        }
+                        Text("Model")
+                        Spacer(minLength: 12)
+                        SearchableModelPicker(
+                            title: "Model",
+                            selection: $aiManager.cloudModel,
+                            models: resolvedCloudModels,
+                            customTag: "custom",
+                            displayName: modelDisplayName
+                        )
 
                         Button(action: fetchCloudModels) {
                             if isFetchingCloudModels {
