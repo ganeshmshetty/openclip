@@ -168,20 +168,37 @@ public final class CLIProvider: AIProvider {
     }
 
     nonisolated public static func inspectConfiguredModel(for preset: CLIPreset) -> String? {
-        guard let tool = CLITool.tool(for: preset), case .codexConfig = tool.models else { return nil }
+        guard let tool = CLITool.tool(for: preset) else { return nil }
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let configPath = "\(home)/.codex/config.toml"
-        guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else { return nil }
-        for line in content.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard trimmed.hasPrefix("model"), trimmed.contains("=") else { continue }
-            let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
-            guard parts.count == 2 else { continue }
-            var value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-            value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-            if !value.isEmpty { return value }
+        switch tool.models {
+        case .codexConfig:
+            let configPath = "\(home)/.codex/config.toml"
+            guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else { return nil }
+            for line in content.components(separatedBy: .newlines) {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard trimmed.hasPrefix("model"), trimmed.contains("=") else { continue }
+                let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
+                guard parts.count == 2 else { continue }
+                var value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                if !value.isEmpty { return value }
+            }
+            return nil
+        case .copilotConfig:
+            let configDir = ProcessInfo.processInfo.environment["COPILOT_HOME"] ?? home + "/.copilot"
+            let settingsPath = configDir + "/settings.json"
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)) else { return nil }
+            return copilotModel(fromSettingsData: data)
+        case .none, .command:
+            return nil
         }
-        return nil
+    }
+
+    nonisolated static func copilotModel(fromSettingsData data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let model = object["model"] as? String else { return nil }
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     nonisolated public static func fetchAvailableModels(for preset: CLIPreset) async -> [String] {
@@ -224,7 +241,7 @@ public final class CLIProvider: AIProvider {
 
     nonisolated private static func discoverModels(_ check: CLIModelCheck, tool: CLITool) -> [String] {
         switch check {
-        case .none, .codexConfig:
+        case .none, .codexConfig, .copilotConfig:
             return []
         case .command(let arguments, let parse):
             guard let binary = resolveBinary(in: tool.binaries) else { return [] }

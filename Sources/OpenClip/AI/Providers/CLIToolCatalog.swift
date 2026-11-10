@@ -119,13 +119,13 @@ enum CLIModelCheck: Sendable, Equatable {
     case command(arguments: [String], parse: CLIModelListFormat)
     /// The model pinned in `~/.codex/config.toml`, when one is set.
     case codexConfig
+    /// The model pinned in `~/.copilot/settings.json`, when one is set.
+    case copilotConfig
 }
 
 enum CLIModelListFormat: Sendable, Equatable {
     /// `id - display name` lines from `agent models`.
     case idDashName
-    /// JSON array of objects with a string `modelId` from `gemini models -o json`.
-    case jsonModelID
     /// One model id per line, as `opencode models` prints.
     case lines
     /// `id\tDisplay name` lines, as `agy models` prints.
@@ -227,9 +227,9 @@ struct CLITool: Sendable, Equatable, Identifiable {
                 .keychainService("copilot-cli"),
                 .command(binary: "gh", arguments: ["auth", "status"], rule: .exitZero)
             ]),
-            models: .none,
-            // `--help` example: `copilot --model gpt-5.4`.
-            documentedAliases: ["gpt-5.4"],
+            models: .copilotConfig,
+            // `--help` uses `gpt-5.4` as its example, and `auto` lets Copilot choose.
+            documentedAliases: ["auto", "gpt-5.4"],
             thinkingArguments: [],
             invocation: CLIInvocationTemplate(
                 tokens: [
@@ -242,39 +242,6 @@ struct CLITool: Sendable, Equatable, Identifiable {
                     .literal("--available-tools"),
                     .literal(""),
                     .literal("--no-custom-instructions"),
-                    .modelIfSet("--model")
-                ],
-                stdin: .none,
-                output: .plainText,
-                environment: [:]
-            )
-        ),
-        CLITool(
-            preset: .gemini,
-            displayName: "Gemini CLI (gemini)",
-            binaries: ["gemini"],
-            versionArguments: ["--version"],
-            installCommand: "npm install -g @google/gemini-cli",
-            signInCommand: "gemini",
-            authHelp: "Run “gemini” and choose Sign in with Google, or set GEMINI_API_KEY.",
-            runner: .subprocess,
-            auth: .any([
-                .environmentNonEmpty(["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI"]),
-                .keychainService("gemini-cli-oauth"),
-                .homeRelativeFile(".gemini/oauth_creds.json")
-            ]),
-            models: .command(arguments: ["models", "-o", "json"], parse: .jsonModelID),
-            // Documented aliases from the CLI reference. `auto` is Gemini's own default, distinct from OpenClip's Default.
-            documentedAliases: ["auto", "pro", "flash", "flash-lite"],
-            thinkingArguments: [],
-            invocation: CLIInvocationTemplate(
-                tokens: [
-                    .literal("-p"),
-                    .joinedPrompt,
-                    // Skips the folder-trust prompt, which would hang a non-interactive run.
-                    .literal("--skip-trust"),
-                    .literal("--output-format"),
-                    .literal("text"),
                     .modelIfSet("--model")
                 ],
                 stdin: .none,
@@ -412,19 +379,6 @@ enum CLIModelListParser {
                 ids.append(id)
             }
             return ids
-        case .jsonModelID:
-            guard let data = output.data(using: .utf8),
-                  let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                return []
-            }
-            var ids: [String] = []
-            for row in rows {
-                guard let id = row["modelId"] as? String else { continue }
-                let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty, !ids.contains(trimmed) else { continue }
-                ids.append(trimmed)
-            }
-            return ids
         case .lines:
             var ids: [String] = []
             for line in output.split(whereSeparator: \.isNewline) {
@@ -501,7 +455,6 @@ public enum CLIPreset: String, CaseIterable, Identifiable, Sendable {
     case claude
     case codex
     case copilot
-    case gemini
     case antigravity
     case cursor
     case opencode
@@ -522,10 +475,13 @@ public enum CLIPreset: String, CaseIterable, Identifiable, Sendable {
     public var defaultModels: [String] {
         guard let tool = CLITool.tool(for: self) else { return ["default"] }
         var aliases = tool.documentedAliases
-        if case .codexConfig = tool.models,
-           let configured = CLIProvider.inspectConfiguredModel(for: self),
-           !aliases.contains(configured) {
-            aliases.insert(configured, at: 0)
+        switch tool.models {
+        case .codexConfig, .copilotConfig:
+            if let configured = CLIProvider.inspectConfiguredModel(for: self), !aliases.contains(configured) {
+                aliases.insert(configured, at: 0)
+            }
+        case .none, .command:
+            break
         }
         return ["default"] + aliases
     }

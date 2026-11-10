@@ -32,8 +32,7 @@ final class CLIToolCatalogTests: XCTestCase {
             }
         }
         XCTAssertEqual(CLIPreset.claude.defaultModels, ["default", "fable", "opus", "sonnet"])
-        XCTAssertEqual(CLIPreset.copilot.defaultModels, ["default", "gpt-5.4"])
-        XCTAssertEqual(CLITool.tool(for: .gemini)?.documentedAliases, ["auto", "pro", "flash", "flash-lite"])
+        XCTAssertEqual(CLITool.tool(for: .copilot)?.documentedAliases, ["auto", "gpt-5.4"])
         XCTAssertEqual(CLITool.tool(for: .codex)?.documentedAliases, [])
         XCTAssertEqual(CLITool.tool(for: .cursor)?.documentedAliases, [])
     }
@@ -41,10 +40,17 @@ final class CLIToolCatalogTests: XCTestCase {
     func testOnlyClaudeAndCodexDisableThinking() {
         XCTAssertEqual(CLIPreset.claude.thinkingDisabledEnvironment["MAX_THINKING_TOKENS"], "0")
         XCTAssertEqual(CLIPreset.codex.thinkingDisabledArguments, ["-c", "model_reasoning_effort=none"])
-        for preset in [CLIPreset.copilot, .gemini, .antigravity, .cursor, .opencode, .custom] {
+        for preset in [CLIPreset.copilot, .antigravity, .cursor, .opencode, .custom] {
             XCTAssertTrue(preset.thinkingDisabledEnvironment.isEmpty, preset.rawValue)
             XCTAssertTrue(preset.thinkingDisabledArguments.isEmpty, preset.rawValue)
         }
+    }
+
+    func testCopilotConfiguredModelIsReadFromSettings() {
+        let data = Data(#"{"model":"kimi-k3","other":true}"#.utf8)
+        XCTAssertEqual(CLIProvider.copilotModel(fromSettingsData: data), "kimi-k3")
+        XCTAssertNil(CLIProvider.copilotModel(fromSettingsData: Data(#"{"other":true}"#.utf8)))
+        XCTAssertNil(CLIProvider.copilotModel(fromSettingsData: Data("not json".utf8)))
     }
 
     func testCopilotInvocationIsTheStandaloneCLI() throws {
@@ -81,21 +87,7 @@ final class CLIToolCatalogTests: XCTestCase {
         XCTAssertEqual(codex.invocation.output, .codexJSONL)
     }
 
-    func testGeminiAndCursorTemplates() throws {
-        let gemini = try XCTUnwrap(CLITool.tool(for: .gemini))
-        XCTAssertEqual(gemini.binaries, ["gemini"])
-        XCTAssertEqual(gemini.installCommand, "npm install -g @google/gemini-cli")
-        let geminiArgs = arguments(gemini, model: "")
-        XCTAssertTrue(geminiArgs.contains("-p"))
-        XCTAssertTrue(geminiArgs.contains("--skip-trust"))
-        XCTAssertFalse(geminiArgs.contains("--model"))
-        if case .command(let arguments, let parse) = gemini.models {
-            XCTAssertEqual(arguments, ["models", "-o", "json"])
-            XCTAssertEqual(parse, .jsonModelID)
-        } else {
-            XCTFail("Gemini should list models")
-        }
-
+    func testCursorTemplate() throws {
         let cursor = try XCTUnwrap(CLITool.tool(for: .cursor))
         XCTAssertEqual(cursor.binaries, ["cursor-agent", "agent"])
         XCTAssertEqual(cursor.signInCommand, "agent login")
@@ -162,13 +154,6 @@ final class CLIToolCatalogTests: XCTestCase {
         )
         XCTAssertEqual(cursor, ["auto", "gpt-5.2"])
 
-        let gemini = CLIModelListParser.parse(
-            #"[{"modelId":"gemini-2.5-pro","name":"Pro"},{"modelId":"gemini-2.5-flash"}]"#,
-            format: .jsonModelID
-        )
-        XCTAssertEqual(gemini, ["gemini-2.5-pro", "gemini-2.5-flash"])
-        XCTAssertTrue(CLIModelListParser.parse("not json", format: .jsonModelID).isEmpty)
-
         let opencode = CLIModelListParser.parse(
             "opencode-go/deepseek-v4.1-flash\nopencode/gpt-6.1-sol\n\nopencode-go/deepseek-v4.1-flash\n",
             format: .lines
@@ -203,16 +188,16 @@ final class CLIToolCatalogTests: XCTestCase {
     }
 
     func testReadinessPlan() throws {
-        let gemini = try XCTUnwrap(CLITool.tool(for: .gemini))
-        let missing = CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: gemini)
+        let antigravity = try XCTUnwrap(CLITool.tool(for: .antigravity))
+        let missing = CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: antigravity)
         XCTAssertEqual(missing.state, .notInstalled)
-        XCTAssertEqual(missing.fixCommand, "npm install -g @google/gemini-cli")
+        XCTAssertEqual(missing.fixCommand, "curl -fsSL https://antigravity.google/cli/install.sh | bash")
 
-        let signedOut = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: false, tool: gemini)
+        let signedOut = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: false, tool: antigravity)
         XCTAssertEqual(signedOut.state, .signInNeeded)
-        XCTAssertEqual(signedOut.fixCommand, "gemini")
+        XCTAssertEqual(signedOut.fixCommand, "agy")
 
-        let ready = CLIReadinessPlan.builtin(binaryFound: true, version: "2026.10.19", authenticated: true, tool: gemini)
+        let ready = CLIReadinessPlan.builtin(binaryFound: true, version: "2026.10.19", authenticated: true, tool: antigravity)
         XCTAssertEqual(ready.state, .ready)
         XCTAssertEqual(ready.version, "2026.10.19")
         XCTAssertNil(ready.fixCommand)
@@ -220,16 +205,16 @@ final class CLIToolCatalogTests: XCTestCase {
     }
 
     func testCopyActionAndMenuSuffixOnlyForBuiltinFailures() throws {
-        let gemini = try XCTUnwrap(CLITool.tool(for: .gemini))
-        let missing = CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: gemini)
+        let antigravity = try XCTUnwrap(CLITool.tool(for: .antigravity))
+        let missing = CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: antigravity)
         XCTAssertEqual(missing.setupActionTitle, "Install")
         XCTAssertEqual(missing.menuSuffix, "Not installed")
 
-        let signedOut = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: false, tool: gemini)
+        let signedOut = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: false, tool: antigravity)
         XCTAssertEqual(signedOut.setupActionTitle, "Sign In")
         XCTAssertNil(signedOut.menuSuffix)
 
-        let ready = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: true, tool: gemini)
+        let ready = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: true, tool: antigravity)
         XCTAssertNil(ready.setupActionTitle)
         XCTAssertNil(ready.menuSuffix)
         XCTAssertTrue(ready.showsStatus)
