@@ -5909,30 +5909,30 @@
         }
       }
     },
-    "Custom OpenAI-Compatible Endpoint": {
+    "Custom Endpoint": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "自定义 OpenAI 兼容接口"
+            "value": "自定义端点"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "自訂 OpenAI 相容端點"
+            "value": "自訂端點"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Point de terminaison personnalisé compatible OpenAI"
+            "value": "Point de terminaison personnalisé"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "カスタムOpenAI互換エンドポイント"
+            "value": "カスタムエンドポイント"
           }
         }
       }
@@ -8985,34 +8985,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ローカルのOllamaインスタンスからインストール済みモデルを取得"
-          }
-        }
-      }
-    },
-    "Filter models": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "筛选模型"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "篩選模型"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filtrer les modèles"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "モデルを絞り込む"
           }
         }
       }
@@ -14281,6 +14253,62 @@
         }
       }
     },
+    "OpenCode": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        }
+      }
+    },
+    "OpenCode Go": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        }
+      }
+    },
     "OpenRouter": {
       "localizations": {
         "zh-Hans": {
@@ -18229,6 +18257,34 @@
         }
       }
     },
+    "Search models": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher des modèles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを検索"
+          }
+        }
+      }
+    },
     "Search settings": {
       "localizations": {
         "zh-Hans": {
@@ -18589,6 +18645,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "より広い範囲を選択してください"
+          }
+        }
+      }
+    },
+    "Select a model": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionner un modèle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを選択"
           }
         }
       }

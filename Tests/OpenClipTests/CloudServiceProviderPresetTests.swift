@@ -9,6 +9,8 @@ final class CloudServiceProviderPresetTests: XCTestCase {
             (.cerebras, "Cerebras", "https://api.cerebras.ai/v1"),
             (.together, "Together AI", "https://api.together.ai/v1"),
             (.fireworks, "Fireworks", "https://api.fireworks.ai/inference/v1"),
+            (.opencode, "OpenCode", "https://opencode.ai/inference/openai/v1"),
+            (.opencodeGo, "OpenCode Go", "https://opencode.ai/inference/go/openai/v1"),
         ]
         for (provider, name, url) in expected {
             XCTAssertEqual(provider.displayName, name)
@@ -31,7 +33,7 @@ final class CloudServiceProviderPresetTests: XCTestCase {
     }
 
     func testNewPresetsRequireAnAPIKeyBeforeListingModels() async {
-        for provider in [CloudServiceProvider.mistral, .xai, .cerebras, .together, .fireworks] {
+        for provider in [CloudServiceProvider.mistral, .xai, .cerebras, .together, .fireworks, .opencode, .opencodeGo] {
             do {
                 _ = try await CloudAPIProvider.fetchAvailableModels(apiKey: "  ", provider: provider)
                 XCTFail("expected a missing API key for \(provider.rawValue)")

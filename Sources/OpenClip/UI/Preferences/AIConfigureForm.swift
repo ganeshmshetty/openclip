@@ -18,7 +18,6 @@ public struct AIConfigureForm: View {
     @State private var cloudFetchError: String? = nil
     @State private var cloudFetchGeneration: Int = 0
     @State private var cloudKeyDebounceTask: Task<Void, Never>?
-    @State private var cloudModelQuery: String = ""
 
     @State private var fetchedLocalModels: [String] = []
     @State private var isFetchingLocalModels: Bool = false
@@ -243,7 +242,6 @@ public struct AIConfigureForm: View {
                     .onChange(of: aiManager.cloudServiceProvider) { _ in
                         fetchedCloudModels = []
                         cloudFetchError = nil
-                        cloudModelQuery = ""
                         refreshCloudModelsIfStale()
                     }
 
@@ -272,20 +270,16 @@ public struct AIConfigureForm: View {
                             }
                         }
 
-                    NativeSearchField(
-                        text: $cloudModelQuery,
-                        placeholder: String(localized: "Filter models"),
-                        controlSize: .small
-                    )
-                    .frame(height: 20)
-
                     HStack(spacing: 8) {
-                        Picker("Model", selection: $aiManager.cloudModel) {
-                            ForEach(visibleCloudModels, id: \.self) { m in
-                                Text(modelDisplayName(m)).tag(m)
-                            }
-                            Text("Custom…").tag("custom")
-                        }
+                        Text("Model")
+                        Spacer(minLength: 12)
+                        SearchableModelPicker(
+                            title: "Model",
+                            selection: $aiManager.cloudModel,
+                            models: resolvedCloudModels,
+                            customTag: "custom",
+                            displayName: modelDisplayName
+                        )
 
                         Button(action: fetchCloudModels) {
                             if isFetchingCloudModels {
@@ -297,12 +291,6 @@ public struct AIConfigureForm: View {
                         .buttonStyle(.borderless)
                         .help("Fetch available models live from API")
                         .disabled(!canFetchCloudModels || isFetchingCloudModels)
-                    }
-
-                    if showsNoCloudModelMatch {
-                        Text("No matching models")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
 
                     if isCloudModelUnlisted {
@@ -441,18 +429,6 @@ public struct AIConfigureForm: View {
             provider: provider,
             current: aiManager.cloudModel
         )
-    }
-
-    private var visibleCloudModels: [String] {
-        CloudModelCatalog.matching(resolvedCloudModels, query: cloudModelQuery, keeping: aiManager.cloudModel) {
-            modelDisplayName($0)
-        }
-    }
-
-    private var showsNoCloudModelMatch: Bool {
-        let query = cloudModelQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return false }
-        return CloudModelCatalog.matching(resolvedCloudModels, query: query) { modelDisplayName($0) }.isEmpty
     }
 
     private var isCloudModelUnlisted: Bool {

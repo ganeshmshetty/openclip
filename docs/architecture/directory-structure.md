@@ -122,7 +122,7 @@ Sources/
     │   └── Providers/                        # Apple Intelligence, Local LLMs, CLI Subscriptions, Cloud API
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner
     │       ├── CLIProvider.swift             # Subprocess CLI runner (Claude Code, Codex CLI, GitHub Copilot)
-    │       ├── CloudAPIProvider.swift        # OpenAI-compatible presets (DeepSeek, Groq, OpenRouter, Mistral, xAI, Cerebras, Together, Fireworks), Anthropic, and Gemini
+    │       ├── CloudAPIProvider.swift        # OpenAI-compatible presets (DeepSeek, Groq, OpenRouter, OpenCode, OpenCode Go, Mistral, xAI, Cerebras, Together, Fireworks), Anthropic, and Gemini
     │       ├── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for cloud APIs
     │       └── LocalLLMProvider.swift        # Universal local LLM runner (LM Studio, Ollama, Jan, llama.cpp, oMLX)
     ├── Notifications/

@@ -427,6 +427,8 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
     case deepseek = "deepseek"
     case groq = "groq"
     case openrouter = "openrouter"
+    case opencode = "opencode"
+    case opencodeGo = "opencode-go"
     case mistral = "mistral"
     case xai = "xai"
     case cerebras = "cerebras"
@@ -444,12 +446,14 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return String(localized: "DeepSeek")
         case .groq: return String(localized: "Groq")
         case .openrouter: return String(localized: "OpenRouter")
+        case .opencode: return String(localized: "OpenCode")
+        case .opencodeGo: return String(localized: "OpenCode Go")
         case .mistral: return String(localized: "Mistral")
         case .xai: return String(localized: "xAI")
         case .cerebras: return String(localized: "Cerebras")
         case .together: return String(localized: "Together AI")
         case .fireworks: return String(localized: "Fireworks")
-        case .custom: return String(localized: "Custom OpenAI-Compatible Endpoint")
+        case .custom: return String(localized: "Custom Endpoint")
         }
     }
 
@@ -461,6 +465,8 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return "deepseek-chat"
         case .groq: return "llama-3.3-70b-versatile"
         case .openrouter: return "openrouter/auto"
+        case .opencode: return "gpt-6.1-sol"
+        case .opencodeGo: return "deepseek-v4.1-flash"
         case .mistral: return "mistral-small-latest"
         case .xai: return "grok-4.7"
         case .cerebras: return "qwen-3.8-27b"
@@ -478,6 +484,8 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
         case .groq: return ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
         case .openrouter: return ["openrouter/auto"]
+        case .opencode: return ["gpt-6.1-sol", "claude-sonnet-5", "deepseek-v4.1-flash", "glm-5.3-flash"]
+        case .opencodeGo: return ["deepseek-v4.1-flash", "glm-5.3-flash", "kimi-k3", "minimax-m3"]
         case .mistral: return ["mistral-small-latest", "mistral-large-latest"]
         case .xai: return ["grok-4.7", "grok-4.6", "grok-4.5"]
         case .cerebras: return ["qwen-3.8-27b", "gpt-oss-120b"]
@@ -495,6 +503,8 @@ public enum CloudServiceProvider: String, CaseIterable, Identifiable, Sendable {
         case .deepseek: return "https://api.deepseek.com/v1"
         case .groq: return "https://api.groq.com/openai/v1"
         case .openrouter: return "https://openrouter.ai/api/v1"
+        case .opencode: return "https://opencode.ai/inference/openai/v1"
+        case .opencodeGo: return "https://opencode.ai/inference/go/openai/v1"
         case .mistral: return "https://api.mistral.ai/v1"
         case .xai: return "https://api.x.ai/v1"
         case .cerebras: return "https://api.cerebras.ai/v1"

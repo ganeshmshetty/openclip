@@ -474,6 +474,7 @@
 		FAE6A04356B9A3C6C10F7274 /* LogExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C565B3E87AC475CEE12B3E /* LogExporter.swift */; };
 		FAE8B480FE55D8C3ACC20A29 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F660BE562891C148ECA1E083 /* PreferencesView.swift */; };
 		FD4AAED6B52C78979F10227E /* LocalIconCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64E77AACA56DB3C341E5044 /* LocalIconCacheTests.swift */; };
+		FD5D39D841FB065F622E305E /* SearchableModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 451461EA12AAB171D2FF0998 /* SearchableModelPicker.swift */; };
 		FDFC4D4C25916FBE76533007 /* ActionWithRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58741DAB7C990F05815DB6BB /* ActionWithRules.swift */; };
 		FF465DCBAE09757549C4A37B /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8980C8AD7397B5E27CC86D63 /* OnboardingWindowController.swift */; };
 /* End PBXBuildFile section */
@@ -648,6 +649,7 @@
 		43164B559184ADE5F08C1FDD /* NewCustomActionPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewCustomActionPage.swift; sourceTree = "<group>"; };
 		43600D5250056CDB41C7FDF4 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
 		4454ADFE0B327CA7F84F860F /* NamedServiceAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NamedServiceAction.swift; sourceTree = "<group>"; };
+		451461EA12AAB171D2FF0998 /* SearchableModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchableModelPicker.swift; sourceTree = "<group>"; };
 		4584DE4382B6EBE7C2653643 /* DeepLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkTests.swift; sourceTree = "<group>"; };
 		459B709840D3A9F1DFD49761 /* ToastPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastPanel.swift; sourceTree = "<group>"; };
 		45EDC48BB789417097D3B8A4 /* ExtensionUpdatePlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUpdatePlanner.swift; sourceTree = "<group>"; };
@@ -1531,6 +1533,7 @@
 				7F26242B60606C743CBBA169 /* PreferencesToolbar.swift */,
 				F660BE562891C148ECA1E083 /* PreferencesView.swift */,
 				2ED31C601F7A882DF744E329 /* ReorderableRows.swift */,
+				451461EA12AAB171D2FF0998 /* SearchableModelPicker.swift */,
 				AD8CE0421031B46A60D6157B /* SettingsDesignTokens.swift */,
 				ABDA0F539A95EE3AEE2D2AA4 /* SettingsDestination.swift */,
 				75F48D14096F6030D7269BB3 /* SettingsHeroHeader.swift */,
@@ -2388,6 +2391,7 @@
 				857EA7E19F4C4D01AD6E0C5F /* RotatingFileLogSink.swift in Sources */,
 				632B4C8AE8C5808FDAA18AB0 /* SandboxTextView.swift in Sources */,
 				3B2A2D89FA04D2CEE87C117E /* SearchHoverSupport.swift in Sources */,
+				FD5D39D841FB065F622E305E /* SearchableModelPicker.swift in Sources */,
 				BCD32C05AB22670492608CB7 /* SecretActionOptionStore.swift in Sources */,
 				A0AFEE7C0160491BE2D7F44A /* SecretStore.swift in Sources */,
 				15C5141D5230B99E9F2ED832 /* SelectionEditabilityProbe.swift in Sources */,

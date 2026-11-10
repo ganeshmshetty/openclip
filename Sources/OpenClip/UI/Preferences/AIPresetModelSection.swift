@@ -12,7 +12,6 @@ struct AIPresetModelSection: View {
 
     @State private var fetchedModels: [String] = []
     @State private var isCustom = false
-    @State private var modelQuery = ""
 
     private static let customTag = "__custom__"
 
@@ -33,9 +32,6 @@ struct AIPresetModelSection: View {
                             Text(type.shortTitle).tag(type.rawValue)
                         }
                     }
-                    .onChange(of: provider) { _ in
-                        modelQuery = ""
-                    }
                     .labelsHidden()
                     .fixedSize()
                 }
@@ -44,33 +40,14 @@ struct AIPresetModelSection: View {
                     SettingsDivider(insetLeading: SettingsDesignTokens.sectionCardPaddingH)
 
                     SettingsRow(title: "Model") {
-                        Picker("Model", selection: modelSelection) {
-                            Text("Default").tag("")
-                            ForEach(visibleChoices, id: \.self) { Text($0).tag($0) }
-                            Text("Custom…").tag(Self.customTag)
-                        }
-                        .labelsHidden()
-                        .fixedSize()
-                    }
-
-                    if effectiveType == .cloud {
-                        NativeSearchField(
-                            text: $modelQuery,
-                            placeholder: String(localized: "Filter models"),
-                            controlSize: .small
+                        SearchableModelPicker(
+                            title: "Model",
+                            selection: modelSelection,
+                            models: choices,
+                            customTag: Self.customTag,
+                            defaultTag: "",
+                            displayName: { $0 }
                         )
-                        .frame(height: 20)
-                        .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
-                        .padding(.bottom, showsNoModelMatch ? 0 : SettingsDesignTokens.sectionCardPaddingV)
-
-                        if showsNoModelMatch {
-                            Text("No matching models")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, SettingsDesignTokens.sectionCardPaddingH)
-                                .padding(.bottom, SettingsDesignTokens.sectionCardPaddingV)
-                        }
                     }
 
                     if isCustom {
@@ -86,8 +63,6 @@ struct AIPresetModelSection: View {
             }
         }
         .task(id: effectiveType) { await loadChoices() }
-        .onChange(of: effectiveType) { _ in modelQuery = "" }
-        .onChange(of: aiManager.cloudServiceProvider) { _ in modelQuery = "" }
         .onAppear { isCustom = model.map { !$0.isEmpty && !choices.contains($0) } ?? false }
     }
 
@@ -125,16 +100,6 @@ struct AIPresetModelSection: View {
         list.removeAll { $0 == "default" || $0 == "custom" }
         if let model, !model.isEmpty, !isCustom, !list.contains(model) { list.insert(model, at: 0) }
         return list
-    }
-
-    private var visibleChoices: [String] {
-        CloudModelCatalog.matching(choices, query: modelQuery, keeping: isCustom ? nil : model)
-    }
-
-    private var showsNoModelMatch: Bool {
-        let query = modelQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard effectiveType == .cloud, !query.isEmpty else { return false }
-        return CloudModelCatalog.matching(choices, query: query).isEmpty
     }
 
     private func loadChoices() async {
