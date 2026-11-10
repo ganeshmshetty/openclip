@@ -858,8 +858,8 @@
   "Not Now": "結構です",
   "Suggestions": "候補",
   "Only suggest for misspelled words": "誤字のときだけ提案する",
-  "Hide suggestions when the word is spelled correctly in any spelling language.": "いずれかのスペルチェック言語で正しく綴られている単語には候補を表示しません。",
+  "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "有効なキーボード入力言語のいずれかで単語が正しく綴られている場合、候補を表示しません。",
   "Inline": "インライン",
   "As contextual action": "コンテキストアクションとして",
-  "Inline shows suggestions in the bar. Contextual shows one button that opens them.": "インラインはバーに候補を表示します。コンテキストアクションは、候補を開くボタンを1つ表示します。"
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。"
 }

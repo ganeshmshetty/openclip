@@ -9885,30 +9885,30 @@
         }
       }
     },
-    "Hide suggestions when the word is spelled correctly in any spelling language.": {
+    "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "如果该单词在任一拼写语言中拼写正确，则不显示建议。"
+            "value": "如果该单词在任一已启用的键盘输入语言中拼写正确，则不显示建议。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "如果該單字在任一拼寫語言中拼寫正確，則不顯示建議。"
+            "value": "如果該單字在任一已啟用的鍵盤輸入語言中拼寫正確，則不顯示建議。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Masque les suggestions lorsqu’un mot est correct dans une langue d’orthographe."
+            "value": "Masque les suggestions lorsque le mot est correctement orthographié dans l’une des langues de clavier activées."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "いずれかのスペルチェック言語で正しく綴られている単語には候補を表示しません。"
+            "value": "有効なキーボード入力言語のいずれかで単語が正しく綴られている場合、候補を表示しません。"
           }
         }
       }
@@ -10277,30 +10277,30 @@
         }
       }
     },
-    "Inline shows suggestions in the bar. Contextual shows one button that opens them.": {
+    "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "内联会在操作栏中显示建议。上下文操作会显示一个按钮，点按后展开建议。"
+            "value": "内联会在操作栏中显示建议。上下文操作会显示“单词补全”组，可悬停查看或搜索。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "內嵌會在操作列中顯示建議。情境操作會顯示一個按鈕，點按後展開建議。"
+            "value": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dans la barre affiche les suggestions à la place des actions. L’action contextuelle affiche un bouton qui les ouvre."
+            "value": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "インラインはバーに候補を表示します。コンテキストアクションは、候補を開くボタンを1つ表示します。"
+            "value": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。"
           }
         }
       }

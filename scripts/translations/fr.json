@@ -858,8 +858,8 @@
   "Not Now": "Non merci",
   "Suggestions": "Suggestions",
   "Only suggest for misspelled words": "Suggérer seulement les mots mal orthographiés",
-  "Hide suggestions when the word is spelled correctly in any spelling language.": "Masque les suggestions lorsqu’un mot est correct dans une langue d’orthographe.",
+  "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "Masque les suggestions lorsque le mot est correctement orthographié dans l’une des langues de clavier activées.",
   "Inline": "Dans la barre",
   "As contextual action": "Comme action contextuelle",
-  "Inline shows suggestions in the bar. Contextual shows one button that opens them.": "Dans la barre affiche les suggestions à la place des actions. L’action contextuelle affiche un bouton qui les ouvre."
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
 }

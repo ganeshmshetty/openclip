@@ -858,8 +858,8 @@
   "Not Now": "不用了",
   "Suggestions": "建議",
   "Only suggest for misspelled words": "僅為拼錯的單字提供建議",
-  "Hide suggestions when the word is spelled correctly in any spelling language.": "如果該單字在任一拼寫語言中拼寫正確，則不顯示建議。",
+  "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "如果該單字在任一已啟用的鍵盤輸入語言中拼寫正確，則不顯示建議。",
   "Inline": "內嵌",
   "As contextual action": "作為情境操作",
-  "Inline shows suggestions in the bar. Contextual shows one button that opens them.": "內嵌會在操作列中顯示建議。情境操作會顯示一個按鈕，點按後展開建議。"
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
 }
