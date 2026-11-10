@@ -117,7 +117,7 @@ final class TextLanguageDetectorTests: XCTestCase {
                 guesses: ["ignored"]
             )
         ]
-        XCTAssertEqual(TextLanguageDetector.suggestions(for: "comple", assessments: reports), ["Comple", "complex"])
+        XCTAssertEqual(TextLanguageDetector.suggestions(for: "comple", assessments: reports), ["complete", "complex"])
     }
 
     func testAssignTextLanguageRemovesAnUnknownValue() {
