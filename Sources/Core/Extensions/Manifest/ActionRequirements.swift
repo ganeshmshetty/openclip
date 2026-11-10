@@ -20,6 +20,19 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
     public var requiresPasteTarget: Bool
     public var requiredOptions: [String]?
     public var content: [ContentType]?
+    /// Package-relative JavaScript predicate file, ANDed after every other gate.
+    public var predicate: String?
+
+    /// True when a declared requirement narrows when the action appears. Used by contextual promotion;
+    /// `input: .text`/`.optional` and `requiredOptions` deliberately do not count.
+    public var declaresNarrowingRequirement: Bool {
+        if let regex, !regex.isEmpty { return true }
+        if let predicate, !predicate.isEmpty { return true }
+        if let apps, !apps.isEmpty { return true }
+        if let content, !content.isEmpty { return true }
+        if requiresPasteTarget { return true }
+        return input == .liveSelection || input == .editableSelection
+    }
 
     /// Compatibility view for source callers. New manifests should use `input`.
     @available(*, deprecated, message: "Use input instead")
@@ -39,7 +52,8 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         requiresSelection: Bool? = nil,
         requiresPasteTarget: Bool = false,
         requiredOptions: [String]? = nil,
-        content: [ContentType]? = nil
+        content: [ContentType]? = nil,
+        predicate: String? = nil
     ) {
         self.regex = regex
         self.regexNegated = regexNegated
@@ -49,6 +63,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         self.requiresPasteTarget = requiresPasteTarget
         self.requiredOptions = requiredOptions
         self.content = content
+        self.predicate = predicate
     }
 
     public init(from decoder: Decoder) throws {
@@ -90,6 +105,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
             throw DecodingError.dataCorruptedError(forKey: .content, in: container,
                 debugDescription: "requirements.content must contain at least one of: url, email, date, path, phone, address.")
         }
+        self.predicate = try container.decodeIfPresent(String.self, forKey: .predicate)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -102,6 +118,7 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         if requiresPasteTarget { try container.encode(true, forKey: .requiresPasteTarget) }
         try container.encodeIfPresent(requiredOptions, forKey: .requiredOptions)
         try container.encodeIfPresent(content, forKey: .content)
+        try container.encodeIfPresent(predicate, forKey: .predicate)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -120,5 +137,6 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
         case requiredOptionsDash = "required-options"
         case expression // Decode-only: reject retired rules rather than silently dropping a gate.
         case content
+        case predicate
     }
 }

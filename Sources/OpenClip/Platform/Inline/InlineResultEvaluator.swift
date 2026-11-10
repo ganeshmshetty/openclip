@@ -159,6 +159,10 @@ public final class InlineResultEvaluator {
             return javaScriptAction(from: decorated.base)
         case let decorated as MenuDecoratedAction:
             return javaScriptAction(from: decorated.base)
+        case let decorated as PredicateDecoratedAction:
+            return javaScriptAction(from: decorated.base)
+        case let decorated as RichInputAction:
+            return javaScriptAction(from: decorated.base)
         default:
             return nil
         }
@@ -213,7 +217,8 @@ public final class InlineResultEvaluator {
                     selection: context.selection,
                     modifiers: context.modifiers,
                     isSecondaryClick: false,
-                    match: match
+                    match: match,
+                    visibilityMemo: context.visibilityMemo
                 )
             } else {
                 matchedContext = ActionContext(

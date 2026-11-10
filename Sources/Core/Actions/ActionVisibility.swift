@@ -5,6 +5,37 @@
 import Foundation
 
 public enum ActionVisibility {
+    private final class RegexCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entries: [String: NSRegularExpression] = [:]
+        private let limit = 256
+
+        func regex(for pattern: String) -> NSRegularExpression? {
+            lock.lock()
+            if let cached = entries[pattern] {
+                lock.unlock()
+                return cached
+            }
+            lock.unlock()
+
+            guard let compiled = try? NSRegularExpression(
+                pattern: pattern,
+                options: [.dotMatchesLineSeparators, .caseInsensitive]
+            ) else {
+                return nil
+            }
+            lock.lock()
+            // Manifest reloads can introduce new patterns; a full wipe keeps the cache bounded without
+            // tracking per-pattern recency on the popup path.
+            if entries.count >= limit { entries.removeAll(keepingCapacity: true) }
+            entries[pattern] = compiled
+            lock.unlock()
+            return compiled
+        }
+    }
+
+    private static let regexCache = RegexCache()
+
     /// Order: input, paste target, app allow/deny, native content, then regex. The match info built here
     /// carries captures and detected content to execution. A malformed regex fails open for the regex
     /// gate only; content requirements still apply.
@@ -67,7 +98,9 @@ public enum ActionVisibility {
         var regexEnabled: Bool? = nil
         if let pattern, !pattern.isEmpty {
             do {
-                let regex = try NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive])
+                guard let regex = Self.regexCache.regex(for: pattern) else {
+                    throw NSError(domain: "ActionVisibility", code: 1, userInfo: [NSLocalizedDescriptionKey: "Malformed regular expression"])
+                }
                 let range = NSRange(trimmed.startIndex..., in: trimmed)
                 if let result = regex.firstMatch(in: trimmed, options: [], range: range) {
                     let matchedText = Range(result.range, in: trimmed).map { String(trimmed[$0]) } ?? trimmed

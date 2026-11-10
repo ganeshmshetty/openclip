@@ -79,7 +79,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
         index: Int
     ) async -> (any Action)? {
         guard let base = await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil) else { return nil }
-        return decorate(base, metadata: metadata, manifest: manifest)
+        return decorate(base, metadata: metadata, manifest: manifest, directoryURL: directoryURL)
     }
 
     /// Materializes all registry entries for one manifest action: a group yields its row plus sub-actions. Nested groups are not flattened.
@@ -91,7 +91,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
     ) async -> [any Action] {
         guard metadata.kind == .group else {
             guard let action = await makeAction(metadata: metadata, manifest: manifest, directoryURL: directoryURL, index: index, forcedID: nil) else { return [] }
-            return [decorate(action, metadata: metadata, manifest: manifest)]
+            return [decorate(action, metadata: metadata, manifest: manifest, directoryURL: directoryURL)]
         }
 
         let groupID = ExtensionManager.uniformActionID(metadata: metadata, manifest: manifest, index: index)
@@ -103,35 +103,38 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             badge: .extensionPkg(manifest.name),
             rowStyle: .actionGroup,
             popupBehavior: .showSubActions,
-            source: .extensionPkg(packageID: manifest.identifier)
+            source: .extensionPkg(packageID: manifest.identifier),
+            contextualOverride: metadata.contextual
         )
         let groupIcon = ExtensionManager.parseIcon(metadata.icon, directoryURL: directoryURL)
         let groupKeywords = (metadata.keywords ?? []) + (manifest.keywords ?? [])
-        var result: [any Action] = [GroupAction(
+        let groupAction: any Action = GroupAction(
             id: groupID,
             title: metadata.title ?? manifest.name,
             icon: groupIcon,
             chrome: groupChrome,
             rules: groupRules,
             keywords: groupKeywords
-        )]
+        )
+        var result: [any Action] = [applyPredicate(to: groupAction, metadata: metadata, manifest: manifest, directoryURL: directoryURL)]
         for (subIndex, sub) in (metadata.subActions ?? []).enumerated() where sub.kind != .group {
             let subID = "\(groupID).\(sub.id ?? String(subIndex))"
             if let action = await makeAction(metadata: sub, manifest: manifest, directoryURL: directoryURL, index: subIndex, forcedID: subID, inheritedIcon: groupIcon) {
-                result.append(decorate(action, metadata: sub, manifest: manifest))
+                result.append(decorate(action, metadata: sub, manifest: manifest, directoryURL: directoryURL))
             }
         }
         return result
     }
 
     /// Wraps `action` per manifest metadata. `menuRelevance` stays outermost so RelevanceProviding surfaces on the registered action.
-    private func decorate(_ action: any Action, metadata: ExtensionActionMetadata, manifest: ExtensionMetadata? = nil) -> any Action {
+    private func decorate(_ action: any Action, metadata: ExtensionActionMetadata, manifest: ExtensionMetadata, directoryURL: URL) -> any Action {
         var result = action
         if metadata.captureRtf == true || metadata.captureHtml == true {
             result = RichInputAction(base: result, captureRtf: metadata.captureRtf == true,
                                      captureHtml: metadata.captureHtml == true, capture: captureRichSelection)
         }
-        let declaredKeywords = (metadata.keywords ?? []) + (manifest?.keywords ?? [])
+        result = applyPredicate(to: result, metadata: metadata, manifest: manifest, directoryURL: directoryURL)
+        let declaredKeywords = (metadata.keywords ?? []) + (manifest.keywords ?? [])
         if !declaredKeywords.isEmpty {
             result = KeywordDecoratedAction(base: result, keywords: declaredKeywords)
         }
@@ -145,6 +148,29 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             )
         }
         return result
+    }
+
+    /// Adds the optional `requirements.predicate` gate inside the other decorators so menu relevance and
+    /// delivery still surface on the registered action.
+    private func applyPredicate(
+        to action: any Action,
+        metadata: ExtensionActionMetadata,
+        manifest: ExtensionMetadata,
+        directoryURL: URL
+    ) -> any Action {
+        guard let predicatePath = metadata.requirements?.predicate,
+              !predicatePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return action
+        }
+        let rules = ExtensionActionRules(requirements: metadata.requirements, legacyRegex: metadata.regex)
+        return PredicateDecoratedAction(
+            base: action,
+            rules: rules,
+            predicatePath: predicatePath,
+            packageRoot: directoryURL,
+            packageID: manifest.identifier,
+            evaluator: VisibilityPredicateRuntime.shared
+        )
     }
 
     /// Declared `ActionDelivery`, or nil when no secondary/toast/secondaryToast is declared.
@@ -297,7 +323,8 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             isInlineResult: isInline,
             displayOnly: isDisplayOnly,
             outputKind: resolvedOutputKind,
-            recommendedResult: resolvedResult
+            recommendedResult: resolvedResult,
+            contextualOverride: metadata.contextual
         )
 
         // Checked before the url/script branches so a keyPress without a URL does not fall through to ScriptAction.

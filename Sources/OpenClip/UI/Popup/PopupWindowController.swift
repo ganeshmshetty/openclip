@@ -661,7 +661,8 @@ public class PopupWindowController {
         if let currentContext {
             currentActionContext = ActionContext(
                 selection: currentContext,
-                modifiers: currentActionContext?.modifiers ?? []
+                modifiers: currentActionContext?.modifiers ?? [],
+                visibilityMemo: currentActionContext?.visibilityMemo
             )
         }
         modeStore.scope = nil
