@@ -90,26 +90,26 @@ public final class CLIProvider: AIProvider {
 
     nonisolated private static func customReadiness(command: String, authCommand: String) -> CLIReadiness {
         let cmd = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        if cmd.isEmpty {
-            return CLIReadiness(state: .notInstalled, version: nil, hint: "Enter a command", fixCommand: nil)
+        guard !cmd.isEmpty else {
+            return CLIReadinessPlan.custom(command: "", binaryFound: false, authCommand: "", authPassed: false)
         }
         let firstWord = cmd.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
-        guard resolveBinaryPath(for: firstWord) != nil else {
-            return CLIReadiness(state: .notInstalled, version: nil, hint: "Binary “\(firstWord)” not found", fixCommand: nil)
-        }
+        let binaryFound = resolveBinaryPath(for: firstWord) != nil
         let auth = authCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-        if auth.isEmpty {
-            return .ready(version: nil)
+        let authPassed: Bool
+        if !binaryFound || auth.isEmpty {
+            authPassed = false
+        } else {
+            let shell = loginShellExecutable()
+            let result = runCaptured(
+                executable: shell,
+                arguments: ["-l", "-c", auth],
+                timeout: 8,
+                environment: .inherit
+            )
+            authPassed = !result.timedOut && result.exitCode == 0
         }
-        let result = runCaptured(
-            executable: "/bin/zsh",
-            arguments: ["-l", "-c", auth],
-            timeout: 8
-        )
-        if result.timedOut || result.exitCode != 0 {
-            return .signInNeeded(command: auth)
-        }
-        return .ready(version: nil)
+        return CLIReadinessPlan.custom(command: cmd, binaryFound: binaryFound, authCommand: auth, authPassed: authPassed)
     }
 
     nonisolated private static func versionString(binary: String, arguments: [String]) -> String? {
@@ -214,6 +214,8 @@ public final class CLIProvider: AIProvider {
             return (true, status.version.map { "Ready (\($0))" } ?? "Ready")
         case .signInNeeded, .notInstalled:
             return (false, status.hint.isEmpty ? status.title : status.hint)
+        case .unspecified:
+            return (false, "")
         }
     }
 
@@ -229,15 +231,11 @@ public final class CLIProvider: AIProvider {
 
     nonisolated private static func cliEnvironment(extra: [String: String] = [:]) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let extraPaths = [
-            "\(home)/.local/bin",
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "\(home)/.cargo/bin"
-        ]
-        let currentPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
-        env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
+        // The same directory list the status check searched, so a launch and its children
+        // see the binary that readiness reported.
+        let discovered = CLIExecutableCache.shared.searchDirectories()
+        let inherited = CLIExecutableSearch.parsePATH(env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")
+        env["PATH"] = CLIExecutableSearch.searchDirectories(loginPATH: discovered, supplemental: inherited).joined(separator: ":")
         for (key, value) in extra {
             env[key] = value
         }
@@ -259,49 +257,72 @@ public final class CLIProvider: AIProvider {
     }
 
     nonisolated public static func resolveBinaryPath(for binary: String) -> String? {
-        let trimmed = binary.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
+        CLIExecutableCache.shared.resolve(binary)
+    }
 
-        if trimmed.hasPrefix("/") {
-            return FileManager.default.isExecutableFile(atPath: trimmed) ? trimmed : nil
+    nonisolated static func invalidateExecutableCache() {
+        CLIExecutableCache.shared.invalidate()
+    }
+
+    /// `$SHELL -l -c`, once per cache fill. Must not consult `cliEnvironment` — that calls back into the cache.
+    nonisolated fileprivate static func captureLoginPATH() -> [String] {
+        let shell = loginShellExecutable()
+        let script = CLIExecutableSearch.loginPathScript(shellPath: shell)
+        let result = runCaptured(
+            executable: shell,
+            arguments: ["-l", "-c", script],
+            timeout: 8,
+            environment: .inherit
+        )
+        let parsed = CLIExecutableSearch.pathFromLoginOutput(result.stdout)
+        if parsed.isEmpty {
+            Log.ai.debug("Login shell did not return a PATH; CLI lookup is using install locations")
         }
+        return parsed
+    }
 
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let standardCandidates = [
-            "\(home)/.local/bin/\(trimmed)",
-            "/opt/homebrew/bin/\(trimmed)",
-            "/usr/local/bin/\(trimmed)",
-            "\(home)/.cargo/bin/\(trimmed)",
-            "/usr/bin/\(trimmed)",
-            "/bin/\(trimmed)"
+    nonisolated private static func loginShellExecutable() -> String {
+        let candidates = [
+            ProcessInfo.processInfo.environment["SHELL"],
+            "/bin/zsh",
+            "/bin/bash",
+            "/bin/sh"
         ]
-
-        for path in standardCandidates where FileManager.default.isExecutableFile(atPath: path) {
-            return path
+        for candidate in candidates {
+            guard let candidate else { continue }
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.hasPrefix("/"),
+                  !trimmed.contains(where: \.isWhitespace),
+                  FileManager.default.isExecutableFile(atPath: trimmed) else { continue }
+            return trimmed
         }
+        return "/bin/sh"
+    }
 
-        // Login shell picks up the user's PATH, which GUI launches lack.
-        let pipe = Pipe()
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-l", "-c", "which \(trimmed)"]
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        guard waitForExit(process, timeout: 5) else { return nil }
+    nonisolated fileprivate static func loadNvmLayout(at nvmDir: String) -> CLINvmLayout {
+        let root = CLIExecutableSearch.trimmedDirectory(nvmDir)
+        var aliases: [String: String] = [:]
+        collectNvmAliases(in: root + "/alias", prefix: "", into: &aliases, depth: 0)
+        let versions = (try? FileManager.default.contentsOfDirectory(atPath: root + "/versions/node")) ?? []
+        return CLINvmLayout(
+            aliasFiles: aliases,
+            versionNames: versions.filter { !$0.hasPrefix(".") }
+        )
+    }
 
-        if process.terminationStatus == 0 {
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !output.isEmpty, FileManager.default.isExecutableFile(atPath: output) {
-                return output
+    nonisolated private static func collectNvmAliases(in directory: String, prefix: String, into aliases: inout [String: String], depth: Int) {
+        guard depth < 3, let names = try? FileManager.default.contentsOfDirectory(atPath: directory) else { return }
+        for name in names where !name.hasPrefix(".") {
+            let path = directory + "/" + name
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else { continue }
+            let key = prefix.isEmpty ? name : prefix + "/" + name
+            if isDirectory.boolValue {
+                collectNvmAliases(in: path, prefix: key, into: &aliases, depth: depth + 1)
+            } else if let text = try? String(contentsOfFile: path, encoding: .utf8) {
+                aliases[key] = text
             }
         }
-        return nil
     }
 
     nonisolated private static func resolveBinary(in names: [String]) -> String? {
@@ -372,11 +393,25 @@ public final class CLIProvider: AIProvider {
         var stderr: String
     }
 
-    nonisolated private static func runCaptured(executable: String, arguments: [String], timeout: TimeInterval) -> CommandCapture {
+    private enum CapturedEnvironment {
+        /// Login PATH plus install locations, shared with the status check.
+        case cli
+        /// Leave the environment alone. The login-shell PATH probe uses this so it cannot recurse into the cache.
+        case inherit
+    }
+
+    nonisolated private static func runCaptured(
+        executable: String,
+        arguments: [String],
+        timeout: TimeInterval,
+        environment: CapturedEnvironment = .cli
+    ) -> CommandCapture {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
-        process.environment = cliEnvironment()
+        if environment == .cli {
+            process.environment = cliEnvironment()
+        }
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -639,5 +674,140 @@ private final class StderrAccumulator: @unchecked Sendable {
         let result = data
         lock.unlock()
         return String(data: result, encoding: .utf8) ?? ""
+    }
+}
+
+/// One login-shell PATH capture shared by status checks and launches.
+/// A GUI app does not inherit the user's shell PATH, so lookup also checks Homebrew, npm, bun, Volta, and nvm.
+private final class CLIExecutableCache: @unchecked Sendable {
+    static let shared = CLIExecutableCache()
+
+    private let stateLock = NSLock()
+    private let loadLock = NSLock()
+    private var generation = 0
+    private var directories: [String]?
+    private var capturedAt: Date?
+    private var resolved: [String: String] = [:]
+    private var logged: Set<String> = []
+    /// Long enough that a status check and the launch that follows agree. Refresh drops it immediately.
+    private let ttl: TimeInterval = 30
+
+    func invalidate() {
+        stateLock.lock()
+        generation += 1
+        directories = nil
+        capturedAt = nil
+        resolved.removeAll()
+        logged.removeAll()
+        stateLock.unlock()
+    }
+
+    func resolve(_ name: String) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let home = CLIExecutableSearch.trimmedDirectory(FileManager.default.homeDirectoryForCurrentUser.path)
+
+        if trimmed.hasPrefix("/") || trimmed.hasPrefix("~/") {
+            return CLIExecutableSearch.resolve(
+                name: trimmed,
+                home: home,
+                directories: [],
+                isExecutable: CLIExecutableSearch.isExecutableFile(at:)
+            )
+        }
+
+        stateLock.lock()
+        if let cached = resolved[trimmed], !isExpired {
+            stateLock.unlock()
+            return cached
+        }
+        let generationAtStart = generation
+        stateLock.unlock()
+
+        let directories = searchDirectories()
+        let found = CLIExecutableSearch.resolve(
+            name: trimmed,
+            home: home,
+            directories: directories,
+            isExecutable: CLIExecutableSearch.isExecutableFile(at:)
+        )
+
+        stateLock.lock()
+        var logHit: String?
+        var logMiss = false
+        if generation == generationAtStart {
+            if let found {
+                resolved[trimmed] = found
+                if logged.insert(trimmed).inserted {
+                    logHit = found
+                }
+            } else if logged.insert("missing:\(trimmed)").inserted {
+                logMiss = true
+            }
+        }
+        stateLock.unlock()
+
+        if let logHit {
+            Log.ai.debug("CLI \(trimmed, privacy: .public) resolved at \(logHit, privacy: .public)")
+        } else if logMiss {
+            Log.ai.debug("CLI \(trimmed, privacy: .public) was not found on the login PATH or in install locations")
+        }
+        return found
+    }
+
+    func searchDirectories() -> [String] {
+        stateLock.lock()
+        if let directories, !isExpired {
+            stateLock.unlock()
+            return directories
+        }
+        let generationAtStart = generation
+        stateLock.unlock()
+
+        loadLock.lock()
+        defer { loadLock.unlock() }
+
+        stateLock.lock()
+        if let directories, !isExpired {
+            stateLock.unlock()
+            return directories
+        }
+        stateLock.unlock()
+
+        let loaded = Self.probeDirectories()
+
+        stateLock.lock()
+        if generation == generationAtStart {
+            directories = loaded
+            capturedAt = Date()
+            resolved.removeAll()
+            logged.removeAll()
+        }
+        stateLock.unlock()
+        return loaded
+    }
+
+    /// Caller holds `stateLock`.
+    private var isExpired: Bool {
+        guard let capturedAt else { return true }
+        return Date().timeIntervalSince(capturedAt) >= ttl
+    }
+
+    private static func probeDirectories() -> [String] {
+        let home = CLIExecutableSearch.trimmedDirectory(FileManager.default.homeDirectoryForCurrentUser.path)
+        let loginPATH = CLIProvider.captureLoginPATH()
+        let envNVM = ProcessInfo.processInfo.environment["NVM_DIR"].map { CLIExecutableSearch.trimmedDirectory($0) }
+        let nvmDir: String
+        if let envNVM, !envNVM.isEmpty {
+            nvmDir = envNVM
+        } else {
+            nvmDir = home + "/.nvm"
+        }
+        let layout = CLIProvider.loadNvmLayout(at: nvmDir)
+        let nvmBin = CLIExecutableSearch.nvmBinDirectory(home: home, nvmDir: nvmDir, layout: layout)
+        let supplemental = CLIExecutableSearch.supplementalDirectories(home: home, nvmBin: nvmBin)
+        let loaded = CLIExecutableSearch.searchDirectories(loginPATH: loginPATH, supplemental: supplemental)
+        Log.ai.debug("CLI search path has \(loaded.count, privacy: .public) directories")
+        return loaded
     }
 }

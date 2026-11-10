@@ -166,7 +166,7 @@ You execute a user-defined action in OpenClip. Follow the task below.
 4. Do not invent facts missing from the input.
 ```
 
-The CLI providers (Claude Code, Codex, Copilot, Gemini CLI, and Cursor Agent) add their own agent instructions, and OpenClip's system prompt reaches the model as part of the request, not as a real system message. Your rules still apply, but the model may follow them less strictly than with Apple Intelligence, local models, or the cloud APIs. Each CLI row in settings shows Not installed, Sign in needed, or Ready. The hint next to a row is the install or sign-in command.
+The CLI providers (Claude Code, Codex, Copilot, Gemini CLI, and Cursor Agent) add their own agent instructions, and OpenClip's system prompt reaches the model as part of the request, not as a real system message. Your rules still apply, but the model may follow them less strictly than with Apple Intelligence, local models, or the cloud APIs. Settings shows the selected CLI on one row: Ready and its version, Sign in needed, or Not installed. When it isn't ready, a button copies the install or sign-in command, and the menu marks CLIs that aren't installed. Custom Command stays quiet until a command is entered. OpenClip finds the binary the way a login shell does — including Homebrew, npm, bun, Volta, and nvm locations — and runs that same path.
 
 ### Ask AI from the search palette
 

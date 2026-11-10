@@ -15,12 +15,15 @@ public enum CLIReadinessState: String, Sendable, Equatable {
     case notInstalled
     case signInNeeded
     case ready
+    /// Nothing to report. Custom Command stays quiet until the field has text.
+    case unspecified
 
     public var title: String {
         switch self {
         case .notInstalled: return String(localized: "Not installed")
         case .signInNeeded: return String(localized: "Sign in needed")
         case .ready: return String(localized: "Ready")
+        case .unspecified: return ""
         }
     }
 }
@@ -33,6 +36,22 @@ public struct CLIReadiness: Sendable, Equatable {
 
     public var title: String { state.title }
 
+    var showsStatus: Bool { state != .unspecified }
+
+    var copyActionTitle: String? {
+        guard let fixCommand, !fixCommand.isEmpty else { return nil }
+        switch state {
+        case .notInstalled: return String(localized: "Copy Install Command")
+        case .signInNeeded: return String(localized: "Copy Sign-In Command")
+        case .ready, .unspecified: return nil
+        }
+    }
+
+    var menuSuffix: String? {
+        guard state == .notInstalled, let fixCommand, !fixCommand.isEmpty else { return nil }
+        return state.title
+    }
+
     static func notInstalled(command: String) -> CLIReadiness {
         CLIReadiness(state: .notInstalled, version: nil, hint: command, fixCommand: command.isEmpty ? nil : command)
     }
@@ -43,6 +62,10 @@ public struct CLIReadiness: Sendable, Equatable {
 
     static func ready(version: String?) -> CLIReadiness {
         CLIReadiness(state: .ready, version: version, hint: "", fixCommand: nil)
+    }
+
+    static func unspecified() -> CLIReadiness {
+        CLIReadiness(state: .unspecified, version: nil, hint: "", fixCommand: nil)
     }
 }
 
@@ -367,6 +390,27 @@ enum CLIReadinessPlan {
         guard authenticated else { return .signInNeeded(command: tool.signInCommand) }
         return .ready(version: version)
     }
+
+    /// Empty input is not a failure. A command is checked only after one is entered, and never offers an install or sign-in button.
+    static func custom(command: String, binaryFound: Bool, authCommand: String, authPassed: Bool) -> CLIReadiness {
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return .unspecified() }
+        guard binaryFound else {
+            let name = trimmed.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? trimmed
+            let hint = String(format: String(localized: "Command “%@” not found"), name)
+            return CLIReadiness(state: .notInstalled, version: nil, hint: hint, fixCommand: nil)
+        }
+        let auth = authCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        if auth.isEmpty || authPassed {
+            return .ready(version: nil)
+        }
+        return CLIReadiness(
+            state: .signInNeeded,
+            version: nil,
+            hint: String(localized: "Auth check failed"),
+            fixCommand: nil
+        )
+    }
 }
 
 public enum CLIPreset: String, CaseIterable, Identifiable, Sendable {
@@ -424,5 +468,201 @@ public enum CLIPreset: String, CaseIterable, Identifiable, Sendable {
 
     public var thinkingDisabledArguments: [String] {
         CLITool.tool(for: self)?.thinkingArguments ?? []
+    }
+}
+
+/// On-disk picture of nvm's alias files and installed Node versions.
+struct CLINvmLayout: Sendable, Equatable {
+    var aliasFiles: [String: String]
+    var versionNames: [String]
+}
+
+/// Resolves a CLI the way a login shell would, then in install locations a GUI app's PATH omits.
+enum CLIExecutableSearch {
+    static func trimmedDirectory(_ path: String) -> String {
+        var value = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        while value.count > 1 && value.hasSuffix("/") {
+            value.removeLast()
+        }
+        return value
+    }
+
+    static func parsePATH(_ raw: String) -> [String] {
+        raw.split(separator: ":", omittingEmptySubsequences: true)
+            .map { trimmedDirectory(String($0)) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Login profiles sometimes print banners. The markers keep that text out of PATH.
+    static func pathFromLoginOutput(_ output: String) -> [String] {
+        guard let start = output.range(of: "OPENCLIP_PATH_BEGIN\n"),
+              let end = output.range(of: "\nOPENCLIP_PATH_END", range: start.upperBound..<output.endIndex) else {
+            return []
+        }
+        let value = String(output[start.upperBound..<end.lowerBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return parsePATH(value)
+    }
+
+    /// `$SHELL -l -c` script. Fish's `$PATH` is a list, so it is joined explicitly.
+    static func loginPathScript(shellPath: String) -> String {
+        let name = (shellPath as NSString).lastPathComponent
+        if name == "fish" {
+            return "printf '%s\\n' OPENCLIP_PATH_BEGIN; string join : $PATH; printf '%s\\n' OPENCLIP_PATH_END"
+        }
+        return "printf 'OPENCLIP_PATH_BEGIN\\n%s\\nOPENCLIP_PATH_END\\n' \"$PATH\""
+    }
+
+    /// Directories to search after the login PATH. `~/.cargo/bin` stays so Rust installs keep resolving.
+    static func supplementalDirectories(home: String, nvmBin: String?) -> [String] {
+        let root = trimmedDirectory(home)
+        var directories = [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            root + "/.local/bin",
+            root + "/.npm-global/bin",
+            root + "/.bun/bin",
+            root + "/.volta/bin"
+        ]
+        if let nvmBin {
+            let trimmed = trimmedDirectory(nvmBin)
+            if !trimmed.isEmpty {
+                directories.append(trimmed)
+            }
+        }
+        directories.append(root + "/.cargo/bin")
+        directories.append("/usr/bin")
+        directories.append("/bin")
+        return directories
+    }
+
+    /// First occurrence wins, which is the login PATH ahead of the supplemental list.
+    static func searchDirectories(loginPATH: [String], supplemental: [String]) -> [String] {
+        var seen = Set<String>()
+        var ordered: [String] = []
+        for directory in loginPATH + supplemental {
+            let normalized = trimmedDirectory(directory)
+            guard !normalized.isEmpty, seen.insert(normalized).inserted else { continue }
+            ordered.append(normalized)
+        }
+        return ordered
+    }
+
+    static func resolve(name: String, home: String, directories: [String], isExecutable: (String) -> Bool) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.hasPrefix("/") {
+            return isExecutable(trimmed) ? trimmed : nil
+        }
+        if trimmed.hasPrefix("~/") {
+            let expanded = trimmedDirectory(home) + String(trimmed.dropFirst(1))
+            return isExecutable(expanded) ? expanded : nil
+        }
+        guard !trimmed.contains("/") else { return nil }
+        for directory in directories {
+            let root = trimmedDirectory(directory)
+            guard !root.isEmpty else { continue }
+            let candidate = root + "/" + trimmed
+            if isExecutable(candidate) { return candidate }
+        }
+        return nil
+    }
+
+    /// A directory is executable on Unix, so a folder named like the CLI must not count.
+    static func isExecutableFile(at path: String) -> Bool {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue else {
+            return false
+        }
+        return FileManager.default.isExecutableFile(atPath: path)
+    }
+
+    /// `alias/default` is the version a new shell runs. It may point at another alias (`lts/*` → `lts/jod` → a version).
+    /// With no default alias, the newest installed version is the only signal on disk. `system` means "not nvm".
+    static func nvmBinDirectory(home: String, nvmDir: String?, layout: CLINvmLayout) -> String? {
+        let fallback = trimmedDirectory(home) + "/.nvm"
+        let root: String
+        if let nvmDir {
+            let trimmed = trimmedDirectory(nvmDir)
+            root = trimmed.isEmpty ? fallback : trimmed
+        } else {
+            root = fallback
+        }
+        guard let version = activeNvmVersion(layout: layout) else { return nil }
+        return root + "/versions/node/" + version + "/bin"
+    }
+
+    static func activeNvmVersion(layout: CLINvmLayout) -> String? {
+        let aliases = normalizedAliases(layout.aliasFiles)
+        let versions = layout.versionNames
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if let defaultAlias = aliases["default"] {
+            return followNvmAlias(defaultAlias, aliases: aliases, versions: versions, depth: 0)
+        }
+        return newestNvmVersion(in: versions)
+    }
+
+    private static func normalizedAliases(_ files: [String: String]) -> [String: String] {
+        var result: [String: String] = [:]
+        for (key, value) in files {
+            let name = key.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty, !text.isEmpty else { continue }
+            result[name] = text
+        }
+        return result
+    }
+
+    private static func followNvmAlias(_ token: String, aliases: [String: String], versions: [String], depth: Int) -> String? {
+        let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty, token != "system", depth < 8 else { return nil }
+        if let exact = exactNvmVersion(token, in: versions) { return exact }
+        if let prefixed = newestNvmVersion(matching: token, in: versions) { return prefixed }
+        guard let next = aliases[token], next != token else { return nil }
+        return followNvmAlias(next, aliases: aliases, versions: versions, depth: depth + 1)
+    }
+
+    private static func exactNvmVersion(_ token: String, in versions: [String]) -> String? {
+        if versions.contains(token) { return token }
+        let prefixed = token.hasPrefix("v") ? token : "v" + token
+        if versions.contains(prefixed) { return prefixed }
+        return nil
+    }
+
+    private static func newestNvmVersion(matching token: String, in names: [String]) -> String? {
+        var needle = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        if needle.hasPrefix("v") { needle.removeFirst() }
+        guard let first = needle.first, first.isNumber else { return nil }
+        let matches = names.filter { name in
+            var bare = name
+            if bare.hasPrefix("v") { bare.removeFirst() }
+            return bare == needle || bare.hasPrefix(needle + ".")
+        }
+        return newestNvmVersion(in: matches)
+    }
+
+    private static func newestNvmVersion(in names: [String]) -> String? {
+        names.max { compareVersionNames($0, $1) == .orderedAscending }
+    }
+
+    static func compareVersionNames(_ lhs: String, _ rhs: String) -> ComparisonResult {
+        let left = versionNumbers(lhs)
+        let right = versionNumbers(rhs)
+        let count = max(left.count, right.count)
+        for index in 0..<count {
+            let l = index < left.count ? left[index] : 0
+            let r = index < right.count ? right[index] : 0
+            if l != r { return l < r ? .orderedAscending : .orderedDescending }
+        }
+        return .orderedSame
+    }
+
+    private static func versionNumbers(_ name: String) -> [Int] {
+        var bare = name.hasPrefix("v") ? String(name.dropFirst()) : name
+        if let hyphen = bare.firstIndex(of: "-") {
+            bare = String(bare[..<hyphen])
+        }
+        return bare.split(separator: ".").compactMap { Int($0) }
     }
 }

@@ -161,6 +161,192 @@ final class CLIToolCatalogTests: XCTestCase {
         XCTAssertEqual(ready.title, "Ready")
     }
 
+    func testCopyActionAndMenuSuffixOnlyForBuiltinFailures() throws {
+        let gemini = try XCTUnwrap(CLITool.tool(for: .gemini))
+        let missing = CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: gemini)
+        XCTAssertEqual(missing.copyActionTitle, "Copy Install Command")
+        XCTAssertEqual(missing.menuSuffix, "Not installed")
+
+        let signedOut = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: false, tool: gemini)
+        XCTAssertEqual(signedOut.copyActionTitle, "Copy Sign-In Command")
+        XCTAssertNil(signedOut.menuSuffix)
+
+        let ready = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: true, tool: gemini)
+        XCTAssertNil(ready.copyActionTitle)
+        XCTAssertNil(ready.menuSuffix)
+        XCTAssertTrue(ready.showsStatus)
+        XCTAssertFalse(CLIReadiness.unspecified().showsStatus)
+    }
+
+    func testCustomReadinessStaysQuietUntilACommandIsEntered() {
+        let empty = CLIReadinessPlan.custom(command: "   ", binaryFound: false, authCommand: "", authPassed: false)
+        XCTAssertEqual(empty.state, .unspecified)
+        XCTAssertTrue(empty.hint.isEmpty)
+        XCTAssertNil(empty.fixCommand)
+        XCTAssertNil(empty.copyActionTitle)
+        XCTAssertNil(empty.menuSuffix)
+
+        let missing = CLIReadinessPlan.custom(command: "llm -m example", binaryFound: false, authCommand: "llm models", authPassed: false)
+        XCTAssertEqual(missing.state, .notInstalled)
+        XCTAssertEqual(missing.hint, "Command “llm” not found")
+        XCTAssertNil(missing.copyActionTitle)
+        XCTAssertNil(missing.menuSuffix)
+
+        let ready = CLIReadinessPlan.custom(command: "llm", binaryFound: true, authCommand: "", authPassed: false)
+        XCTAssertEqual(ready.state, .ready)
+        XCTAssertNil(ready.copyActionTitle)
+
+        let authFailed = CLIReadinessPlan.custom(command: "llm", binaryFound: true, authCommand: "llm models", authPassed: false)
+        XCTAssertEqual(authFailed.state, .signInNeeded)
+        XCTAssertEqual(authFailed.hint, "Auth check failed")
+        XCTAssertNil(authFailed.fixCommand)
+        XCTAssertNil(authFailed.copyActionTitle)
+    }
+
+    func testSupplementalDirectoriesCoverCommonInstallLocations() {
+        let home = "/Users/g"
+        let nvm = "\(home)/.nvm/versions/node/v22.11.0/bin"
+        XCTAssertEqual(
+            CLIExecutableSearch.supplementalDirectories(home: home + "/", nvmBin: nvm),
+            [
+                "/opt/homebrew/bin",
+                "/usr/local/bin",
+                "\(home)/.local/bin",
+                "\(home)/.npm-global/bin",
+                "\(home)/.bun/bin",
+                "\(home)/.volta/bin",
+                nvm,
+                "\(home)/.cargo/bin",
+                "/usr/bin",
+                "/bin"
+            ]
+        )
+        XCTAssertFalse(CLIExecutableSearch.supplementalDirectories(home: home, nvmBin: nil).contains { $0.contains("nvm") })
+    }
+
+    func testLoginPathOutranksInstallLocations() {
+        let home = "/Users/g"
+        let supplemental = CLIExecutableSearch.supplementalDirectories(
+            home: home,
+            nvmBin: "\(home)/.nvm/versions/node/v22.11.0/bin"
+        )
+        let directories = CLIExecutableSearch.searchDirectories(
+            loginPATH: ["\(home)/.local/bin", "", "/usr/bin", "\(home)/.local/bin"],
+            supplemental: supplemental
+        )
+        XCTAssertEqual(directories.first, "\(home)/.local/bin")
+        XCTAssertEqual(directories.filter { $0 == "/opt/homebrew/bin" }.count, 1)
+        let files: Set<String> = [
+            "/opt/homebrew/bin/gemini",
+            "\(home)/.local/bin/gemini"
+        ]
+        XCTAssertEqual(
+            CLIExecutableSearch.resolve(name: "gemini", home: home, directories: directories, isExecutable: { files.contains($0) }),
+            "\(home)/.local/bin/gemini"
+        )
+        XCTAssertEqual(
+            CLIExecutableSearch.resolve(name: "gemini", home: home, directories: ["/usr/bin", "\(home)/.nvm/versions/node/v22.11.0/bin"], isExecutable: { $0 == "\(home)/.nvm/versions/node/v22.11.0/bin/gemini" }),
+            "\(home)/.nvm/versions/node/v22.11.0/bin/gemini"
+        )
+    }
+
+    func testPathLookupRejectsBlankRelativeAndMissingPaths() {
+        let home = "/Users/g"
+        XCTAssertNil(CLIExecutableSearch.resolve(name: "  ", home: home, directories: ["/usr/bin"], isExecutable: { _ in true }))
+        XCTAssertNil(CLIExecutableSearch.resolve(name: "gemini/../codex", home: home, directories: ["/usr/bin"], isExecutable: { _ in true }))
+        XCTAssertNil(CLIExecutableSearch.resolve(name: "/opt/missing", home: home, directories: ["/opt"], isExecutable: { _ in false }))
+        XCTAssertEqual(
+            CLIExecutableSearch.resolve(name: "~/bin/gemini", home: home + "/", directories: [], isExecutable: { $0 == "\(home)/bin/gemini" }),
+            "\(home)/bin/gemini"
+        )
+        XCTAssertEqual(
+            CLIExecutableSearch.resolve(name: "/opt/homebrew/bin/gemini", home: home, directories: [], isExecutable: { $0 == "/opt/homebrew/bin/gemini" }),
+            "/opt/homebrew/bin/gemini"
+        )
+    }
+
+    func testLoginPathParserIgnoresProfileNoise() {
+        let output = """
+        Updated: homebrew
+        OPENCLIP_PATH_BEGIN
+        /opt/homebrew/bin:/Users/g/.nvm/versions/node/v22.11.0/bin:/usr/bin
+        OPENCLIP_PATH_END
+        done
+        """
+        XCTAssertEqual(
+            CLIExecutableSearch.pathFromLoginOutput(output),
+            ["/opt/homebrew/bin", "/Users/g/.nvm/versions/node/v22.11.0/bin", "/usr/bin"]
+        )
+        XCTAssertEqual(CLIExecutableSearch.pathFromLoginOutput("no markers\n"), [])
+        XCTAssertEqual(CLIExecutableSearch.parsePATH("/usr/bin::/bin/"), ["/usr/bin", "/bin"])
+        XCTAssertTrue(CLIExecutableSearch.loginPathScript(shellPath: "/bin/zsh").contains("\"$PATH\""))
+        XCTAssertTrue(CLIExecutableSearch.loginPathScript(shellPath: "/opt/homebrew/bin/fish").contains("string join : $PATH"))
+        XCTAssertFalse(CLIExecutableSearch.loginPathScript(shellPath: "/bin/bash").contains("string join"))
+    }
+
+    func testNvmAliasChainsAndNumericPrefixes() {
+        let chained = CLINvmLayout(
+            aliasFiles: [
+                "default": "lts/*\n",
+                "lts/*": "lts/jod",
+                "lts/jod": "v22.11.0"
+            ],
+            versionNames: ["v20.18.0", "v22.11.0"]
+        )
+        XCTAssertEqual(
+            CLIExecutableSearch.nvmBinDirectory(home: "/Users/g", nvmDir: nil, layout: chained),
+            "/Users/g/.nvm/versions/node/v22.11.0/bin"
+        )
+
+        let prefixed = CLINvmLayout(
+            aliasFiles: ["default": "20"],
+            versionNames: ["v20.9.0", "v20.18.10", "v22.1.0"]
+        )
+        XCTAssertEqual(
+            CLIExecutableSearch.nvmBinDirectory(home: "/Users/g", nvmDir: "/custom/nvm/", layout: prefixed),
+            "/custom/nvm/versions/node/v20.18.10/bin"
+        )
+
+        let system = CLINvmLayout(aliasFiles: ["default": "system"], versionNames: ["v22.1.0"])
+        XCTAssertNil(CLIExecutableSearch.nvmBinDirectory(home: "/Users/g", nvmDir: nil, layout: system))
+
+        let newest = CLINvmLayout(aliasFiles: [:], versionNames: ["v18.20.0", "v22.2.0", "v20.10.0"])
+        XCTAssertEqual(
+            CLIExecutableSearch.nvmBinDirectory(home: "/Users/g", nvmDir: nil, layout: newest),
+            "/Users/g/.nvm/versions/node/v22.2.0/bin"
+        )
+        XCTAssertNil(
+            CLIExecutableSearch.nvmBinDirectory(home: "/Users/g", nvmDir: nil, layout: CLINvmLayout(aliasFiles: [:], versionNames: []))
+        )
+        XCTAssertEqual(CLIExecutableSearch.compareVersionNames("v20.9.0", "v20.10.0"), .orderedAscending)
+        XCTAssertEqual(CLIExecutableSearch.compareVersionNames("v20.18.10", "v20.18.9"), .orderedDescending)
+    }
+
+    func testExecutableLookupSkipsDirectoriesAndNonExecutableFiles() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("openclip-cli-lookup-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bin = root.appendingPathComponent("bin", isDirectory: true)
+        let other = root.appendingPathComponent("other", isDirectory: true)
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: bin.appendingPathComponent("gemini", isDirectory: true), withIntermediateDirectories: true)
+        let plain = bin.appendingPathComponent("codex").path
+        XCTAssertTrue(FileManager.default.createFile(atPath: plain, contents: Data()))
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: plain)
+        let executable = other.appendingPathComponent("gemini").path
+        XCTAssertTrue(FileManager.default.createFile(atPath: executable, contents: Data("#!/bin/sh\n".utf8)))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable)
+
+        let directories = [bin.path, other.path]
+        XCTAssertNil(
+            CLIExecutableSearch.resolve(name: "codex", home: root.path, directories: directories, isExecutable: CLIExecutableSearch.isExecutableFile(at:))
+        )
+        XCTAssertEqual(
+            CLIExecutableSearch.resolve(name: "gemini", home: root.path, directories: directories, isExecutable: CLIExecutableSearch.isExecutableFile(at:)),
+            executable
+        )
+    }
+
     private func arguments(_ tool: CLITool, model: String) -> [String] {
         CLIArgumentPlan.arguments(
             template: tool.invocation,

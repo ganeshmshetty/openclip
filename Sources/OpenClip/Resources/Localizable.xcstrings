@@ -2605,6 +2605,34 @@
         }
       }
     },
+    "Auth check failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身份验证检查未通过"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "驗證檢查未通過"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la vérification de l’authentification"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "認証チェックに失敗しました"
+          }
+        }
+      }
+    },
     "Author: %@": {
       "localizations": {
         "zh-Hans": {
@@ -4729,6 +4757,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "コマンドパレット"
+          }
+        }
+      }
+    },
+    "Command “%@” not found": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到命令“%@”"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到指令「%@」"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commande « %@ » introuvable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コマンド「%@」が見つかりません"
           }
         }
       }

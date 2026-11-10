@@ -877,5 +877,7 @@
   "Ready": "就绪",
   "Checking…": "正在检查…",
   "Copy Install Command": "复制安装命令",
-  "Copy Sign-In Command": "复制登录命令"
+  "Copy Sign-In Command": "复制登录命令",
+  "Command “%@” not found": "未找到命令“%@”",
+  "Auth check failed": "身份验证检查未通过"
 }

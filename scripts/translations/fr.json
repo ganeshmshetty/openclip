@@ -877,5 +877,7 @@
   "Ready": "Prêt",
   "Checking…": "Vérification…",
   "Copy Install Command": "Copier la commande d'installation",
-  "Copy Sign-In Command": "Copier la commande de connexion"
+  "Copy Sign-In Command": "Copier la commande de connexion",
+  "Command “%@” not found": "Commande « %@ » introuvable",
+  "Auth check failed": "Échec de la vérification de l’authentification"
 }

@@ -877,5 +877,7 @@
   "Ready": "就緒",
   "Checking…": "正在檢查…",
   "Copy Install Command": "複製安裝指令",
-  "Copy Sign-In Command": "複製登入指令"
+  "Copy Sign-In Command": "複製登入指令",
+  "Command “%@” not found": "找不到指令「%@」",
+  "Auth check failed": "驗證檢查未通過"
 }
