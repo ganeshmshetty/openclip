@@ -876,8 +876,8 @@
   "Sign in needed": "需要登入",
   "Ready": "就緒",
   "Checking…": "正在檢查…",
-  "Copy Install Command": "複製安裝指令",
-  "Copy Sign-In Command": "複製登入指令",
   "Command “%@” not found": "找不到指令「%@」",
-  "Auth check failed": "驗證檢查未通過"
+  "Auth check failed": "驗證檢查未通過",
+  "Sign In": "登入",
+  "Install failed": "安裝失敗"
 }

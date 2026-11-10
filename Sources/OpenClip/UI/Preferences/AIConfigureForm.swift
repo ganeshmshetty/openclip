@@ -5,6 +5,7 @@
 // tab and the first-launch onboarding flow so both surfaces expose the same settings.
 import SwiftUI
 import AppKit
+import Core
 
 @MainActor
 public struct AIConfigureForm: View {
@@ -31,6 +32,9 @@ public struct AIConfigureForm: View {
     @State private var checkingCLI: Set<CLIPreset> = []
     @State private var cliReadinessGeneration = 0
     @State private var customReadinessTask: Task<Void, Never>?
+    @State private var pendingSetupRefresh = false
+    @State private var installingCLI: Set<CLIPreset> = []
+    @State private var installError: String?
 
     public init(embedded: Bool = false) {
         self.embedded = embedded
@@ -143,7 +147,7 @@ public struct AIConfigureForm: View {
                 } else if aiManager.activeProviderType == .cli {
                     Picker("CLI Tool", selection: $aiManager.cliPreset) {
                         ForEach(CLIPreset.allCases) { preset in
-                            Text(cliMenuTitle(preset)).tag(preset)
+                            Text(preset.displayName).tag(preset)
                         }
                     }
                     .onChange(of: aiManager.cliPreset) { _ in
@@ -177,12 +181,15 @@ public struct AIConfigureForm: View {
                         selectedCLIStatusRow
 
                         HStack(spacing: 8) {
-                            Picker("Model", selection: $aiManager.cliModel) {
-                                ForEach(resolvedCLIModels, id: \.self) { m in
-                                    Text(modelDisplayName(m)).tag(m)
-                                }
-                                Text("Custom…").tag("custom")
-                            }
+                            Text("Model")
+                            Spacer(minLength: 12)
+                            SearchableModelPicker(
+                                title: "Model",
+                                selection: $aiManager.cliModel,
+                                models: resolvedCLIModels,
+                                customTag: "custom",
+                                displayName: modelDisplayName
+                            )
 
                             Button(action: fetchCLIModels) {
                                 if isFetchingCLIModels {
@@ -306,6 +313,21 @@ public struct AIConfigureForm: View {
                 refreshCloudModelsIfStale()
             }
         }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)) { notification in
+            guard pendingSetupRefresh,
+                  let app = notification.object as? NSRunningApplication,
+                  app.bundleIdentifier == Bundle.main.bundleIdentifier else { return }
+            pendingSetupRefresh = false
+            refreshCLIReadiness()
+        }
+        .alert("Install failed", isPresented: Binding(
+            get: { installError != nil },
+            set: { if !$0 { installError = nil } }
+        )) {
+            Button("OK", role: .cancel) { installError = nil }
+        } message: {
+            Text(installError ?? "")
+        }
     }
 
     private var canFetchCloudModels: Bool {
@@ -377,11 +399,6 @@ public struct AIConfigureForm: View {
 
     // MARK: - Actions
 
-    private func cliMenuTitle(_ preset: CLIPreset) -> String {
-        guard let suffix = cliReadiness[preset]?.menuSuffix else { return preset.displayName }
-        return "\(preset.displayName) — \(suffix)"
-    }
-
     /// Shown only after a custom command is entered, and only when that command does not check out.
     private var customCommandValidation: String? {
         let trimmed = aiManager.cliCustomCommand.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -412,16 +429,29 @@ public struct AIConfigureForm: View {
                         .truncationMode(.middle)
                 }
                 Spacer(minLength: 8)
-                if let title = status.copyActionTitle, let command = status.fixCommand {
-                    Button {
-                        copyToPasteboard(command)
-                    } label: {
-                        Text(title)
+                if let title = status.setupActionTitle, let command = status.fixCommand {
+                    if status.state == .notInstalled {
+                        if installingCLI.contains(preset) {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Button(title) {
+                                installCLI(preset)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .fixedSize()
+                            .help(Text(command))
+                        }
+                    } else {
+                        Button(title) {
+                            runInTerminal(command)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .fixedSize()
+                        .help(Text(preset.authHelpText))
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .fixedSize()
-                    .help(Text(status.state == .signInNeeded ? preset.authHelpText : command))
                 }
             } else {
                 ProgressView()
@@ -447,9 +477,48 @@ public struct AIConfigureForm: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func copyToPasteboard(_ value: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
+    private func installCLI(_ preset: CLIPreset) {
+        guard !installingCLI.contains(preset) else { return }
+        installingCLI.insert(preset)
+        Task {
+            let result = await CLIProvider.install(preset)
+            await MainActor.run {
+                installingCLI.remove(preset)
+                if result.succeeded {
+                    CLIProvider.invalidateExecutableCache()
+                    refreshCLIReadiness()
+                } else {
+                    let trimmed = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    installError = trimmed.isEmpty ? String(localized: "Install failed") : String(trimmed.suffix(1_200))
+                }
+            }
+        }
+    }
+
+    private func runInTerminal(_ command: String) {
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("openclip-cli-\(UUID().uuidString).command")
+        let script = """
+        #!/bin/zsh
+        \(command)
+        status=$?
+        echo
+        if [ $status -eq 0 ]; then
+            echo "Done."
+        else
+            echo "Command failed with exit code $status."
+        fi
+        echo "Press Return to close this window."
+        read -r
+        """
+        do {
+            try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+            pendingSetupRefresh = true
+            NSWorkspace.shared.open(scriptURL)
+        } catch {
+            Log.presentation.error("Failed to run CLI setup command: \(error.localizedDescription)")
+        }
     }
 
     private func scheduleCustomReadiness() {

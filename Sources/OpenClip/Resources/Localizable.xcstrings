@@ -5265,34 +5265,6 @@
         }
       }
     },
-    "Copy Install Command": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "复制安装命令"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "複製安裝指令"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copier la commande d'installation"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "インストールコマンドをコピー"
-          }
-        }
-      }
-    },
     "Copy Only": {
       "localizations": {
         "zh-Hans": {
@@ -5345,34 +5317,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "結果のコピーのみ"
-          }
-        }
-      }
-    },
-    "Copy Sign-In Command": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "复制登录命令"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "複製登入指令"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copier la commande de connexion"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サインインコマンドをコピー"
           }
         }
       }
@@ -10665,6 +10609,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ファイルをインストール…"
+          }
+        }
+      }
+    },
+    "Install failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安裝失敗"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de l’installation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストールに失敗しました"
           }
         }
       }
@@ -20325,6 +20297,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ポップアップバーに表示され、そのアクションは 2 段目に開きます。"
+          }
+        }
+      }
+    },
+    "Sign In": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登入"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se connecter"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインイン"
           }
         }
       }

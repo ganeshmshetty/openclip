@@ -41,7 +41,7 @@ final class CLIToolCatalogTests: XCTestCase {
     func testOnlyClaudeAndCodexDisableThinking() {
         XCTAssertEqual(CLIPreset.claude.thinkingDisabledEnvironment["MAX_THINKING_TOKENS"], "0")
         XCTAssertEqual(CLIPreset.codex.thinkingDisabledArguments, ["-c", "model_reasoning_effort=none"])
-        for preset in [CLIPreset.copilot, .gemini, .cursor, .custom] {
+        for preset in [CLIPreset.copilot, .gemini, .antigravity, .cursor, .opencode, .custom] {
             XCTAssertTrue(preset.thinkingDisabledEnvironment.isEmpty, preset.rawValue)
             XCTAssertTrue(preset.thinkingDisabledArguments.isEmpty, preset.rawValue)
         }
@@ -84,7 +84,7 @@ final class CLIToolCatalogTests: XCTestCase {
     func testGeminiAndCursorTemplates() throws {
         let gemini = try XCTUnwrap(CLITool.tool(for: .gemini))
         XCTAssertEqual(gemini.binaries, ["gemini"])
-        XCTAssertEqual(gemini.installCommand, "brew install gemini-cli")
+        XCTAssertEqual(gemini.installCommand, "npm install -g @google/gemini-cli")
         let geminiArgs = arguments(gemini, model: "")
         XCTAssertTrue(geminiArgs.contains("-p"))
         XCTAssertTrue(geminiArgs.contains("--skip-trust"))
@@ -112,6 +112,49 @@ final class CLIToolCatalogTests: XCTestCase {
         }
     }
 
+    func testAntigravityCatalogEntry() throws {
+        let tool = try XCTUnwrap(CLITool.tool(for: .antigravity))
+        XCTAssertEqual(tool.binaries, ["agy"])
+        XCTAssertEqual(tool.installCommand, "curl -fsSL https://antigravity.google/cli/install.sh | bash")
+        XCTAssertEqual(tool.signInCommand, "agy")
+        let args = arguments(tool, model: "gemini-3.8-flash-high")
+        XCTAssertEqual(args.first, "-p")
+        XCTAssertTrue(args.contains("--output-format"))
+        XCTAssertTrue(args.contains("text"))
+        XCTAssertTrue(args.contains("--model"))
+        XCTAssertTrue(args.contains("gemini-3.8-flash-high"))
+        if case .command(let arguments, let parse) = tool.models {
+            XCTAssertEqual(arguments, ["models"])
+            XCTAssertEqual(parse, .tabName)
+        } else {
+            XCTFail("Antigravity should list models")
+        }
+    }
+
+    func testOpenCodeCatalogEntry() throws {
+        let tool = try XCTUnwrap(CLITool.tool(for: .opencode))
+        XCTAssertEqual(tool.binaries, ["opencode"])
+        XCTAssertEqual(tool.installCommand, "curl -fsSL https://opencode.ai/v2/install | bash")
+        XCTAssertEqual(tool.signInCommand, "opencode auth login")
+        let args = arguments(tool, model: "opencode-go/deepseek-v4.1-flash")
+        XCTAssertEqual(args.first, "run")
+        XCTAssertTrue(args.contains("--auto"))
+        XCTAssertTrue(args.contains("--model"))
+        XCTAssertTrue(args.contains("opencode-go/deepseek-v4.1-flash"))
+        if case .command(let arguments, let parse) = tool.models {
+            XCTAssertEqual(arguments, ["models"])
+            XCTAssertEqual(parse, .lines)
+        } else {
+            XCTFail("OpenCode should list models")
+        }
+        if case .command(_, let arguments, let rule) = tool.auth {
+            XCTAssertEqual(arguments, ["auth", "list", "--format", "json"])
+            XCTAssertEqual(rule, .jsonNonEmptyArray)
+        } else {
+            XCTFail("OpenCode should check auth")
+        }
+    }
+
     func testModelListParsers() {
         let cursor = CLIModelListParser.parse(
             "Available models\n\nauto - Auto (current)\ngpt-5.2 - GPT-5.2\n\n",
@@ -125,6 +168,18 @@ final class CLIToolCatalogTests: XCTestCase {
         )
         XCTAssertEqual(gemini, ["gemini-2.5-pro", "gemini-2.5-flash"])
         XCTAssertTrue(CLIModelListParser.parse("not json", format: .jsonModelID).isEmpty)
+
+        let opencode = CLIModelListParser.parse(
+            "opencode-go/deepseek-v4.1-flash\nopencode/gpt-6.1-sol\n\nopencode-go/deepseek-v4.1-flash\n",
+            format: .lines
+        )
+        XCTAssertEqual(opencode, ["opencode-go/deepseek-v4.1-flash", "opencode/gpt-6.1-sol"])
+
+        let antigravity = CLIModelListParser.parse(
+            "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\nclaude-sonnet-4-6\tClaude Sonnet 4.6\n",
+            format: .tabName
+        )
+        XCTAssertEqual(antigravity, ["gemini-3.8-flash-high", "claude-sonnet-4-6"])
     }
 
     func testAuthOutputRules() {
@@ -142,13 +197,16 @@ final class CLIToolCatalogTests: XCTestCase {
             output: "Not logged in"
         ))
         XCTAssertFalse(CLIAuthOutput.passes(rule: .exitZero, exitCode: 1, output: ""))
+        XCTAssertTrue(CLIAuthOutput.passes(rule: .jsonNonEmptyArray, exitCode: 0, output: #"[{"id":"opencode-go"}]"#))
+        XCTAssertFalse(CLIAuthOutput.passes(rule: .jsonNonEmptyArray, exitCode: 0, output: "[]"))
+        XCTAssertFalse(CLIAuthOutput.passes(rule: .jsonNonEmptyArray, exitCode: 1, output: #"[{"id":"opencode-go"}]"#))
     }
 
     func testReadinessPlan() throws {
         let gemini = try XCTUnwrap(CLITool.tool(for: .gemini))
         let missing = CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: gemini)
         XCTAssertEqual(missing.state, .notInstalled)
-        XCTAssertEqual(missing.fixCommand, "brew install gemini-cli")
+        XCTAssertEqual(missing.fixCommand, "npm install -g @google/gemini-cli")
 
         let signedOut = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: false, tool: gemini)
         XCTAssertEqual(signedOut.state, .signInNeeded)
@@ -164,15 +222,15 @@ final class CLIToolCatalogTests: XCTestCase {
     func testCopyActionAndMenuSuffixOnlyForBuiltinFailures() throws {
         let gemini = try XCTUnwrap(CLITool.tool(for: .gemini))
         let missing = CLIReadinessPlan.builtin(binaryFound: false, version: nil, authenticated: false, tool: gemini)
-        XCTAssertEqual(missing.copyActionTitle, "Copy Install Command")
+        XCTAssertEqual(missing.setupActionTitle, "Install")
         XCTAssertEqual(missing.menuSuffix, "Not installed")
 
         let signedOut = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: false, tool: gemini)
-        XCTAssertEqual(signedOut.copyActionTitle, "Copy Sign-In Command")
+        XCTAssertEqual(signedOut.setupActionTitle, "Sign In")
         XCTAssertNil(signedOut.menuSuffix)
 
         let ready = CLIReadinessPlan.builtin(binaryFound: true, version: "1.0", authenticated: true, tool: gemini)
-        XCTAssertNil(ready.copyActionTitle)
+        XCTAssertNil(ready.setupActionTitle)
         XCTAssertNil(ready.menuSuffix)
         XCTAssertTrue(ready.showsStatus)
         XCTAssertFalse(CLIReadiness.unspecified().showsStatus)
@@ -183,24 +241,24 @@ final class CLIToolCatalogTests: XCTestCase {
         XCTAssertEqual(empty.state, .unspecified)
         XCTAssertTrue(empty.hint.isEmpty)
         XCTAssertNil(empty.fixCommand)
-        XCTAssertNil(empty.copyActionTitle)
+        XCTAssertNil(empty.setupActionTitle)
         XCTAssertNil(empty.menuSuffix)
 
         let missing = CLIReadinessPlan.custom(command: "llm -m example", binaryFound: false, authCommand: "llm models", authPassed: false)
         XCTAssertEqual(missing.state, .notInstalled)
         XCTAssertEqual(missing.hint, "Command “llm” not found")
-        XCTAssertNil(missing.copyActionTitle)
+        XCTAssertNil(missing.setupActionTitle)
         XCTAssertNil(missing.menuSuffix)
 
         let ready = CLIReadinessPlan.custom(command: "llm", binaryFound: true, authCommand: "", authPassed: false)
         XCTAssertEqual(ready.state, .ready)
-        XCTAssertNil(ready.copyActionTitle)
+        XCTAssertNil(ready.setupActionTitle)
 
         let authFailed = CLIReadinessPlan.custom(command: "llm", binaryFound: true, authCommand: "llm models", authPassed: false)
         XCTAssertEqual(authFailed.state, .signInNeeded)
         XCTAssertEqual(authFailed.hint, "Auth check failed")
         XCTAssertNil(authFailed.fixCommand)
-        XCTAssertNil(authFailed.copyActionTitle)
+        XCTAssertNil(authFailed.setupActionTitle)
     }
 
     func testSupplementalDirectoriesCoverCommonInstallLocations() {
@@ -212,6 +270,7 @@ final class CLIToolCatalogTests: XCTestCase {
                 "/opt/homebrew/bin",
                 "/usr/local/bin",
                 "\(home)/.local/bin",
+                "\(home)/.opencode/bin",
                 "\(home)/.npm-global/bin",
                 "\(home)/.bun/bin",
                 "\(home)/.volta/bin",

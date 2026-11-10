@@ -38,11 +38,11 @@ public struct CLIReadiness: Sendable, Equatable {
 
     var showsStatus: Bool { state != .unspecified }
 
-    var copyActionTitle: String? {
+    var setupActionTitle: String? {
         guard let fixCommand, !fixCommand.isEmpty else { return nil }
         switch state {
-        case .notInstalled: return String(localized: "Copy Install Command")
-        case .signInNeeded: return String(localized: "Copy Sign-In Command")
+        case .notInstalled: return String(localized: "Install")
+        case .signInNeeded: return String(localized: "Sign In")
         case .ready, .unspecified: return nil
         }
     }
@@ -107,6 +107,8 @@ enum CLIAuthCheck: Sendable, Equatable {
 enum CLIAuthRule: Sendable, Equatable {
     /// `"key": true` in the command's JSON output.
     case jsonBool(String)
+    /// A non-empty JSON array from commands such as `opencode auth list --format json`.
+    case jsonNonEmptyArray
     /// Exit 0, output contains `marker`, and does not contain `negated`.
     case phrase(marker: String, negated: String)
     case exitZero
@@ -124,6 +126,10 @@ enum CLIModelListFormat: Sendable, Equatable {
     case idDashName
     /// JSON array of objects with a string `modelId` from `gemini models -o json`.
     case jsonModelID
+    /// One model id per line, as `opencode models` prints.
+    case lines
+    /// `id\tDisplay name` lines, as `agy models` prints.
+    case tabName
 }
 
 struct CLITool: Sendable, Equatable, Identifiable {
@@ -248,7 +254,7 @@ struct CLITool: Sendable, Equatable, Identifiable {
             displayName: "Gemini CLI (gemini)",
             binaries: ["gemini"],
             versionArguments: ["--version"],
-            installCommand: "brew install gemini-cli",
+            installCommand: "npm install -g @google/gemini-cli",
             signInCommand: "gemini",
             authHelp: "Run “gemini” and choose Sign in with Google, or set GEMINI_API_KEY.",
             runner: .subprocess,
@@ -267,6 +273,35 @@ struct CLITool: Sendable, Equatable, Identifiable {
                     .joinedPrompt,
                     // Skips the folder-trust prompt, which would hang a non-interactive run.
                     .literal("--skip-trust"),
+                    .literal("--output-format"),
+                    .literal("text"),
+                    .modelIfSet("--model")
+                ],
+                stdin: .none,
+                output: .plainText,
+                environment: [:]
+            )
+        ),
+        CLITool(
+            preset: .antigravity,
+            displayName: "Antigravity CLI (agy)",
+            binaries: ["agy"],
+            versionArguments: ["--version"],
+            installCommand: "curl -fsSL https://antigravity.google/cli/install.sh | bash",
+            signInCommand: "agy",
+            authHelp: "Run “agy” in Terminal to sign in with Google. It opens the browser when no session is saved.",
+            runner: .subprocess,
+            auth: .any([
+                .environmentNonEmpty(["GEMINI_API_KEY", "AGY_ADC_AUTH"]),
+                .homeRelativeFile(".gemini/antigravity-cli/antigravity-oauth-token")
+            ]),
+            models: .command(arguments: ["models"], parse: .tabName),
+            documentedAliases: [],
+            thinkingArguments: [],
+            invocation: CLIInvocationTemplate(
+                tokens: [
+                    .literal("-p"),
+                    .joinedPrompt,
                     .literal("--output-format"),
                     .literal("text"),
                     .modelIfSet("--model")
@@ -300,6 +335,31 @@ struct CLITool: Sendable, Equatable, Identifiable {
                     .literal("--trust"),
                     .joinedPrompt,
                     .modelIfSet("--model")
+                ],
+                stdin: .none,
+                output: .plainText,
+                environment: [:]
+            )
+        ),
+        CLITool(
+            preset: .opencode,
+            displayName: "OpenCode (opencode)",
+            binaries: ["opencode"],
+            versionArguments: ["--version"],
+            installCommand: "curl -fsSL https://opencode.ai/v2/install | bash",
+            signInCommand: "opencode auth login",
+            authHelp: "Run “opencode auth login” in Terminal, then choose OpenCode or another provider.",
+            runner: .subprocess,
+            auth: .command(binary: nil, arguments: ["auth", "list", "--format", "json"], rule: .jsonNonEmptyArray),
+            models: .command(arguments: ["models"], parse: .lines),
+            documentedAliases: [],
+            thinkingArguments: [],
+            invocation: CLIInvocationTemplate(
+                tokens: [
+                    .literal("run"),
+                    .modelIfSet("--model"),
+                    .literal("--auto"),
+                    .joinedPrompt
                 ],
                 stdin: .none,
                 output: .plainText,
@@ -365,6 +425,23 @@ enum CLIModelListParser {
                 ids.append(trimmed)
             }
             return ids
+        case .lines:
+            var ids: [String] = []
+            for line in output.split(whereSeparator: \.isNewline) {
+                let id = line.trimmingCharacters(in: .whitespaces)
+                guard !id.isEmpty, id.contains("/"), !ids.contains(id) else { continue }
+                ids.append(id)
+            }
+            return ids
+        case .tabName:
+            var ids: [String] = []
+            for line in output.split(whereSeparator: \.isNewline) {
+                let id = line.split(separator: "\t", maxSplits: 1).first
+                    .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+                guard !id.isEmpty, !ids.contains(id) else { continue }
+                ids.append(id)
+            }
+            return ids
         }
     }
 }
@@ -376,6 +453,13 @@ enum CLIAuthOutput {
             return exitCode == 0
         case .jsonBool(let key):
             return output.contains("\"\(key)\": true") || output.contains("\"\(key)\":true")
+        case .jsonNonEmptyArray:
+            guard exitCode == 0,
+                  let data = output.data(using: .utf8),
+                  let rows = try? JSONSerialization.jsonObject(with: data) as? [Any] else {
+                return false
+            }
+            return !rows.isEmpty
         case .phrase(let marker, let negated):
             guard exitCode == 0 else { return false }
             let folded = output.lowercased()
@@ -418,7 +502,9 @@ public enum CLIPreset: String, CaseIterable, Identifiable, Sendable {
     case codex
     case copilot
     case gemini
+    case antigravity
     case cursor
+    case opencode
     case custom
 
     public var id: String { rawValue }
@@ -520,6 +606,7 @@ enum CLIExecutableSearch {
             "/opt/homebrew/bin",
             "/usr/local/bin",
             root + "/.local/bin",
+            root + "/.opencode/bin",
             root + "/.npm-global/bin",
             root + "/.bun/bin",
             root + "/.volta/bin"

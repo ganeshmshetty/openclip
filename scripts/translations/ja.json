@@ -876,8 +876,8 @@
   "Sign in needed": "サインインが必要",
   "Ready": "準備完了",
   "Checking…": "確認中…",
-  "Copy Install Command": "インストールコマンドをコピー",
-  "Copy Sign-In Command": "サインインコマンドをコピー",
   "Command “%@” not found": "コマンド「%@」が見つかりません",
-  "Auth check failed": "認証チェックに失敗しました"
+  "Auth check failed": "認証チェックに失敗しました",
+  "Sign In": "サインイン",
+  "Install failed": "インストールに失敗しました"
 }

@@ -122,7 +122,7 @@ Sources/
     │   └── Providers/                        # Apple Intelligence, Local LLMs, CLI Subscriptions, Cloud API
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner
     │       ├── CLIToolCatalog.swift           # One entry per CLI: binaries, args, version, auth, models
-    │       ├── CLIProvider.swift             # Subprocess runner; resolves binaries with the login-shell PATH (Claude, Codex, Copilot, Gemini, Cursor)
+    │       ├── CLIProvider.swift             # Subprocess runner; resolves binaries with the login-shell PATH (Claude, Codex, Copilot, Gemini, Antigravity, Cursor, OpenCode)
     │       ├── CloudAPIProvider.swift        # OpenAI-compatible presets (DeepSeek, Groq, OpenRouter, OpenCode, OpenCode Go, Mistral, xAI, Cerebras, Together, Fireworks), Anthropic, and Gemini
     │       ├── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for cloud APIs
     │       └── LocalLLMProvider.swift        # Universal local LLM runner (LM Studio, Ollama, Jan, llama.cpp, oMLX)

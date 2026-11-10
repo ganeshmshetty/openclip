@@ -5,10 +5,20 @@
 import Foundation
 import Core
 
+/// Result of an install command run by the settings UI.
+public struct CLIInstallResult: Sendable {
+    public let succeeded: Bool
+    public let output: String
+
+    public init(succeeded: Bool, output: String) {
+        self.succeeded = succeeded
+        self.output = output
+    }
+}
+
 @MainActor
 public final class CLIProvider: AIProvider {
     public var type: AIProviderType { .cli }
-
     public let preset: CLIPreset
     public let customCommand: String
     public let modelOverride: String
@@ -180,19 +190,46 @@ public final class CLIProvider: AIProvider {
         }.value
     }
 
+    /// Runs the catalog's install command through the login shell, so Homebrew and npm see the
+    /// same PATH the readiness check uses.
+    nonisolated public static func install(_ preset: CLIPreset) async -> CLIInstallResult {
+        guard let tool = CLITool.tool(for: preset) else {
+            return CLIInstallResult(succeeded: false, output: "No install command is available for this CLI.")
+        }
+        return await Task.detached(priority: .userInitiated) {
+            let result = runCaptured(
+                executable: loginShellExecutable(),
+                arguments: ["-l", "-c", tool.installCommand],
+                timeout: 600,
+                environment: .inherit
+            )
+            let stderr = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            let stdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            if result.timedOut {
+                return CLIInstallResult(succeeded: false, output: "Installation timed out after 10 minutes.")
+            }
+            return CLIInstallResult(
+                succeeded: result.exitCode == 0,
+                output: stderr.isEmpty ? stdout : stderr
+            )
+        }.value
+    }
+
     nonisolated private static func fetchAvailableModelsBlocking(for preset: CLIPreset) -> [String] {
         guard let tool = CLITool.tool(for: preset) else { return [] }
         let configured = inspectConfiguredModel(for: preset)
-        switch tool.models {
+        let discovered = discoverModels(tool.models, tool: tool)
+        return discovered.isEmpty ? fallbackModels(tool, configured: configured) : discovered
+    }
+
+    nonisolated private static func discoverModels(_ check: CLIModelCheck, tool: CLITool) -> [String] {
+        switch check {
         case .none, .codexConfig:
-            return fallbackModels(tool, configured: configured)
+            return []
         case .command(let arguments, let parse):
-            guard let binary = resolveBinary(in: tool.binaries) else {
-                return fallbackModels(tool, configured: configured)
-            }
+            guard let binary = resolveBinary(in: tool.binaries) else { return [] }
             let result = runCaptured(executable: binary, arguments: arguments, timeout: 15)
-            let parsed = result.timedOut ? [] : CLIModelListParser.parse(result.stdout, format: parse)
-            return parsed.isEmpty ? fallbackModels(tool, configured: configured) : parsed
+            return result.timedOut ? [] : CLIModelListParser.parse(result.stdout, format: parse)
         }
     }
 
