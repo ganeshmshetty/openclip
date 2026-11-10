@@ -31,6 +31,7 @@ Select text in any app, and OpenClip pops up with contextual actions — transfo
 <td><a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link"><img src="https://assets.getopenclip.app/sponsor-infistar.png" alt="Infistar" width="48"></a></td>
 <td>Thanks to <a href="https://www.infistar.cc/register?aff=CWD4X8S4&ref_source=link">Infistar</a> for sponsoring OpenClip.</td>
 </tr></table>
+
 ## Installation
 
 ### Homebrew (Recommended)
