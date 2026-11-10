@@ -13,9 +13,11 @@ public struct CompletionAction: ConfigurableAction, WordCompletionProviding {
         ActionChrome(popupBehavior: .provideCompletions)
     }
 
+    private let settingsStore: any SettingsStore
     private let spellChecker: (any TextSpellChecking)?
 
-    public init(spellChecker: (any TextSpellChecking)? = nil) {
+    public init(settingsStore: any SettingsStore = DefaultSettingsStore.shared, spellChecker: (any TextSpellChecking)? = nil) {
+        self.settingsStore = settingsStore
         self.spellChecker = spellChecker
     }
 
@@ -40,7 +42,12 @@ public struct CompletionAction: ConfigurableAction, WordCompletionProviding {
         let isURL = text.lowercased().hasPrefix("http://") || text.lowercased().hasPrefix("https://") || text.contains("www.")
         let hasMathSymbol = text.contains("+") || text.contains("*") || text.contains("/") || text.contains("=") || text.contains("%")
         guard !isURL && !hasMathSymbol else { return false }
-        
+
+        if settingsStore.get(.completionOnlyMisspelled) {
+            let assessments = resolvedSpellChecker().assessments(for: text)
+            guard TextLanguageDetector.isMisspelledInAllPreferred(assessments) else { return false }
+        }
+
         return !fetchCompletions(for: text).isEmpty
     }
     

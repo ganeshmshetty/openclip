@@ -855,5 +855,11 @@
   "Finding OpenClip useful?": "OpenClip 好用嗎？",
   "It's free and open source. A star on GitHub helps more people find it.": "它免費且開源。在 GitHub 上打一顆星，能讓更多人發現它。",
   "Star on GitHub": "在 GitHub 上打星",
-  "Not Now": "不用了"
+  "Not Now": "不用了",
+  "Suggestions": "建議",
+  "Only suggest for misspelled words": "僅為拼錯的單字提供建議",
+  "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "如果該單字在任一已啟用的鍵盤輸入語言中拼寫正確，則不顯示建議。",
+  "Inline": "內嵌",
+  "As contextual action": "作為情境操作",
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
 }

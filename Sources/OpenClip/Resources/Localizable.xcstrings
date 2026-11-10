@@ -2521,6 +2521,34 @@
         }
       }
     },
+    "As contextual action": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作为上下文操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作為情境操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comme action contextuelle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンテキストアクションとして"
+          }
+        }
+      }
+    },
     "Ask AI: “%@”": {
       "localizations": {
         "zh-Hans": {
@@ -9857,6 +9885,34 @@
         }
       }
     },
+    "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果该单词在任一已启用的键盘输入语言中拼写正确，则不显示建议。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果該單字在任一已啟用的鍵盤輸入語言中拼寫正確，則不顯示建議。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masque les suggestions lorsque le mot est correctement orthographié dans l’une des langues de clavier activées."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効なキーボード入力言語のいずれかで単語が正しく綴られている場合、候補を表示しません。"
+          }
+        }
+      }
+    },
     "Highlight any part of the text below to see the real action bar appear.": {
       "localizations": {
         "zh-Hans": {
@@ -10189,6 +10245,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "情報"
+          }
+        }
+      }
+    },
+    "Inline": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内联"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內嵌"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans la barre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インライン"
+          }
+        }
+      }
+    },
+    "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内联会在操作栏中显示建议。上下文操作会显示“单词补全”组，可悬停查看或搜索。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。"
           }
         }
       }
@@ -13129,6 +13241,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shift (⇧) キーを押しながらテキストを選択したときのみポップアップを表示します。"
+          }
+        }
+      }
+    },
+    "Only suggest for misspelled words": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅为拼错的单词提供建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅為拼錯的單字提供建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggérer seulement les mots mal orthographiés"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "誤字のときだけ提案する"
           }
         }
       }
@@ -20129,6 +20269,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ストア"
+          }
+        }
+      }
+    },
+    "Suggestions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggestions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補"
           }
         }
       }

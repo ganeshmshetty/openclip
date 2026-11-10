@@ -69,6 +69,8 @@ public struct ActionEditorPage: View {
     @State private var aliasError: String? = nil
     @State private var isLoaded = false
     @State private var deliveryPrefString: String = "default"
+    @Setting(SettingKey.completionOnlyMisspelled) private var completionOnlyMisspelled
+    @Setting(SettingKey.completionDisplayMode) private var completionDisplayMode
     @State private var isDuplicating = false
     @State private var isDeleting = false
     @ObservedObject private var updateManager = ExtensionUpdateManager.shared
@@ -99,6 +101,8 @@ public struct ActionEditorPage: View {
             initialDelivery = Self.defaultDeliveryPrefString(for: action)
         }
         _deliveryPrefString = State(initialValue: initialDelivery)
+        _completionOnlyMisspelled = Setting(SettingKey.completionOnlyMisspelled)
+        _completionDisplayMode = Setting(SettingKey.completionDisplayMode)
     }
 
     private var isCustomAction: Bool {
@@ -793,6 +797,29 @@ public struct ActionEditorPage: View {
 
                 if isAIPreset {
                     AIPresetModelSection(provider: $aiProviderOverride, model: $aiModelOverride)
+                }
+
+                if ActionIdentity.isCompletionPseudoAction(action) {
+                    SettingsCard("Suggestions") {
+                        SettingsToggleRow(
+                            title: "Only suggest for misspelled words",
+                            info: "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.",
+                            isOn: $completionOnlyMisspelled
+                        )
+                        SettingsDivider()
+                        SettingsRow(
+                            title: "Show completions",
+                            info: "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search."
+                        ) {
+                            Picker("Show completions", selection: $completionDisplayMode) {
+                                Text("Inline").tag(CompletionDisplayMode.inline.rawValue)
+                                Text("As contextual action").tag(CompletionDisplayMode.contextual.rawValue)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .fixedSize()
+                        }
+                    }
                 }
 
                 if !action.actionOptions.isEmpty {

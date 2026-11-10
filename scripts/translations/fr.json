@@ -855,5 +855,11 @@
   "Finding OpenClip useful?": "OpenClip vous est utile ?",
   "It's free and open source. A star on GitHub helps more people find it.": "C’est gratuit et open source. Une étoile sur GitHub aide plus de gens à le découvrir.",
   "Star on GitHub": "Mettre une étoile sur GitHub",
-  "Not Now": "Non merci"
+  "Not Now": "Non merci",
+  "Suggestions": "Suggestions",
+  "Only suggest for misspelled words": "Suggérer seulement les mots mal orthographiés",
+  "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "Masque les suggestions lorsque le mot est correctement orthographié dans l’une des langues de clavier activées.",
+  "Inline": "Dans la barre",
+  "As contextual action": "Comme action contextuelle",
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
 }
