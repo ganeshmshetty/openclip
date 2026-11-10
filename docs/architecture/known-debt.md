@@ -685,7 +685,7 @@ lines by height interleaved multi-column text.
   not its provenance; external apps cannot be locked and late writes beyond the response
   window remain a platform limitation. OCR and explicit text/rich-payload results retain
   their supplied-output behavior. Cut still reconstructs plain text and is separate work.
-  The project consumes the released OpenSelection package at `v2.16.0`; for local package development, switch `project.yml` back to `path: openselection`.
+  The project consumes the released OpenSelection package at `v2.16.1`; for local package development, switch `project.yml` back to `path: openselection`.
 
 - Mouse gesture checks precede retrieval. A bounded AX hit-test of the original press rejects
   identifiable toolbar/titlebar chrome, including unchanged fullscreen windows, while
