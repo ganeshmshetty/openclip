@@ -87,6 +87,7 @@ public final class RuleEngine: ObservableObject, Sendable {
                 hotkeyOnly: rule.hotkeyOnly,
                 useMenuCopy: rule.useMenuCopy,
                 denyPaste: rule.denyPaste,
+                kbCpNoAXWebAreaRetry: rule.kbCpNoAXWebAreaRetry,
                 retrievalMode: rule.retrievalMode,
                 gate: rule.gate
             )
@@ -111,6 +112,7 @@ public final class RuleEngine: ObservableObject, Sendable {
                     hotkeyOnly: rule.hotkeyOnly ?? context.hotkeyOnly,
                     denyPaste: rule.denyPaste ?? context.denyPaste,
                     useMenuCopy: rule.useMenuCopy ?? context.useMenuCopy,
+                    kbCpNoAXWebAreaRetry: rule.kbCpNoAXWebAreaRetry ?? context.kbCpNoAXWebAreaRetry,
                     retrievalMode: rule.retrievalMode ?? context.retrievalMode,
                     gate: rule.gate ?? context.gate
                 )
@@ -126,6 +128,7 @@ public final class RuleEngine: ObservableObject, Sendable {
                 hotkeyOnly: context.hotkeyOnly,
                 denyPaste: context.denyPaste,
                 useMenuCopy: context.useMenuCopy,
+                kbCpNoAXWebAreaRetry: context.kbCpNoAXWebAreaRetry,
                 retrievalMode: .menuCopy,
                 gate: context.gate
             )
