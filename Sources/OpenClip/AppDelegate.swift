@@ -145,6 +145,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
         ExtensionManager.shared.onReloaded = { VisibilityPredicateRuntime.shared.invalidate() }
         CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+        TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
 
         Task {
             await ActionCoordinator.shared.loadInitialState(
@@ -394,6 +395,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
             ExtensionManager.shared.onReloaded = { VisibilityPredicateRuntime.shared.invalidate() }
             CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+            TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )
@@ -424,6 +426,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
             ExtensionManager.shared.onReloaded = { VisibilityPredicateRuntime.shared.invalidate() }
             CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+            TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )

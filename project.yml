@@ -9,6 +9,8 @@ targets:
     platform: macOS
     deploymentTarget: "14.0"
     sources: [Sources/Core]
+    dependencies:
+      - sdk: NaturalLanguage.framework
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

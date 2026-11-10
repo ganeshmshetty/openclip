@@ -67,7 +67,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [AppleScript Runtime](runtimes/applescript.md) — `AppleScriptAction` execution, variable injection, and output handling.
 - [JavaScript Runtime](runtimes/javascript.md) — `JavaScriptAction` under JavaScriptCore, the `openclip` bridge, and option keys via `SettingKey`.
 - [URL Templates Engine](runtimes/url-templates.md) — Parameterized search links using `URLTemplateAction` and `TextPlaceholderEngine`.
-- [Shell & Executable Scripts](runtimes/zsh-python.md) — Process execution, environment variables (`OPENCLIP_TEXT`, `OPENCLIP_MATCHED`, `OPENCLIP_ACTION_ID`), and JSON/text stdout parsing.
+- [Shell & Executable Scripts](runtimes/zsh-python.md) — Process execution, environment variables (`OPENCLIP_TEXT`, `OPENCLIP_TEXT_LANGUAGE`, `OPENCLIP_MATCHED`, `OPENCLIP_ACTION_ID`), and JSON/text stdout parsing.
 
 ### User Guide
 - [Installation & Onboarding](user-guide/installation.md) — Installing OpenClip, Accessibility permissions setup, and first-launch workflow.

@@ -2,7 +2,6 @@
 // OpenClip
 //
 // Implements word completion actions using platform text dictionaries and word completion providers.
-import AppKit
 import Foundation
 import Core
 
@@ -13,8 +12,17 @@ public struct CompletionAction: ConfigurableAction, WordCompletionProviding {
     public var chrome: ActionChrome {
         ActionChrome(popupBehavior: .provideCompletions)
     }
-    
-    public init() {}
+
+    private let spellChecker: (any TextSpellChecking)?
+
+    public init(spellChecker: (any TextSpellChecking)? = nil) {
+        self.spellChecker = spellChecker
+    }
+
+    @MainActor
+    private func resolvedSpellChecker() -> any TextSpellChecking {
+        spellChecker ?? SystemTextSpellChecker.shared
+    }
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
@@ -46,35 +54,8 @@ public struct CompletionAction: ConfigurableAction, WordCompletionProviding {
         return .none
     }
     
-    /// Helper to fetch top 3-4 completion or spelling suggestions from NSSpellChecker
     @MainActor
     public func fetchCompletions(for text: String) -> [String] {
-        let spellChecker = NSSpellChecker.shared
-        let range = NSRange(location: 0, length: text.utf16.count)
-        
-        var results: [String] = []
-        
-        // 1. Partial word completions
-        if let completions = spellChecker.completions(forPartialWordRange: range, in: text, language: nil, inSpellDocumentWithTag: 0) {
-            results.append(contentsOf: completions)
-        }
-        
-        // 2. Spelling guesses if no partial completions
-        if results.isEmpty {
-            if let guesses = spellChecker.guesses(forWordRange: range, in: text, language: nil, inSpellDocumentWithTag: 0) {
-                results.append(contentsOf: guesses)
-            }
-        }
-        
-        // Filter out duplicates & exact same word (case insensitive)
-        var unique: [String] = []
-        for word in results {
-            let trimmed = word.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty && trimmed.lowercased() != text.lowercased() && !unique.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
-                unique.append(trimmed)
-            }
-            if unique.count >= 4 { break }
-        }
-        return unique
+        TextLanguageDetector.suggestions(for: text, assessments: resolvedSpellChecker().assessments(for: text))
     }
 }

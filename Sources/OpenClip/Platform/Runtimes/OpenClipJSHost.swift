@@ -181,6 +181,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     public func run(_ request: Request) async throws -> ActionResult {
         let session = self.session
+        // Spell checking is main-thread-only. Capture the tag before the script hops off main.
+        let textLanguage = await MainActor.run {
+            TextLanguageDetector.textLanguageCode(for: request.context.selection.text) ?? ""
+        }
 
         // Every run enters the gate, since async scripts also run synchronously first.
         let gate = OpenClipJSHost.syncEvaluationGate
@@ -204,6 +208,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
                 defer { fetchTasks.finish() }
                 return try OpenClipJSHost.execute(
                     request,
+                    textLanguage: textLanguage,
                     session: session,
                     cancellationFlag: cancellationFlag,
                     fetchTasks: fetchTasks
@@ -220,12 +225,14 @@ public final class OpenClipJSHost: @unchecked Sendable {
     /// Runs on the detached task's thread.
     private static func execute(
         _ request: Request,
+        textLanguage: String,
         session: URLSession,
         cancellationFlag: CancellationFlag,
         fetchTasks: FetchTaskBox
     ) throws -> ActionResult {
         let evaluation = try evaluate(
             request,
+            textLanguage: textLanguage,
             session: session,
             cancellationFlag: cancellationFlag,
             fetchTasks: fetchTasks
@@ -235,6 +242,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
 
     private static func evaluate(
         _ request: Request,
+        textLanguage: String,
         session: URLSession,
         cancellationFlag: CancellationFlag,
         fetchTasks: FetchTaskBox
@@ -309,7 +317,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
             sourceApp: request.context.selection.sourceApp,
             isSecondaryClick: request.context.isSecondaryClick,
             options: optionsDict,
-            pasteboardContent: pbContent
+            pasteboardContent: pbContent,
+            textLanguage: textLanguage
         ) else {
             throw NSError(domain: Constants.actionErrorDomain,
                           code: Constants.actionErrorCode,
@@ -1088,7 +1097,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         sourceApp: AppIdentity,
         isSecondaryClick: Bool,
         options: [String: Any],
-        pasteboardContent: PasteboardContent
+        pasteboardContent: PasteboardContent,
+        textLanguage: String
     ) -> JSValue? {
         guard let openclip = JSValue(newObjectIn: jsContext),
               let input = JSValue(newObjectIn: jsContext),
@@ -1142,6 +1152,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
         openclip.setObject(options, forKeyedSubscript: "options")
         openclip.setObject(activeTag, forKeyedSubscript: "locale")
         openclip.setObject(fullLangTag, forKeyedSubscript: "language")
+        openclip.setObject(textLanguage, forKeyedSubscript: "textLanguage")
         openclip.setObject(pasteboard, forKeyedSubscript: "pasteboard")
         return openclip
     }
