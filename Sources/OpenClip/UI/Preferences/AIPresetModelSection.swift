@@ -108,7 +108,7 @@ struct AIPresetModelSection: View {
         case .local:
             fetchedModels = (try? await LocalLLMProvider.fetchAvailableModels(baseURL: aiManager.localURL)) ?? []
         case .cli:
-            fetchedModels = (try? await CLIProvider.fetchAvailableModels(for: aiManager.cliPreset)) ?? []
+            fetchedModels = await CLIProvider.fetchAvailableModels(for: aiManager.cliPreset)
         case .cloud:
             let key = aiManager.cloudAPIKey
             guard !key.isEmpty || aiManager.cloudServiceProvider == .openrouter else { return }

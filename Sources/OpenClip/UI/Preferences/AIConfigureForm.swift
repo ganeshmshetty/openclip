@@ -5,6 +5,7 @@
 // tab and the first-launch onboarding flow so both surfaces expose the same settings.
 import SwiftUI
 import AppKit
+import Core
 
 @MainActor
 public struct AIConfigureForm: View {
@@ -27,10 +28,13 @@ public struct AIConfigureForm: View {
     @State private var fetchedCLIModels: [String] = []
     @State private var isFetchingCLIModels: Bool = false
 
-    @State private var cliAuthStatus: (isAuthenticated: Bool, message: String)? = nil
-    @State private var isCheckingCLIAuth: Bool = false
-    /// Expanded state of the inline "how to authenticate" note.
-    @State private var showingAuthHelp: Bool = false
+    @State private var cliReadiness: [CLIPreset: CLIReadiness] = [:]
+    @State private var checkingCLI: Set<CLIPreset> = []
+    @State private var cliReadinessGeneration = 0
+    @State private var customReadinessTask: Task<Void, Never>?
+    @State private var pendingSetupRefresh = false
+    @State private var installingCLI: Set<CLIPreset> = []
+    @State private var installError: String?
 
     public init(embedded: Bool = false) {
         self.embedded = embedded
@@ -147,74 +151,45 @@ public struct AIConfigureForm: View {
                         }
                     }
                     .onChange(of: aiManager.cliPreset) { _ in
-                        checkCLIAuth()
                         fetchCLIModels()
-                    }
-
-                    HStack(spacing: 6) {
-                        Text("Status:")
-                            .foregroundColor(.secondary)
-
-                        if isCheckingCLIAuth {
-                            ProgressView().controlSize(.small)
-                            Text("Checking…")
-                                .foregroundColor(.secondary)
-                        } else if let status = cliAuthStatus {
-                            Image(systemName: status.isAuthenticated ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .foregroundColor(status.isAuthenticated ? .green : .orange)
-                            Text(status.message)
-                                .foregroundColor(status.isAuthenticated ? .primary : .orange)
-                        } else {
-                            ProgressView().controlSize(.small)
-                            Text("Checking…")
-                                .foregroundColor(.secondary)
-                        }
-
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                showingAuthHelp.toggle()
-                            }
-                        } label: {
-                            Image(systemName: showingAuthHelp ? "info.circle.fill" : "info.circle")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("How to authenticate")
-
-                        Spacer()
-
-                        Button(action: checkCLIAuth) {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Re-check authentication status")
-                        .disabled(isCheckingCLIAuth)
-                    }
-                    .font(.caption)
-                    .padding(.vertical, 2)
-
-                    if showingAuthHelp {
-                        authHelpNote
                     }
 
                     if aiManager.cliPreset == .custom {
                         TextField("Execution Command", text: $aiManager.cliCustomCommand, prompt: Text("e.g. llm -m claude-3-5-sonnet"))
                             .textFieldStyle(.roundedBorder)
+                            .onChange(of: aiManager.cliCustomCommand) { _ in
+                                scheduleCustomReadiness()
+                            }
 
                         TextField("Auth Check Command (Optional)", text: $aiManager.cliCustomAuthCommand, prompt: Text("e.g. llm models or test probe command"))
                             .textFieldStyle(.roundedBorder)
+                            .onChange(of: aiManager.cliCustomAuthCommand) { _ in
+                                scheduleCustomReadiness()
+                            }
+
+                        if let note = customCommandValidation {
+                            Text(note)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
 
                         Text("Selected text will be piped to stdin with $OPENCLIP_PROMPT and $OPENCLIP_TEXT set.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     } else {
+                        selectedCLIStatusRow
+
                         HStack(spacing: 8) {
-                            Picker("Model", selection: $aiManager.cliModel) {
-                                ForEach(resolvedCLIModels, id: \.self) { m in
-                                    Text(modelDisplayName(m)).tag(m)
-                                }
-                                Text("Custom…").tag("custom")
-                            }
+                            Text("Model")
+                            Spacer(minLength: 12)
+                            SearchableModelPicker(
+                                title: "Model",
+                                selection: $aiManager.cliModel,
+                                models: resolvedCLIModels,
+                                customTag: "custom",
+                                displayName: modelDisplayName
+                            )
 
                             Button(action: fetchCLIModels) {
                                 if isFetchingCLIModels {
@@ -229,7 +204,7 @@ public struct AIConfigureForm: View {
                         }
 
                         if aiManager.cliModel == "custom" {
-                            TextField("Custom Model Identifier", text: $aiManager.cliCustomModel, prompt: Text("e.g. claude-3-7-sonnet-20250219 or o3-mini"))
+                            TextField("Custom Model Identifier", text: $aiManager.cliCustomModel, prompt: Text("Model id or alias"))
                                 .textFieldStyle(.roundedBorder)
                         }
                     }
@@ -315,7 +290,7 @@ public struct AIConfigureForm: View {
         }
         .onAppear {
             if aiManager.activeProviderType == .cli {
-                checkCLIAuth()
+                refreshCLIReadiness()
                 fetchCLIModels()
             } else if aiManager.activeProviderType == .local {
                 fetchLocalModels()
@@ -325,17 +300,33 @@ public struct AIConfigureForm: View {
         }
         .onDisappear {
             cloudKeyDebounceTask?.cancel()
+            customReadinessTask?.cancel()
         }
         .onChange(of: aiManager.activeProviderRaw) { newRaw in
             cloudKeyDebounceTask?.cancel()
             if newRaw == AIProviderType.cli.rawValue {
-                checkCLIAuth()
+                refreshCLIReadiness()
                 fetchCLIModels()
             } else if newRaw == AIProviderType.local.rawValue {
                 fetchLocalModels()
             } else if newRaw == AIProviderType.cloud.rawValue {
                 refreshCloudModelsIfStale()
             }
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)) { notification in
+            guard pendingSetupRefresh,
+                  let app = notification.object as? NSRunningApplication,
+                  app.bundleIdentifier == Bundle.main.bundleIdentifier else { return }
+            pendingSetupRefresh = false
+            refreshCLIReadiness()
+        }
+        .alert("Install failed", isPresented: Binding(
+            get: { installError != nil },
+            set: { if !$0 { installError = nil } }
+        )) {
+            Button("OK", role: .cancel) { installError = nil }
+        } message: {
+            Text(installError ?? "")
         }
     }
 
@@ -347,36 +338,6 @@ public struct AIConfigureForm: View {
         guard canFetchCloudModels else { return }
         if let cached = CloudModelCatalog.cached(for: aiManager.cloudServiceProvider), CloudModelCatalog.isFresh(cached) { return }
         fetchCloudModels()
-    }
-
-    /// Inline auth help that expands its own row rather than opening a popover.
-    private var authHelpNote: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(authHelpText)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if aiManager.cliPreset == .codex {
-                Button("Open Terminal") {
-                    NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app"))
-                }
-                .controlSize(.small)
-            } else if !aiManager.cliPreset.loginCommand.isEmpty {
-                Button("Copy Terminal Command") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(aiManager.cliPreset.loginCommand, forType: .string)
-                }
-                .controlSize(.small)
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     // MARK: - Intelligent Model Resolution
@@ -402,23 +363,15 @@ public struct AIConfigureForm: View {
     }
 
     private var resolvedCLIModels: [String] {
-        if fetchedCLIModels.isEmpty {
-            let primary = CLIProvider.inspectConfiguredModel(for: aiManager.cliPreset) ?? aiManager.cliPreset.primaryModel
-            var list = ["default"]
-            if primary != "default" {
-                list.append(primary)
-            }
-            if !aiManager.cliModel.isEmpty && aiManager.cliModel != "custom" && !list.contains(aiManager.cliModel) {
-                list.append(aiManager.cliModel)
-            }
-            return list
-        } else {
-            var list = ["default"]
-            for m in fetchedCLIModels where m != "default" {
-                list.append(m)
-            }
-            return list
+        let source = fetchedCLIModels.isEmpty ? aiManager.cliPreset.defaultModels : fetchedCLIModels
+        var list = ["default"]
+        for model in source where model != "default" && model != "custom" && !list.contains(model) {
+            list.append(model)
         }
+        if !aiManager.cliModel.isEmpty && aiManager.cliModel != "custom" && !list.contains(aiManager.cliModel) {
+            list.append(aiManager.cliModel)
+        }
+        return list
     }
 
     private var resolvedCloudModels: [String] {
@@ -444,26 +397,188 @@ public struct AIConfigureForm: View {
         return model
     }
 
-    private var authHelpText: String {
-        if aiManager.cliPreset == .custom {
-            return "Custom CLI tools can authenticate via shell environment variables (e.g. API keys in ~/.zshrc), session credentials, or local execution without credentials. You can optionally specify an Auth Check Command to verify that your tool is ready."
-        }
-        return aiManager.cliPreset.authHelpText
-    }
-
     // MARK: - Actions
 
-    private func checkCLIAuth() {
-        isCheckingCLIAuth = true
+    /// Shown only after a custom command is entered, and only when that command does not check out.
+    private var customCommandValidation: String? {
+        let trimmed = aiManager.cliCustomCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !checkingCLI.contains(.custom) else { return nil }
+        guard let status = cliReadiness[.custom], status.state != .ready, status.state != .unspecified else { return nil }
+        return status.hint.isEmpty ? nil : status.hint
+    }
+
+    private var selectedCLIStatusRow: some View {
         let preset = aiManager.cliPreset
+        let status = cliReadiness[preset]
+        let checking = checkingCLI.contains(preset)
+        let hasStatus = status?.showsStatus == true
+        return HStack(spacing: 8) {
+            if let status, hasStatus {
+                Circle()
+                    .fill(status.state == .ready ? Color.green : Color.orange)
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+                Text(status.title)
+                    .foregroundStyle(status.state == .ready ? Color.primary : Color.orange)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                if status.state == .ready, let version = status.version, !version.isEmpty {
+                    Text(version)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 8)
+                if let title = status.setupActionTitle, let command = status.fixCommand {
+                    if status.state == .notInstalled {
+                        if installingCLI.contains(preset) {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Button(title) {
+                                installCLI(preset)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .fixedSize()
+                            .help(Text(command))
+                        }
+                    } else {
+                        Button(title) {
+                            runInTerminal(command)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .fixedSize()
+                        .help(Text(preset.authHelpText))
+                    }
+                }
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Checking…")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+            }
+
+            Button(action: refreshCLIReadiness) {
+                if checking && hasStatus {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                }
+            }
+            .buttonStyle(.borderless)
+            .help("Re-check CLI status")
+            .accessibilityLabel(Text("Re-check CLI status"))
+            .disabled(checking)
+        }
+        .font(.system(size: 13))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func installCLI(_ preset: CLIPreset) {
+        guard !installingCLI.contains(preset) else { return }
+        installingCLI.insert(preset)
+        Task {
+            let result = await CLIProvider.install(preset)
+            await MainActor.run {
+                installingCLI.remove(preset)
+                if result.succeeded {
+                    CLIProvider.invalidateExecutableCache()
+                    refreshCLIReadiness()
+                } else {
+                    let trimmed = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    installError = trimmed.isEmpty ? String(localized: "Install failed") : String(trimmed.suffix(1_200))
+                }
+            }
+        }
+    }
+
+    private func runInTerminal(_ command: String) {
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("openclip-cli-\(UUID().uuidString).command")
+        let script = """
+        #!/bin/zsh
+        \(command)
+        status=$?
+        echo
+        if [ $status -eq 0 ]; then
+            echo "Done."
+        else
+            echo "Command failed with exit code $status."
+        fi
+        echo "Press Return to close this window."
+        read -r
+        """
+        do {
+            try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+            pendingSetupRefresh = true
+            NSWorkspace.shared.open(scriptURL)
+        } catch {
+            Log.presentation.error("Failed to run CLI setup command: \(error.localizedDescription)")
+        }
+    }
+
+    private func scheduleCustomReadiness() {
+        customReadinessTask?.cancel()
+        let command = aiManager.cliCustomCommand
+        let auth = aiManager.cliCustomAuthCommand
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            cliReadiness[.custom] = .unspecified()
+            checkingCLI.remove(.custom)
+            return
+        }
+        checkingCLI.insert(.custom)
+        customReadinessTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            let status = await CLIProvider.readiness(for: .custom, customCommand: command, customAuthCommand: auth)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard self.aiManager.cliCustomCommand == command,
+                      self.aiManager.cliCustomAuthCommand == auth else { return }
+                self.cliReadiness[.custom] = status
+                self.checkingCLI.remove(.custom)
+            }
+        }
+    }
+
+    private func refreshCLIReadiness() {
+        CLIProvider.invalidateExecutableCache()
+        cliReadinessGeneration += 1
+        let generation = cliReadinessGeneration
+        let presets = CLIPreset.allCases
         let customCmd = aiManager.cliCustomCommand
         let customAuthCmd = aiManager.cliCustomAuthCommand
+        checkingCLI = Set(presets)
         Task {
-            let result = await CLIProvider.checkAuthStatus(for: preset, customCommand: customCmd, customAuthCommand: customAuthCmd)
-            await MainActor.run {
-                guard aiManager.cliPreset == preset else { return }
-                self.cliAuthStatus = result
-                self.isCheckingCLIAuth = false
+            await withTaskGroup(of: (CLIPreset, CLIReadiness).self) { group in
+                for preset in presets {
+                    group.addTask {
+                        let status = await CLIProvider.readiness(
+                            for: preset,
+                            customCommand: customCmd,
+                            customAuthCommand: customAuthCmd
+                        )
+                        return (preset, status)
+                    }
+                }
+                for await (preset, status) in group {
+                    await MainActor.run {
+                        guard self.cliReadinessGeneration == generation else { return }
+                        if preset == .custom,
+                           self.aiManager.cliCustomCommand != customCmd
+                            || self.aiManager.cliCustomAuthCommand != customAuthCmd {
+                            self.checkingCLI.remove(preset)
+                            return
+                        }
+                        self.cliReadiness[preset] = status
+                        self.checkingCLI.remove(preset)
+                    }
+                }
             }
         }
     }
@@ -472,7 +587,7 @@ public struct AIConfigureForm: View {
         let preset = aiManager.cliPreset
         isFetchingCLIModels = true
         Task {
-            let models = (try? await CLIProvider.fetchAvailableModels(for: preset)) ?? []
+            let models = await CLIProvider.fetchAvailableModels(for: preset)
             await MainActor.run {
                 guard aiManager.cliPreset == preset else { return }
                 self.fetchedCLIModels = models

@@ -871,5 +871,13 @@
   "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "如果该单词在任一已启用的键盘输入语言中拼写正确，则不显示建议。",
   "Inline": "内联",
   "As contextual action": "作为上下文操作",
-  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "内联会在操作栏中显示建议。上下文操作会显示“单词补全”组，可悬停查看或搜索。"
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "内联会在操作栏中显示建议。上下文操作会显示“单词补全”组，可悬停查看或搜索。",
+  "Not installed": "未安装",
+  "Sign in needed": "需要登录",
+  "Ready": "就绪",
+  "Checking…": "正在检查…",
+  "Command “%@” not found": "未找到命令“%@”",
+  "Auth check failed": "身份验证检查未通过",
+  "Sign In": "登录",
+  "Install failed": "安装失败"
 }

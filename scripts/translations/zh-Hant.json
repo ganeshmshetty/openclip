@@ -871,5 +871,13 @@
   "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": "如果該單字在任一已啟用的鍵盤輸入語言中拼寫正確，則不顯示建議。",
   "Inline": "內嵌",
   "As contextual action": "作為情境操作",
-  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
+  "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。",
+  "Not installed": "未安裝",
+  "Sign in needed": "需要登入",
+  "Ready": "就緒",
+  "Checking…": "正在檢查…",
+  "Command “%@” not found": "找不到指令「%@」",
+  "Auth check failed": "驗證檢查未通過",
+  "Sign In": "登入",
+  "Install failed": "安裝失敗"
 }
