@@ -38,6 +38,13 @@ public enum ResultCardDragPhase: Sendable {
 
 // MARK: - Result Card
 
+private struct ResultMarkdownHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 public struct ResultCardView: View {
     public let payload: ResultCardPayload
     /// Paste availability of the target app (from the AX probe); `false` hides the Paste button.
@@ -106,6 +113,8 @@ public struct ResultCardView: View {
     /// Diff of `payload.original` → `payload.text`, recomputed when the payload settles, not mid-stream.
     @State private var diffSegments: [TextDiffSegment] = []
     @State private var showsDiff = false
+    /// Measured height of the rendered Markdown body; nil until the first layout pass reports it.
+    @State private var renderedBodyHeight: CGFloat?
     /// Set once the user works the toggle, so a later payload update can't override their choice.
     @State private var didChooseDiffMode = false
     /// Makes `.began` fire once per drag.
@@ -258,6 +267,8 @@ public struct ResultCardView: View {
         }
         .onChange(of: payload) { _, _ in
             refreshDiff()
+            // A new answer invalidates the previous Markdown measurement.
+            renderedBodyHeight = nil
         }
         .onKeyPress(.escape) {
             handleEscape()
@@ -723,6 +734,11 @@ public struct ResultCardView: View {
         if isTypedVisualResult {
             return PopupMetrics.typedCardNaturalHeight
         }
+        // Rendered Markdown is shorter than its source (markers vanish, lists compact); use the
+        // measured layout height once reported, falling back to the source estimate before that.
+        if rendersMarkdown, let measured = renderedBodyHeight, measured > 0 {
+            return ceil(measured) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
+        }
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return PopupMetrics.aiCardMinHeight }
         let availableWidth = dynamicCardWidth - 2 * Self.horizontalTextInset
@@ -819,10 +835,30 @@ public struct ResultCardView: View {
     private var bodyText: some View {
         if showsDiff, hasDiff {
             Text(diffAttributedText)
+        } else if rendersMarkdown {
+            ResultMarkdownBody(text: payload.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: ResultMarkdownHeightKey.self, value: proxy.size.height)
+                    }
+                )
+                .onPreferenceChange(ResultMarkdownHeightKey.self) { height in
+                    if abs((renderedBodyHeight ?? 0) - height) > 0.5 {
+                        renderedBodyHeight = height
+                    }
+                }
         } else {
             Text(payload.text)
                 .foregroundColor(payload.isError ? Color.red : (payload.isRefining ? Color.primary.opacity(0.55) : Color.primary))
         }
+    }
+
+    /// AI answers render as Markdown once settled; streaming stays plain so half-written markers
+    /// don't flicker. Errors, refinements in flight, and marker-free prose keep the plain body.
+    private var rendersMarkdown: Bool {
+        payload.canFollowUp && !payload.isError && !payload.isStreaming && !payload.isRefining
+            && MarkdownPresence.isMarkdown(payload.text)
     }
 
     /// A typed color: one bounded swatch plus its canonical hex. Copy/Save are explicit card actions;

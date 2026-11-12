@@ -480,6 +480,18 @@ areas; stale debt notes are worse than none.
   true and is exposed under Customize → Behavior. Hiding it removes its width reservation
   from popup pagination and updates the Appearance preview. The search hotkey stays available.
 
+- AI result bodies render Markdown once settled. `MarkdownPresence`
+  (`Core/Utils/MarkdownPresence.swift`) is a detection-only scan (no parsing): line-anchored
+  constructs plus paired inline markers, checked outside fenced code blocks, with shell-comment
+  (`# lowercase`) and glob (`* .swift`) guards; texts over 20 000 characters stay plain.
+  `ResultCardView.bodyText` routes AI answers (`canFollowUp`) through `ResultMarkdownBody`
+  (MarkdownUI, 13.5 pt body, toned-down heading scale) only when not streaming, refining, errored,
+  or showing the diff. Copy/paste/drag keep using `payload.text`, so the Markdown source is what
+  leaves the card. Card height uses the rendered body's measured layout height (PreferenceKey
+  report, reset on payload change) and falls back to the source-text estimate before the first
+  layout pass; width still measures the source text. Known gaps: no toggle back to source view
+  (⌘D is the diff), and MarkdownUI brings NetworkImage + swift-cmark into the dependency graph.
+
 ## AI providers
 
 - Apple Intelligence is gated by one availability source. `AppleIntelligenceAvailability`
