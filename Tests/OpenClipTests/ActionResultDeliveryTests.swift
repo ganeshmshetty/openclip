@@ -254,6 +254,40 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(r, .text("hello"))
     }
 
+    func testPresentedTextKeepsPresentationForPreview() {
+        let (r, toast) = ActionResultDelivery.resolve(
+            raw: .presentedText("hello", .markdown),
+            clickIntent: .primary,
+            canPaste: true,
+            delivery: .none,
+            preference: .preview
+        )
+        guard case .presentedText(let text, let presentation) = r else {
+            return XCTFail("Expected .presentedText, got \(r)")
+        }
+        XCTAssertEqual(text, "hello")
+        XCTAssertEqual(presentation, .markdown)
+        XCTAssertNil(toast)
+    }
+
+    func testPresentedTextDeliversPlainText() {
+        let (pasteResult, _) = ActionResultDelivery.resolve(
+            raw: .presentedText("hello", .code),
+            clickIntent: .primary,
+            canPaste: true,
+            delivery: .none
+        )
+        assertCase(pasteResult, .paste("hello"), "the presentation never changes delivery")
+
+        let (copyResult, _) = ActionResultDelivery.resolve(
+            raw: .presentedText("hello", .diff),
+            clickIntent: .secondary,
+            canPaste: true,
+            delivery: .none
+        )
+        assertCase(copyResult, .copy("hello"))
+    }
+
     func testTextNilPreferencePrimaryDefaultsToPaste() {
         let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none)
         assertCase(r, .paste("hello"))
@@ -541,6 +575,37 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.runAction(TextStubAction(result: .simulatePaste), with: controllerCurrentContext(controller, source: .ocr), isSecondaryClick: true)
 
         assertCase(try await awaitDelivery(from: handler), .none)
+    }
+
+    @MainActor
+    func testOCRPresentedTextHonorsPreviewChoice() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler, pasteProbe: FixedProbe(result: true), appPolicy: .default, source: .ocr)
+        defer { controller.hide() }
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
+
+        controller.deliverResult(.presentedText("recognized", .markdown))
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while controller.modeStore.mode != .content && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
+        }
+        XCTAssertTrue(handler.results.isEmpty, "an explicit preview choice must survive OCR")
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "recognized")
+        XCTAssertEqual(controller.modeStore.resultCard?.presentation, .markdown)
+    }
+
+    @MainActor
+    func testOCRPresentedTextWithoutPreviewStillCopies() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler, pasteProbe: FixedProbe(result: true), appPolicy: .default, source: .ocr)
+        defer { controller.hide() }
+
+        controller.deliverResult(.presentedText("recognized", .plain))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("recognized"))
     }
 
     @MainActor

@@ -1642,6 +1642,7 @@ public struct ActionEditorPage: View {
             localizedLoadingMessage: meta.localizedLoadingMessage,
             output: meta.output,
             result: meta.result,
+            presentation: meta.presentation,
             captureRtf: meta.captureRtf,
             captureHtml: meta.captureHtml
         )
@@ -1662,7 +1663,8 @@ public struct ActionEditorPage: View {
             localizedDescription: state.manifest.localizedDescription,
             author: state.manifest.author,
             output: state.manifest.output,
-            result: state.manifest.result
+            result: state.manifest.result,
+            presentation: state.manifest.presentation
         )
 
         do {

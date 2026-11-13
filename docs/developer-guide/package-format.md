@@ -74,6 +74,7 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `capabilities` | Array | - | Declared runtime capabilities. The known set is empty on day one, so any non-empty value rejects the manifest. Reserved. |
 | `output` | String | - | Optional default output contract kind (`"text"`, `"color"`, `"file"`, `"none"`, `"dynamic"`) inherited by actions in the package. |
 | `result` | String | - | Optional default delivery recommendation (`"preview"`, `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`) inherited by actions. |
+| `presentation` | String | - | Optional default card format for text results: `"plain"`, `"markdown"`, `"code"`, or `"diff"`. Inherited by actions; defaults to `"plain"`. |
 
 Manifests are validated on load (`ManifestValidator`): unknown action kinds, missing required
 fields (`keyPress`/`shortcutName`/`subActions`/executable payload), and any declared capability
@@ -102,6 +103,7 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
 | `output` | String | Optional declared output kind: `"text"`, `"color"`, `"file"`, `"none"`, `"dynamic"`. Inherits package-level `output` if omitted, or falls back to inference sniffing for legacy extensions. |
 | `result` | String | Optional recommended delivery: `"preview"` (result card), `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`. Defaults to package-level default or kind defaults (`paste-or-copy` for text, `preview` for file). |
+| `presentation` | String | Optional card format for text results: `"plain"`, `"markdown"`, `"code"`, or `"diff"`. Overrides the package default; defaults to `"plain"`. Set it on each sub-action of a group, not on the structural group row. |
 | `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "toast" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only**, rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
 | `toast` | Object | Optional. Primary-click companion toast `{ "message": string | object, "style"?: "success" | "error" | "info" }` (default style `success`). Valid on all kinds. Message can be localized dictionary. |
 | `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. Dash alias: `secondary-toast`. |
@@ -118,6 +120,27 @@ source, so clipboard-derived transformations can still be pasted into a confirme
 Older OpenClip releases ignore unknown manifest keys; do not publish catalog packages that rely on
 these gates until an enforcing release exists. The current source version 1.7.3 is not a confirmed
 compatibility floor, so `minOpenClipVersion` must wait for that release's version to be established.
+
+### Result presentation
+
+`presentation` only changes how the preview card renders a text result. Copy, Paste, and Drag always
+use the text itself. Declare it on the action or package, or return it with a typed text result:
+
+```js
+return { type: "text", value: markdown, presentation: "markdown" };
+```
+
+```json
+{ "type": "text", "value": "print(1)", "presentation": "code" }
+```
+
+`diff` compares the original selection with the result. When the texts are too large or not
+meaningfully similar, the card falls back to plain text and hides the diff toggle. Unknown values
+fall back to `plain`.
+
+Manifest-level `presentation` is ignored by older releases, which show plain text. A typed text
+result with `presentation` is only understood by releases that support the key; gate it with
+`minOpenClipVersion` once that release is known.
 
 ### Contextual promotion
 

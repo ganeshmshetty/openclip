@@ -495,6 +495,12 @@ areas; stale debt notes are worse than none.
   cannot trigger network fetches. Known gaps: no toggle back to source view (⌘D is the diff), and
   MarkdownUI brings NetworkImage + swift-cmark into the dependency graph.
 
+- Extension text previews can declare a card format. `presentation` (`plain`, `markdown`, `code`,
+  `diff`) resolves action → package → plain in `DefaultActionFactory` and rides `ActionChrome` →
+  `DeliveryContext` → `ResultCardPayload`; a typed text result can override it via
+  `.presentedText`. Copy/paste/drag ignore the presentation. `diff` reuses
+  `TextDiff.isMeaningfulEdit` and falls back to plain text for large or unrelated results.
+
 ## AI providers
 
 - Apple Intelligence is gated by one availability source. `AppleIntelligenceAvailability`

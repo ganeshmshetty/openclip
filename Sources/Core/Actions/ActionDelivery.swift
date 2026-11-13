@@ -45,6 +45,8 @@ extension ActionDelivery {
                  (.showServices(let x), .showServices(let y)),
                  (.copyDefinition(let x), .copyDefinition(let y)):
                 return x == y
+            case (.presentedText(let x, let xp), .presentedText(let y, let yp)):
+                return x == y && xp == yp
             case (.color(let x), .color(let y)):
                 return x == y
             case (.openURL(let x), .openURL(let y)):

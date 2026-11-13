@@ -114,7 +114,7 @@ public enum ActionResultDelivery {
         let effectiveMode: ActionResultDeliveryMode
         if let explicitMode {
             effectiveMode = explicitMode
-        } else if case .text = raw {
+        } else if raw.textContent != nil {
             effectiveMode = .pasteOrCopy
         } else if case .file = raw {
             effectiveMode = .preview
@@ -122,17 +122,17 @@ public enum ActionResultDelivery {
             effectiveMode = .preview
         }
 
-        if case .text(let text) = raw {
+        if let content = raw.textContent {
             if clickIntent == .primary {
                 switch effectiveMode {
                 case .preview:
                     return raw
                 case .paste, .pasteOrCopy:
-                    return .paste(text)
+                    return .paste(content.text)
                 case .copy:
-                    return .copy(text)
+                    return .copy(content.text)
                 case .open, .save:
-                    return .paste(text)
+                    return .paste(content.text)
                 }
             } else {
                 switch effectiveMode {
@@ -140,10 +140,10 @@ public enum ActionResultDelivery {
                     // User chose "Show in card": the secondary click shows the card too.
                     return raw
                 case .paste, .pasteOrCopy, .preview, .open, .save:
-                    return .copy(text)
+                    return .copy(content.text)
                 case .copy:
                     // Primary copy -> Secondary preview
-                    return .text(text)
+                    return raw
                 }
             }
         }

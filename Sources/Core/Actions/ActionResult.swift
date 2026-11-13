@@ -20,6 +20,8 @@ public indirect enum ActionResult: Sendable {
     /// Implicitly returned text (JS return, AppleScript output, shell stdout). Carries no delivery decision:
     /// the "When an action returns text" preference picks preview/paste/copy. Explicit effects are never re-decided.
     case text(String)
+    /// Text with an explicit card format. Delivery is identical to `.text`; only the preview changes.
+    case presentedText(String, ResultPresentation)
     /// A typed inline color: shown as a swatch card with explicit Copy/Save; automatic delivery is Show-only.
     case color(InlineColor)
     /// Carrier for a validated typed inline return; the inline evaluator converts it to a
@@ -106,7 +108,7 @@ extension ActionResult {
         switch self {
         case .toast(let feedback):
             return !feedback.keepVisible
-        case .text, .file, .showDefinition, .color:
+        case .text, .presentedText, .file, .showDefinition, .color:
             // Kept open for in-card preview; the Look Up popover is anchored to the panel, so it stays too.
             return false
         case .sequence(let items):
@@ -129,9 +131,21 @@ extension ActionResult {
     public var containsToast: Bool {
         switch self {
         case .toast: return true
-        case .text, .file, .color: return false
+        case .text, .presentedText, .file, .color: return false
         case .sequence(let items): return items.contains(where: \.containsToast)
         default: return false
+        }
+    }
+
+    /// Text that belongs in the preview card, with its explicit presentation when supplied.
+    public var textContent: ResultTextContent? {
+        switch self {
+        case .text(let text):
+            return ResultTextContent(text: text)
+        case .presentedText(let text, let presentation):
+            return ResultTextContent(text: text, presentation: presentation)
+        default:
+            return nil
         }
     }
 }

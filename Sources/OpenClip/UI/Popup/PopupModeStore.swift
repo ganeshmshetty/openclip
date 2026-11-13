@@ -52,6 +52,8 @@ public struct ResultCardPayload: Sendable, Equatable {
     public let isRefining: Bool
     /// True for AI results that support follow-up refinement.
     public let canFollowUp: Bool
+    /// Explicit card format for extension results; nil keeps the built-in AI detection.
+    public let presentation: ResultPresentation?
     public let file: FileOutputPayload?
     /// A typed color result; the card renders a swatch and hex with no Copy/Paste controls.
     public let color: InlineColor?
@@ -60,7 +62,7 @@ public struct ResultCardPayload: Sendable, Equatable {
     public let versionCount: Int
 
     /// Builds the card content, including an optional native file.
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, file: FileOutputPayload? = nil, color: InlineColor? = nil, versionIndex: Int = 1, versionCount: Int = 1) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, presentation: ResultPresentation? = nil, file: FileOutputPayload? = nil, color: InlineColor? = nil, versionIndex: Int = 1, versionCount: Int = 1) {
         self.text = text
         self.isError = isError
         self.title = title
@@ -69,6 +71,7 @@ public struct ResultCardPayload: Sendable, Equatable {
         self.original = original
         self.isRefining = isRefining
         self.canFollowUp = canFollowUp
+        self.presentation = presentation
         self.file = file
         self.color = color
         self.versionIndex = versionIndex

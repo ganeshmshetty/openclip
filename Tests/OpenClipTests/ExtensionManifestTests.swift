@@ -109,6 +109,51 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertNil(action.loadingMessage)
     }
 
+    func testPresentationDecodesAtActionAndPackageLevel() throws {
+        let json = """
+        {
+          "identifier": "com.test.presentation",
+          "name": "Presentation",
+          "presentation": "markdown",
+          "actions": [
+            { "title": "Inherited", "type": "url", "url": "https://example.com/1?q={query}" },
+            { "title": "Code", "type": "url", "url": "https://example.com/2?q={query}", "presentation": "code" }
+          ]
+        }
+        """
+        let manifest = try JSONDecoder().decode(ExtensionMetadata.self, from: Data(json.utf8))
+        XCTAssertEqual(manifest.presentation, .markdown)
+        XCTAssertNil(manifest.actions[0].presentation)
+        XCTAssertEqual(manifest.actions[1].presentation, .code)
+
+        let roundTrip = try JSONDecoder().decode(
+            ExtensionMetadata.self,
+            from: JSONEncoder().encode(manifest)
+        )
+        XCTAssertEqual(roundTrip.presentation, .markdown)
+        XCTAssertEqual(roundTrip.actions[1].presentation, .code)
+    }
+
+    func testUnknownPresentationFallsBackToPlain() throws {
+        let manifest = try JSONDecoder().decode(
+            ExtensionMetadata.self,
+            from: #"{"identifier":"pkg","name":"Pkg","presentation":"html","actions":[]}"#.data(using: .utf8)!
+        )
+        XCTAssertEqual(manifest.presentation, .plain)
+
+        let action = try JSONDecoder().decode(
+            ExtensionActionMetadata.self,
+            from: #"{"title":"Action","presentation":"html"}"#.data(using: .utf8)!
+        )
+        XCTAssertEqual(action.presentation, .plain, "an unknown action value must not inherit a package format")
+
+        let omitted = try JSONDecoder().decode(
+            ExtensionActionMetadata.self,
+            from: #"{"title":"Action"}"#.data(using: .utf8)!
+        )
+        XCTAssertNil(omitted.presentation, "an omitted key still inherits the package default")
+    }
+
     func testManifestDecoding() throws {
         let json = """
         {

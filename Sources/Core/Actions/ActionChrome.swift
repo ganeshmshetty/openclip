@@ -191,6 +191,8 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     public let outputKind: ActionOutputKind
     /// Author-recommended delivery for uncommitted results.
     public let recommendedResult: ActionResultDeliveryMode?
+    /// Author-declared card format for text results; nil keeps built-in detection (AI) or plain (extensions resolve a default).
+    public let presentation: ResultPresentation?
     /// Explicit contextual-promotion override from the manifest; nil uses the uniform auto rule.
     public let contextualOverride: Bool?
 
@@ -207,6 +209,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         displayOnly: Bool = false,
         outputKind: ActionOutputKind = .none,
         recommendedResult: ActionResultDeliveryMode? = nil,
+        presentation: ResultPresentation? = nil,
         contextualOverride: Bool? = nil
     ) {
         self.badge = badge
@@ -221,6 +224,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.displayOnly = displayOnly && isInlineResult
         self.outputKind = (outputKind == .none && isInlineResult) ? .text : outputKind
         self.recommendedResult = recommendedResult
+        self.presentation = presentation
         self.contextualOverride = contextualOverride
     }
 
@@ -242,6 +246,8 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.outputKind = (decodedOutput == .none && inline) ? .text : decodedOutput
         let rawResult = try? container.decodeIfPresent(String.self, forKey: .recommendedResult)
         self.recommendedResult = rawResult.flatMap(ActionResultDeliveryMode.init(rawValue:))
+        let rawPresentation = try? container.decodeIfPresent(String.self, forKey: .presentation)
+        self.presentation = rawPresentation.flatMap(ResultPresentation.init(rawValue:))
         self.contextualOverride = try container.decodeIfPresent(Bool.self, forKey: .contextualOverride)
     }
 
@@ -261,6 +267,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
             try container.encode(outputKind.rawValue, forKey: .outputKind)
         }
         try container.encodeIfPresent(recommendedResult?.rawValue, forKey: .recommendedResult)
+        try container.encodeIfPresent(presentation?.rawValue, forKey: .presentation)
         try container.encodeIfPresent(contextualOverride, forKey: .contextualOverride)
     }
 
@@ -277,6 +284,7 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         case displayOnly
         case outputKind
         case recommendedResult
+        case presentation
         case contextualOverride
     }
 }
