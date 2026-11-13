@@ -324,6 +324,7 @@ public final class DefaultActionFactory: ActionFactory, Sendable {
             displayOnly: isDisplayOnly,
             outputKind: resolvedOutputKind,
             recommendedResult: resolvedResult,
+            presentation: metadata.presentation ?? manifest.presentation ?? .plain,
             contextualOverride: metadata.contextual
         )
 

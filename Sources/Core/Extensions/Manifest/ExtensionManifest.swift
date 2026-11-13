@@ -46,6 +46,8 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     public let output: ExtensionOutputKind?
     /// Declares the recommended delivery for an uncommitted result ("preview", "paste", "copy", "paste-or-copy", "open", "save").
     public let result: ExtensionResultDelivery?
+    /// Declares the card format for text results ("plain", "markdown", "code", "diff"). Nil uses plain.
+    public let presentation: ResultPresentation?
     /// Explicit contextual promotion override. Nil uses the uniform auto rule.
     public let contextual: Bool?
 
@@ -82,6 +84,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         localizedLoadingMessage: LocalizedStringValue? = nil,
         output: ExtensionOutputKind? = nil,
         result: ExtensionResultDelivery? = nil,
+        presentation: ResultPresentation? = nil,
         captureRtf: Bool? = nil,
         captureHtml: Bool? = nil,
         contextual: Bool? = nil
@@ -116,6 +119,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.displayOnly = displayOnly
         self.output = output
         self.result = result
+        self.presentation = presentation
         self.contextual = contextual
     }
 
@@ -198,6 +202,11 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         } else {
             self.result = nil
         }
+        if let raw = try? container.decodeIfPresent(String.self, forKey: .presentation) {
+            self.presentation = ResultPresentation(rawValue: raw)
+        } else {
+            self.presentation = nil
+        }
         self.contextual = try container.decodeIfPresent(Bool.self, forKey: .contextual)
     }
 
@@ -239,6 +248,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(displayOnly, forKey: .displayOnly)
         try container.encodeIfPresent(output?.rawValue, forKey: .output)
         try container.encodeIfPresent(result?.rawValue, forKey: .result)
+        try container.encodeIfPresent(presentation?.rawValue, forKey: .presentation)
         try container.encodeIfPresent(contextual, forKey: .contextual)
     }
 
@@ -284,6 +294,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case legacyOutput = "Output"
         case result = "result"
         case legacyResult = "Result"
+        case presentation = "presentation"
         case contextual = "contextual"
     }
 }
@@ -442,6 +453,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
     public let output: ExtensionOutputKind?
     /// Package-level default for result delivery recommendation ("preview", "paste", "copy", "paste-or-copy", "open", "save").
     public let result: ExtensionResultDelivery?
+    /// Package-level default for text card format ("plain", "markdown", "code", "diff").
+    public let presentation: ResultPresentation?
     
     public init(
         identifier: String,
@@ -457,7 +470,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         localizedDescription: LocalizedStringValue? = nil,
         author: String? = nil,
         output: ExtensionOutputKind? = nil,
-        result: ExtensionResultDelivery? = nil
+        result: ExtensionResultDelivery? = nil,
+        presentation: ResultPresentation? = nil
     ) {
         self.identifier = identifier
         self.name = name
@@ -473,6 +487,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         self.keywords = keywords
         self.output = output
         self.result = result
+        self.presentation = presentation
     }
     
     public init(from decoder: Decoder) throws {
@@ -532,6 +547,11 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         } else {
             self.result = nil
         }
+        if let raw = try? container.decodeIfPresent(String.self, forKey: .presentation) {
+            self.presentation = ResultPresentation(rawValue: raw)
+        } else {
+            self.presentation = nil
+        }
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -556,6 +576,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         try container.encodeIfPresent(keywords, forKey: .keywords)
         try container.encodeIfPresent(output?.rawValue, forKey: .output)
         try container.encodeIfPresent(result?.rawValue, forKey: .result)
+        try container.encodeIfPresent(presentation?.rawValue, forKey: .presentation)
     }
     
     enum CodingKeys: String, CodingKey {
@@ -584,6 +605,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         case legacyOutput = "Output"
         case result = "result"
         case legacyResult = "Result"
+        case presentation = "presentation"
     }
 }
 

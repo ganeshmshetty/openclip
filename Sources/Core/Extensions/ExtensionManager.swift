@@ -452,7 +452,8 @@ public final class ExtensionManager: Sendable {
                                 localizedTitle: nil,
                                 localizedLoadingMessage: oldMeta.localizedLoadingMessage,
                                 output: oldMeta.output,
-                                result: oldMeta.result
+                                result: oldMeta.result,
+                                presentation: oldMeta.presentation
                             )
                         }
 
@@ -470,7 +471,8 @@ public final class ExtensionManager: Sendable {
                             localizedDescription: manifest.localizedDescription,
                             author: manifest.author,
                             output: manifest.output,
-                            result: manifest.result
+                            result: manifest.result,
+                            presentation: manifest.presentation
                         )
 
                         try ExtensionManifestStore.writeManifest(updatedManifest, to: destManifestURL)

@@ -138,6 +138,8 @@ public final class OpenClipJSHost: @unchecked Sendable {
         public var copyFile: URL?
         public var saveFile: URL?
         public var returnValue: String?
+        /// Card format supplied with a typed text return.
+        public var presentation: ResultPresentation?
         /// A typed inline value (text/color) returned by the script.
         public var inlineValue: InlineResultValue?
         /// A structured inline object was present but malformed; never reinterpret it as text.
@@ -576,6 +578,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
                         }
                     }
                 }
+                if let textReturn = Self.decodeTextReturn(resolvedVal) {
+                    collected.value.returnValue = textReturn.text
+                    collected.value.presentation = textReturn.presentation
+                }
             }
             // Plain objects stringify to "[object Object]" and are dropped.
             let resolved = promiseState.resolvedValue.flatMap { (value: JSValue) -> String? in
@@ -606,6 +612,9 @@ public final class OpenClipJSHost: @unchecked Sendable {
                         effects.value.append(.toast(StatusFeedback(message: String(localized: "File not found"), style: .error)))
                     }
                 }
+            } else if !request.restrictedToPreview, let textReturn = Self.decodeTextReturn(result) {
+                collected.value.returnValue = textReturn.text
+                collected.value.presentation = textReturn.presentation
             } else if (!request.restrictedToPreview || !result.isObject),
                       let resultString = result.toString(), resultString != "undefined", resultString != "null", resultString != "[object Object]" {
                 collected.value.returnValue = resultString
@@ -688,6 +697,20 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case notStructured
         case invalid
         case value(InlineResultValue)
+    }
+
+    /// Parses a non-inline `{ type: "text", value, presentation }` return. The presentation key is
+    /// required, so legacy typed objects keep their inline-only behavior. Inline previews use
+    /// `decodeInlineReturn` instead, where only the one-line value matters.
+    private static func decodeTextReturn(_ value: JSValue) -> (text: String, presentation: ResultPresentation)? {
+        guard value.isObject,
+              let typeValue = value.objectForKeyedSubscript("type"), typeValue.isString,
+              (typeValue.toString() ?? "").lowercased() == "text",
+              let textValue = value.objectForKeyedSubscript("value"), textValue.isString,
+              let presentationValue = value.objectForKeyedSubscript("presentation"), presentationValue.isString else {
+            return nil
+        }
+        return (textValue.toString() ?? "", ResultPresentation(rawValue: presentationValue.toString() ?? "") ?? .plain)
     }
 
     private static func decodeInlineReturn(_ value: JSValue) -> DecodedInlineReturn {
@@ -998,8 +1021,10 @@ public final class OpenClipJSHost: @unchecked Sendable {
         } else if collected.invalidInlineValue {
             raw = .none
         } else if let returnValue = evaluation.asyncReturnValue ?? collected.returnValue {
-            // A restricted preview is value-only: a path-like string stays text, never a file result.
-            if !request.restrictedToPreview, let fileResult = ShellResultMapper.detectFileResult(from: returnValue) {
+            // A typed text result is explicit: never reinterpret it as a file.
+            if let presentation = collected.presentation {
+                raw = .presentedText(returnValue, presentation)
+            } else if !request.restrictedToPreview, let fileResult = ShellResultMapper.detectFileResult(from: returnValue) {
                 raw = fileResult
             } else {
                 raw = .text(returnValue)

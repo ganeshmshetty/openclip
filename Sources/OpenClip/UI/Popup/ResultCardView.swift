@@ -330,7 +330,8 @@ public struct ResultCardView: View {
         let segments = TextDiff.segments(from: source, to: result)
         diffSegments = segments
         if !didChooseDiffMode {
-            showsDiff = true
+            // AI keeps its existing default; an explicit format owns the initial view.
+            showsDiff = payload.presentation == nil || payload.presentation == .diff
         }
     }
 
@@ -539,6 +540,7 @@ public struct ResultCardView: View {
 
     private static let horizontalTextInset: CGFloat = 16.0
     private static let bodyFont = NSFont.systemFont(ofSize: 13.5, weight: .regular)
+    private static let codeFont = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
     private static let bodyParagraphStyle: NSParagraphStyle = {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3.5
@@ -736,16 +738,17 @@ public struct ResultCardView: View {
         }
         // Rendered Markdown is shorter than its source (markers vanish, lists compact); use the
         // measured layout height once reported, falling back to the source estimate before that.
-        if rendersMarkdown, let measured = renderedBodyHeight, measured > 0 {
+        if rendersMarkdown, !showsDiff, let measured = renderedBodyHeight, measured > 0 {
             return ceil(measured) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
         }
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return PopupMetrics.aiCardMinHeight }
         let availableWidth = dynamicCardWidth - 2 * Self.horizontalTextInset
+        let isCode = payload.presentation == .code && !showsDiff
         let rect = (textToMeasure as NSString).boundingRect(
             with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
+            attributes: [.font: isCode ? Self.codeFont : Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
         )
         return ceil(rect.height) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
     }
@@ -835,6 +838,9 @@ public struct ResultCardView: View {
     private var bodyText: some View {
         if showsDiff, hasDiff {
             Text(diffAttributedText)
+        } else if payload.presentation == .code {
+            ResultCodeBody(text: payload.text)
+                .foregroundColor(payload.isError ? Color.red : Color.primary)
         } else if rendersMarkdown {
             ResultMarkdownBody(text: payload.text)
                 .fixedSize(horizontal: false, vertical: true)
@@ -854,11 +860,18 @@ public struct ResultCardView: View {
         }
     }
 
-    /// AI answers render as Markdown once settled; streaming stays plain so half-written markers
-    /// don't flicker. Errors, refinements in flight, and marker-free prose keep the plain body.
+    /// AI answers render as Markdown once settled; an explicit presentation overrides detection.
+    /// Streaming stays plain so half-written markers don't flicker.
     private var rendersMarkdown: Bool {
-        payload.canFollowUp && !payload.isError && !payload.isStreaming && !payload.isRefining
-            && MarkdownPresence.isMarkdown(payload.text)
+        guard !payload.isError, !payload.isStreaming, !payload.isRefining else { return false }
+        switch payload.presentation {
+        case .markdown:
+            return true
+        case .plain, .code, .diff:
+            return false
+        case nil:
+            return payload.canFollowUp && MarkdownPresence.isMarkdown(payload.text)
+        }
     }
 
     /// A typed color: one bounded swatch plus its canonical hex. Copy/Save are explicit card actions;

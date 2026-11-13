@@ -141,6 +141,32 @@ final class OpenClipJSHostTests: XCTestCase {
         XCTAssertEqual(text, "Copied")
     }
 
+    func testTypedTextReturnCarriesPresentation() async throws {
+        let result = try await host.run(makeRequest(script: """
+            function action() {
+              return { type: 'text', value: '**hi**', presentation: 'markdown' };
+            }
+            """))
+        guard case .presentedText(let text, let presentation) = result else {
+            return XCTFail("Expected .presentedText, got \(result)")
+        }
+        XCTAssertEqual(text, "**hi**")
+        XCTAssertEqual(presentation, .markdown)
+    }
+
+    func testTypedTextReturnCarriesPresentationAsync() async throws {
+        let result = try await host.run(makeRequest(script: """
+            async function action() {
+              return { type: 'text', value: 'print(1)', presentation: 'code' };
+            }
+            """, isAsync: true))
+        guard case .presentedText(let text, let presentation) = result else {
+            return XCTFail("Expected .presentedText, got \(result)")
+        }
+        XCTAssertEqual(text, "print(1)")
+        XCTAssertEqual(presentation, .code)
+    }
+
     // MARK: - Console shim
 
     /// `console.log` must not throw; it routes to Log.js and the script completes.

@@ -28,6 +28,32 @@ final class MultiActionExtensionTests: XCTestCase {
     }
 
     @MainActor
+    func testPresentationInheritsFromPackageAndOverridesPerAction() async throws {
+        let bundle = tempDir.appendingPathComponent("Pres.openclipext")
+        try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
+        let manifest = """
+        {
+            "identifier": "prespkg",
+            "name": "Pres",
+            "presentation": "markdown",
+            "actions": [
+                { "id": "inherit", "title": "Inherit", "url": "https://example.com/1?q={query}" },
+                { "id": "code", "title": "Code", "url": "https://example.com/2?q={query}", "presentation": "code" },
+                { "id": "plain", "title": "Plain", "url": "https://example.com/3?q={query}", "presentation": "plain" }
+            ]
+        }
+        """
+        try manifest.write(to: bundle.appendingPathComponent("openclip.json"), atomically: true, encoding: .utf8)
+
+        await ExtensionManager.shared.loadExtensions(from: tempDir)
+        let actions = ExtensionManager.shared.loadedActions
+
+        XCTAssertEqual(actions.first(where: { $0.id == "prespkg.inherit" })?.chrome.presentation, .markdown)
+        XCTAssertEqual(actions.first(where: { $0.id == "prespkg.code" })?.chrome.presentation, .code)
+        XCTAssertEqual(actions.first(where: { $0.id == "prespkg.plain" })?.chrome.presentation, .plain)
+    }
+
+    @MainActor
     func testManifestWithThreeActionsRegistersUniformIDs() async throws {
         let bundle = tempDir.appendingPathComponent("Pkg.openclipext")
         try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)

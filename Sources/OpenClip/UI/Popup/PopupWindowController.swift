@@ -89,6 +89,9 @@ public class PopupWindowController {
     /// Latest action's output kind. Same lifecycle as `pendingActionTitle`.
     var pendingActionOutputKind: ActionOutputKind? = nil
 
+    /// Latest action's card format. Same lifecycle as `pendingActionTitle`.
+    var pendingActionPresentation: ResultPresentation? = nil
+
     /// Delivery context snapshotted before an action performs. Kept across hide() so async actions deliver with it.
     var inFlightDeliveryContext: DeliveryContext? = nil
 
@@ -358,6 +361,7 @@ public class PopupWindowController {
                 self.pendingActionID = action.id
                 self.pendingActionRecommendedResult = action.chrome.recommendedResult
                 self.pendingActionOutputKind = action.chrome.outputKind
+                self.pendingActionPresentation = action.chrome.presentation
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
                 return true
             },
@@ -709,6 +713,7 @@ public class PopupWindowController {
         originalText: String? = nil,
         overrideOriginal: Bool = false,
         canFollowUp: Bool = true,
+        presentation: ResultPresentation? = nil,
         file: FileOutputPayload? = nil,
         color: InlineColor? = nil
     ) {
@@ -730,6 +735,7 @@ public class PopupWindowController {
             isStreaming: isStreaming,
             original: original,
             canFollowUp: canFollowUp,
+            presentation: presentation,
             file: file,
             color: color,
             versionIndex: versionIndex,
@@ -1076,6 +1082,7 @@ public class PopupWindowController {
         pendingActionID = nil
         pendingActionRecommendedResult = nil
         pendingActionOutputKind = nil
+        pendingActionPresentation = nil
         accumulatedScrollDelta = 0
         isScrollDismissalSuspended = false
         distanceDismissGraceUntil = nil
@@ -1761,6 +1768,7 @@ public class PopupWindowController {
                 self.pendingActionID = action.id
                 self.pendingActionRecommendedResult = action.chrome.recommendedResult
                 self.pendingActionOutputKind = action.chrome.outputKind
+                self.pendingActionPresentation = action.chrome.presentation
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
                 return true
             },
@@ -2223,6 +2231,8 @@ public class PopupWindowController {
         let recommendedResult: ActionResultDeliveryMode?
         /// The action's uncommitted output kind.
         let outputKind: ActionOutputKind?
+        /// The action's declared card format for text results.
+        let presentation: ResultPresentation?
         /// The performing action's title — the result card header. nil for explicit user requests.
         let actionTitle: String?
         /// Display icon for the card header (customization-resolved).
@@ -2248,6 +2258,7 @@ public class PopupWindowController {
                 userOverride: userOverride,
                 recommendedResult: recommendedResult,
                 outputKind: outputKind,
+                presentation: presentation,
                 actionTitle: actionTitle,
                 actionIcon: actionIcon,
                 inputRequirement: inputRequirement,
@@ -2269,6 +2280,7 @@ public class PopupWindowController {
         let override = actionID.flatMap { ActionCustomizationManager.shared.override(for: $0)?.deliveryPreference }
         let rec = action?.chrome.recommendedResult ?? pendingActionRecommendedResult
         let outKind = action?.chrome.outputKind ?? pendingActionOutputKind
+        let presentation = action?.chrome.presentation ?? pendingActionPresentation
         return DeliveryContext(
             policy: currentActionContext?.selection.appPolicy ?? .default,
             clickIntent: intent,
@@ -2277,6 +2289,7 @@ public class PopupWindowController {
             userOverride: override,
             recommendedResult: rec,
             outputKind: outKind,
+            presentation: presentation,
             actionTitle: title,
             actionIcon: icon,
             inputRequirement: (action as? any ActionWithRules).map { $0.rules?.requirements?.input ?? .text },
@@ -2313,6 +2326,7 @@ public class PopupWindowController {
         pendingActionID = nil
         pendingActionRecommendedResult = nil
         pendingActionOutputKind = nil
+        pendingActionPresentation = nil
         let (deliveredResult, effectiveDelivery) = resolvedDelivery.consumeDeclaredSecondary(for: result)
         let effectiveResult = normalizeOCRResult(deliveredResult, delivery: effectiveDelivery)
         if shouldDismiss(effectiveResult, delivery: effectiveDelivery) {
@@ -2324,6 +2338,7 @@ public class PopupWindowController {
     private func copyOnlyOCRResult(_ result: ActionResult) -> ActionResult {
         switch result {
         case .paste(let text), .cut(let text): return .copy(text)
+        case .presentedText(let text, _): return .copy(text)
         case .pasteContent(let payload): return .copyContent(payload)
         case .simulatePaste: return .none
         case .sequence(let items): return .sequence(items.map(copyOnlyOCRResult))
@@ -2393,13 +2408,13 @@ public class PopupWindowController {
             do {
                 let resolved = await resolveDelivery(effect, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
                 guard requiredPasteTargetIsActive(delivery) else { return }
-                if case .text(let text) = resolved.result {
+                if let content = resolved.result.textContent {
                     // Preview: show the text in the card and deliver nothing; the popup stays open. Probe paste if it was skipped,
                     // so the card gates Paste on a real answer (unknown normalizes to cannot-paste).
                     if modeStore.canPaste == nil {
                         modeStore.canPaste = await pasteProbe.canPaste(in: delivery?.application, policy: delivery?.policy ?? .default) ?? false
                     }
-                    showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, canFollowUp: false)
+                    showResultCard(text: content.text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, canFollowUp: false, presentation: content.presentation ?? delivery?.presentation)
                     ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
                     return
                 }
@@ -2529,8 +2544,10 @@ public class PopupWindowController {
     }
 
     private func isText(_ result: ActionResult) -> Bool {
-        guard case .text = result else { return false }
-        return true
+        switch result {
+        case .text, .presentedText: return true
+        default: return false
+        }
     }
 
     /// Top-level dismissal: the popup stays open only when the resolved outcome is `.text` (preview) or `.file`. Mirrors the resolver's
@@ -2732,7 +2749,7 @@ public class PopupWindowController {
                     toastController.hide()
                     return
                 }
-                if case .text(let text) = resolved.result {
+                if let content = resolved.result.textContent {
                     // Preview on a loading action: hide the spinner and re-show the popup as a card at the original selection, re-probing paste.
                     toastController.hide()
                     if let selection = effectiveDelivery.selection {
@@ -2742,7 +2759,7 @@ public class PopupWindowController {
                             return
                         }
                         show(for: selection, pasteAvailable: canPaste)
-                        showResultCard(text: text, isError: false, title: effectiveDelivery.actionTitle ?? "Action", icon: effectiveDelivery.actionIcon, session: aiSessionID, canFollowUp: false)
+                        showResultCard(text: content.text, isError: false, title: effectiveDelivery.actionTitle ?? "Action", icon: effectiveDelivery.actionIcon, session: aiSessionID, canFollowUp: false, presentation: content.presentation ?? effectiveDelivery.presentation)
                     }
                     ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
                     return

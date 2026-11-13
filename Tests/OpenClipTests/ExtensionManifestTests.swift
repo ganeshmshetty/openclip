@@ -109,6 +109,39 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertNil(action.loadingMessage)
     }
 
+    func testPresentationDecodesAtActionAndPackageLevel() throws {
+        let json = """
+        {
+          "identifier": "com.test.presentation",
+          "name": "Presentation",
+          "presentation": "markdown",
+          "actions": [
+            { "title": "Inherited", "type": "url", "url": "https://example.com/1?q={query}" },
+            { "title": "Code", "type": "url", "url": "https://example.com/2?q={query}", "presentation": "code" }
+          ]
+        }
+        """
+        let manifest = try JSONDecoder().decode(ExtensionMetadata.self, from: Data(json.utf8))
+        XCTAssertEqual(manifest.presentation, .markdown)
+        XCTAssertNil(manifest.actions[0].presentation)
+        XCTAssertEqual(manifest.actions[1].presentation, .code)
+
+        let roundTrip = try JSONDecoder().decode(
+            ExtensionMetadata.self,
+            from: JSONEncoder().encode(manifest)
+        )
+        XCTAssertEqual(roundTrip.presentation, .markdown)
+        XCTAssertEqual(roundTrip.actions[1].presentation, .code)
+    }
+
+    func testUnknownPresentationFallsBackToNil() throws {
+        let manifest = try JSONDecoder().decode(
+            ExtensionMetadata.self,
+            from: #"{"identifier":"pkg","name":"Pkg","presentation":"html","actions":[]}"#.data(using: .utf8)!
+        )
+        XCTAssertNil(manifest.presentation)
+    }
+
     func testManifestDecoding() throws {
         let json = """
         {
