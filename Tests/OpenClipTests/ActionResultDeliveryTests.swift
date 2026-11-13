@@ -578,6 +578,37 @@ final class ActionResultDeliveryTests: XCTestCase {
     }
 
     @MainActor
+    func testOCRPresentedTextHonorsPreviewChoice() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler, pasteProbe: FixedProbe(result: true), appPolicy: .default, source: .ocr)
+        defer { controller.hide() }
+        controller.pendingActionRecommendedResult = .preview
+        controller.pendingActionOutputKind = .text
+
+        controller.deliverResult(.presentedText("recognized", .markdown))
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while controller.modeStore.mode != .content && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
+        }
+        XCTAssertTrue(handler.results.isEmpty, "an explicit preview choice must survive OCR")
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertEqual(controller.modeStore.resultCard?.text, "recognized")
+        XCTAssertEqual(controller.modeStore.resultCard?.presentation, .markdown)
+    }
+
+    @MainActor
+    func testOCRPresentedTextWithoutPreviewStillCopies() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler, pasteProbe: FixedProbe(result: true), appPolicy: .default, source: .ocr)
+        defer { controller.hide() }
+
+        controller.deliverResult(.presentedText("recognized", .plain))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("recognized"))
+    }
+
+    @MainActor
     func testOCRDeclaredSecondarySequenceAndLoadingResultAreNormalized() async throws {
         let handler = RecordingHandler()
         let controller = shownController(resultHandler: handler, pasteProbe: FixedProbe(result: true), appPolicy: .default, source: .ocr)

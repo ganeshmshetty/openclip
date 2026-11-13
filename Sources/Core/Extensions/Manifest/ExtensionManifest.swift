@@ -203,7 +203,9 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
             self.result = nil
         }
         if let raw = try? container.decodeIfPresent(String.self, forKey: .presentation) {
-            self.presentation = ResultPresentation(rawValue: raw)
+            // A supplied but unknown value is an explicit plain request, not an omitted key:
+            // at action level it must not inherit the package's presentation.
+            self.presentation = ResultPresentation(rawValue: raw) ?? .plain
         } else {
             self.presentation = nil
         }
@@ -548,7 +550,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
             self.result = nil
         }
         if let raw = try? container.decodeIfPresent(String.self, forKey: .presentation) {
-            self.presentation = ResultPresentation(rawValue: raw)
+            // A supplied but unknown value is an explicit plain request, not an omitted key.
+            self.presentation = ResultPresentation(rawValue: raw) ?? .plain
         } else {
             self.presentation = nil
         }

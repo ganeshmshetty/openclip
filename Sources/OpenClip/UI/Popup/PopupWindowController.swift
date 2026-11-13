@@ -2338,7 +2338,6 @@ public class PopupWindowController {
     private func copyOnlyOCRResult(_ result: ActionResult) -> ActionResult {
         switch result {
         case .paste(let text), .cut(let text): return .copy(text)
-        case .presentedText(let text, _): return .copy(text)
         case .pasteContent(let payload): return .copyContent(payload)
         case .simulatePaste: return .none
         case .sequence(let items): return .sequence(items.map(copyOnlyOCRResult))

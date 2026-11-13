@@ -134,12 +134,24 @@ final class ExtensionManifestTests: XCTestCase {
         XCTAssertEqual(roundTrip.actions[1].presentation, .code)
     }
 
-    func testUnknownPresentationFallsBackToNil() throws {
+    func testUnknownPresentationFallsBackToPlain() throws {
         let manifest = try JSONDecoder().decode(
             ExtensionMetadata.self,
             from: #"{"identifier":"pkg","name":"Pkg","presentation":"html","actions":[]}"#.data(using: .utf8)!
         )
-        XCTAssertNil(manifest.presentation)
+        XCTAssertEqual(manifest.presentation, .plain)
+
+        let action = try JSONDecoder().decode(
+            ExtensionActionMetadata.self,
+            from: #"{"title":"Action","presentation":"html"}"#.data(using: .utf8)!
+        )
+        XCTAssertEqual(action.presentation, .plain, "an unknown action value must not inherit a package format")
+
+        let omitted = try JSONDecoder().decode(
+            ExtensionActionMetadata.self,
+            from: #"{"title":"Action"}"#.data(using: .utf8)!
+        )
+        XCTAssertNil(omitted.presentation, "an omitted key still inherits the package default")
     }
 
     func testManifestDecoding() throws {

@@ -573,10 +573,11 @@ public struct ResultCardView: View {
     private var naturalTextWidth: CGFloat {
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return 0 }
+        let isCode = payload.presentation == .code && !showsDiff
         let rect = (textToMeasure as NSString).boundingRect(
             with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
+            attributes: [.font: isCode ? Self.codeFont : Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
         )
         // A point of slack so SwiftUI's own line breaking never wraps the measured line.
         return ceil(rect.width) + 2 * Self.horizontalTextInset + 1
