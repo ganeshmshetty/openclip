@@ -96,6 +96,7 @@ targets:
       - package: SDWebImageSwiftUI
       - package: SDWebImageSVGCoder
       - package: Sparkle
+      - package: MarkdownUI
   OpenClipTests:
     type: bundle.unit-test
     platform: macOS
@@ -125,3 +126,6 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.6.4
+  MarkdownUI:
+    url: https://github.com/gonzalezreal/swift-markdown-ui
+    from: 2.4.1
