@@ -1880,6 +1880,9 @@ final class MacSelectionMonitorTests: XCTestCase {
             monitor.isExcludedBundle = { _ in false }
             monitor.policyResolver = { _ in AppPolicyContext.default }
             monitor.isOverlayPresent = { _ in overlay }
+            // The retrieval below is justified by AX range evidence; the copy tier is reachable
+            // only because this gesture starts on text (see the text-cue gate).
+            monitor.currentCursorProvider = { .beam }
             monitor.retriever = SelectionRetrievalCoordinator(
                 inspect: { Self.copyEvidenceTarget(role: "AXWebArea") },
                 copyCapture: { _ in SelectionResult(text: "from copy", strategy: .keyboardCopy) }
@@ -1930,15 +1933,18 @@ final class MacSelectionMonitorTests: XCTestCase {
             XCTAssertEqual(monitor.latestSelection?.context.cursorPosition, end)
             XCTAssertEqual(evidence.value?.strength, .weak, "A text cursor is context, not proof of a selection")
 
-            // The next gesture starts on a blank/canvas surface and cannot inherit the prior beam.
-            // A completed drag is still weak gesture evidence, gated on an enabled Copy command.
+            // The next gesture starts on a blank/canvas surface with an arrow cursor. It still
+            // completes a drag, but it carries no text cue, so OpenClip must withhold the synthetic
+            // copy: firing ⌘C for a gesture that may not have selected anything is what beeped
+            // (issue #210). AX reads are unaffected, so an app that exposes the selection still
+            // delivers it.
             cursor = .arrow
             evidence.value = nil
             monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
             monitor.handleMouseUp(app: MockTestApp(bundleID: "com.openai.codex"), cursor: end, clickCount: 1)
             await monitor.debounceTask?.value
-            XCTAssertEqual(evidence.value?.reason, "selection-gesture:dragEnd", "release cursor: \(releaseCursor)")
-            XCTAssertEqual(evidence.value?.strength, .weak)
+            XCTAssertNil(evidence.value, "an arrow press must not authorize a synthetic copy")
+            XCTAssertNil(monitor.latestSelection)
         }
     }
 
@@ -1960,6 +1966,116 @@ final class MacSelectionMonitorTests: XCTestCase {
             await monitor.debounceTask?.value
             XCTAssertNil(monitor.latestSelection)
         }
+    }
+
+    /// Regression (issue #210): a drag or multi-click is a selection *gesture*, not a selection.
+    /// Posting a synthetic ⌘C for one whose pointer was never over text (no I-beam at press or
+    /// release) is what made apps beep and flash their Edit menu — a real system-wide Copy command
+    /// lands on a target with nothing selected, so AppKit falls through to its alert sound.
+    func testAutomaticCopyFallbackRequiresATextCursorCue() async {
+        for gesture in ["drag", "doubleClick"] {
+            for cursor: CursorClass in [.arrow, .pointingHand, .unknown, .other] {
+                let monitor = makeMonitor()
+                monitor.isExcludedBundle = { _ in false }
+                monitor.policyResolver = { _ in AppPolicyContext.default }
+                // Safari: the package grants a browser copy fallback even without AX text, so the
+                // monitor's own cue gate is the only thing standing between this gesture and ⌘C.
+                var current: CursorClass = cursor
+                monitor.currentCursorProvider = { current }
+                monitor.retriever = SelectionRetrievalCoordinator(
+                    inspect: { Self.fixtureTarget(role: "AXWebArea", selectedText: nil) },
+                    copyCapture: { _ in
+                        XCTFail("\(gesture) with \(cursor) cursor must not post a synthetic copy")
+                        return nil
+                    }
+                )
+
+                monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+                current = cursor
+                let endsAsDrag = gesture == "drag"
+                monitor.handleMouseUp(
+                    app: MockTestApp(bundleID: "com.apple.Safari"),
+                    cursor: endsAsDrag ? CGPoint(x: 200, y: 100) : CGPoint(x: 100, y: 100),
+                    clickCount: endsAsDrag ? 1 : 2
+                )
+                await monitor.debounceTask?.value
+
+                XCTAssertNil(monitor.latestSelection, "\(gesture) \(cursor)")
+            }
+        }
+    }
+
+    /// The cue must not become a blanket ban: a gesture that starts on text still reaches the copy
+    /// tier, which is what keeps selections readable in apps whose AX tree cannot expose them
+    /// (Chromium/Electron) and in browsers whose AX read lags the gesture.
+    func testAutomaticCopyFallbackStillRunsWhenTheGestureStartsOnText() async {
+        final class EvidenceBox: @unchecked Sendable { var value: CopyEvidence? }
+        for gesture in ["drag", "doubleClick"] {
+            let monitor = makeMonitor()
+            monitor.isExcludedBundle = { _ in false }
+            monitor.policyResolver = { _ in AppPolicyContext.default }
+            var current: CursorClass = .beam
+            monitor.currentCursorProvider = { current }
+            let evidence = EvidenceBox()
+            monitor.retriever = SelectionRetrievalCoordinator(
+                inspect: { Self.fixtureTarget(role: "AXWebArea", selectedText: nil) },
+                copyCapture: { request in
+                    evidence.value = request.evidence
+                    return SelectionResult(text: "text selection", strategy: .keyboardCopy)
+                }
+            )
+
+            let endsAsDrag = gesture == "drag"
+            monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+            // A text drag can finish over blank space; the press's I-beam still counts.
+            current = endsAsDrag ? .arrow : .beam
+            monitor.handleMouseUp(
+                app: MockTestApp(bundleID: "com.apple.Safari"),
+                cursor: endsAsDrag ? CGPoint(x: 200, y: 100) : CGPoint(x: 100, y: 100),
+                clickCount: endsAsDrag ? 1 : 2
+            )
+            await monitor.debounceTask?.value
+
+            XCTAssertEqual(monitor.latestSelection?.context.text, "text selection", gesture)
+            XCTAssertEqual(evidence.value?.strength, .weak, gesture)
+        }
+    }
+
+    /// A click that slides a few points is still a click. The 3 pt threshold turned pointer jitter
+    /// from a high-polling mouse into a drag, starting a selection read for an interaction the user
+    /// did not make (and, with the copy tier, a beep).
+    func testPointerJitterDuringAClickIsNotADrag() async {
+        let store = MemorySettingsStore()
+        store.set(.isMouseHoldEnabled, value: false)
+
+        final class ReadBox: @unchecked Sendable { var value = false }
+
+        func retrieved(afterTravel travel: CGFloat) async -> Bool {
+            let monitor = makeMonitor(settingsStore: store)
+            monitor.isExcludedBundle = { _ in false }
+            monitor.policyResolver = { _ in AppPolicyContext.default }
+            let read = ReadBox()
+            monitor.retriever = SelectionRetrievalCoordinator(
+                inspect: {
+                    read.value = true
+                    return Self.fixtureTarget(role: "AXTextField", selectedText: nil)
+                },
+                copyCapture: { _ in nil }
+            )
+            monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+            monitor.handleMouseUp(
+                app: MockTestApp(bundleID: "com.apple.TextEdit"),
+                cursor: CGPoint(x: 100 + travel, y: 100),
+                clickCount: 1
+            )
+            await monitor.debounceTask?.value
+            return read.value
+        }
+
+        let jittered = await retrieved(afterTravel: 4)
+        XCTAssertFalse(jittered, "a 4 pt slide during a click must not start a selection read")
+        let dragged = await retrieved(afterTravel: 20)
+        XCTAssertTrue(dragged, "a deliberate drag must still be read")
     }
 
     /// Regression: keyboard selection gestures (⌘A / ⌘L / ⇧arrow) are explicit user actions and must
