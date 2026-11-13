@@ -637,7 +637,13 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         }
         let releaseCursor = currentCursorProvider()
         let retrievalCursor: CursorClass = isDrag && pressCursor == .beam ? .beam : releaseCursor
-        Log.selection.debug("monitor: mouse selection context press=\(pressCursor?.rawValue ?? "none", privacy: .public) release=\(releaseCursor.rawValue, privacy: .public) retrieval=\(retrievalCursor.rawValue, privacy: .public) drag=\(isDrag, privacy: .public)")
+        // A drag or multi-click is a selection *gesture*, not a selection. Without an I-beam at the
+        // press or the release the pointer was never over text, so the copy tier must stay shut:
+        // a synthetic ⌘C against an app with nothing selected makes it play the system alert sound
+        // and flash its Edit menu (#210, #159, #109). AX reads are unaffected and still deliver a
+        // selection the app exposes.
+        let hasTextCue = pressCursor == .beam || releaseCursor == .beam
+        Log.selection.debug("monitor: mouse selection context press=\(pressCursor?.rawValue ?? "none", privacy: .public) release=\(releaseCursor.rawValue, privacy: .public) retrieval=\(retrievalCursor.rawValue, privacy: .public) drag=\(isDrag, privacy: .public) textCue=\(hasTextCue, privacy: .public)")
 
         debounceTask = Task { @MainActor in
             guard self.isSelectionSourceActive(app) else {
@@ -683,8 +689,13 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // 1. "Appear Automatically" is disabled (passive background caching must stay non-invasive)
             // 2. The app has `hotkeyOnly` policy
             // 3. A foreign overlay owns the key window
+            // 4. The gesture carried no text cue (see `hasTextCue` above)
             let isAutoEnabled = self.settingsStore.get(.isAppEnabled)
-            let allowCopyFallback = isAutoEnabled && !policy.hotkeyOnly && !self.isOverlayPresent(cursor)
+            let allowCopyFallback = isAutoEnabled && !policy.hotkeyOnly
+                && !self.isOverlayPresent(cursor) && hasTextCue
+            if isAutoEnabled, !policy.hotkeyOnly, !hasTextCue {
+                Log.selection.debug("monitor: copy fallback withheld, no text cursor cue bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
+            }
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
             let response = await retriever.retrieveResponse(
                 for: appIdentity,
