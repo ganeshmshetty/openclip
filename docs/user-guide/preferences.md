@@ -153,7 +153,7 @@ Select a preset under **AI > AI Actions** to edit its icon, display name, **Icon
 
 Every AI action sends a system prompt before the action's own prompt. It says what OpenClip is asking the model to do and sets general rules: return only the result, follow the requested language and tone, keep the meaning when editing, and don't invent facts. You can rewrite this part under **AI > System Prompt**. The editor starts with the built-in text and saves as you type, and **Reset to Default** brings the built-in text back. Your text applies to every AI action, Ask AI, and result-card follow-ups, with every provider.
 
-OpenClip always adds three things after your text, and you can't edit them: the action's prompt (as the *Task*), the rule that the selected text in the `<text>…</text>` block is material to work on and not instructions, and the answer format OpenClip uses to read the result.
+OpenClip always adds these after your text, and you can't edit them: the action's prompt (as the *Task*), a formatting rule that keeps edit-style actions as plain replacement text and lets explain-style answers use Markdown, the rule that the selected text in the `<text>…</text>` block is material to work on and not instructions, and the answer format OpenClip uses to read the result.
 
 **Example: reply in the sender's language.** Say you have an action that drafts replies ("Reply to this message, very friendly, same tone…"), and its prompt is written in German. It tends to answer in German even when the message you selected is in English, because the built-in rules tell the model to follow the task's language. Replacing that rule in the system prompt fixes it for every action at once:
 
