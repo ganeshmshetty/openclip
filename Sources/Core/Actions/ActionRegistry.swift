@@ -278,9 +278,6 @@ public final class ActionRegistry: ObservableObject, Sendable {
     /// Context gating shared by the bar and palette; settings-disable state is applied separately (`isDisabledInSettings`).
     private func canPerform(_ action: any Action, in context: ActionContext) -> Bool {
         // Clipboard/OCR input is not an editable source selection; OCRInputAction is the explicit exception.
-        if context.selection.source == .ocr && action is any PasteRequiringAction {
-            return false
-        }
         if context.selection.source != .selection && action.chrome.requiresLiveSelection
             && !(context.selection.source == .ocr && action is any OCRInputAction) {
             return false

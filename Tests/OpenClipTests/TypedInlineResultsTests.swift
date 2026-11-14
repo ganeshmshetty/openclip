@@ -167,7 +167,7 @@ final class TypedInlineResultsTests: XCTestCase {
             ActionResultDelivery.resolve(
                 raw: .text("value"),
                 clickIntent: intent,
-                canPaste: true,
+                capabilities: .stub(),
                 recommendedResult: .pasteOrCopy,
                 outputKind: kind
             ).result
@@ -191,7 +191,7 @@ final class TypedInlineResultsTests: XCTestCase {
             let resolved = ActionResultDelivery.resolve(
                 raw: .color(color),
                 clickIntent: intent,
-                canPaste: true,
+                capabilities: .stub(),
                 preference: .copy,
                 recommendedResult: .paste,
                 outputKind: .color
@@ -256,7 +256,7 @@ final class TypedInlineResultsTests: XCTestCase {
         let primary = ActionResultDelivery.resolve(
             raw: .text("🎉"),
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             recommendedResult: .pasteOrCopy,
             outputKind: .text
         ).result
@@ -268,7 +268,7 @@ final class TypedInlineResultsTests: XCTestCase {
         let secondary = ActionResultDelivery.resolve(
             raw: .text("🎉"),
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             recommendedResult: .pasteOrCopy,
             outputKind: .text
         ).result

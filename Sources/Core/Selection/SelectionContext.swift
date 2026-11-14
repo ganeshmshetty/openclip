@@ -24,8 +24,10 @@ public struct SelectionContext: Sendable {
     /// True when the text came from the clipboard (shortcut triggered with no selection), not from a live selection.
     public let isClipboardFallback: Bool
     public let source: SelectionSource
-    /// Whether the source selection was confirmed editable by the selection reader. Nil means the
-    /// reader did not establish editability. Clipboard and OCR input are never editable selections.
+    /// Whether the focused target accepts text edits, established by the selection reader or an
+    /// editability probe. Nil means not established. This is destination evidence: it stays
+    /// independent of where `text` came from, so clipboard fallback can still land in an editable
+    /// control.
     public let isEditable: Bool?
     /// Whether the current destination was confirmed to accept paste. This is destination
     /// evidence, independent of where `text` came from.
@@ -70,7 +72,7 @@ public struct SelectionContext: Sendable {
         self.appPolicy = appPolicy
         self.source = source ?? (isClipboardFallback ? .clipboard : .selection)
         self.isClipboardFallback = self.source == .clipboard
-        self.isEditable = self.source == .selection ? isEditable : false
+        self.isEditable = isEditable
         self.pasteTargetAvailable = pasteTargetAvailable
         self.html = html
         self.rtf = rtf
@@ -126,7 +128,7 @@ public struct SelectionContext: Sendable {
             contentDetection: contentDetection,
             selectionGeneration: selectionGeneration,
             source: source,
-            isEditable: self.isEditable ?? isEditable,
+            isEditable: isEditable ?? self.isEditable,
             pasteTargetAvailable: pasteTargetAvailable ?? self.pasteTargetAvailable,
             traceID: traceID
         )

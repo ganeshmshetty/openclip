@@ -10,6 +10,7 @@ Sources/
 │   ├── Log.swift                             # Single logging surface: Log enum, LogChannel, LogSink protocol, LogLevel, LogMessage (see docs/logging.md)
 │   ├── Actions/
 │   │   ├── Action.swift                      # Action protocol
+│   │   ├── ActionCapabilities.swift          # Target capability facts and the single eligibility/degradation policy
 │   │   ├── ActionChrome.swift                # UI metadata policy enum
 │   │   ├── ActionContext.swift               # Action resolution context
 │   │   ├── ActionCoordinator.swift           # Action execution coordinator & composition root (wires managers to registry)
@@ -49,7 +50,6 @@ Sources/
 │   │   ├── MathEvaluator.swift               # Deterministic exception-free arithmetic parser (replaces NSExpression; used by CalculateAction)
 │   │   ├── MenuDecoratedAction.swift         # Sub-menu relevance decorator
 │   │   ├── ModifierFlags.swift               # Keyboard modifier flags
-│   │   ├── PasteRequiringAction.swift        # Protocol for actions requiring paste capability (Paste, Cut)
 │   │   ├── RelevanceProviding.swift          # Sub-menu relevance protocol
 │   │   ├── RichPasteboardPayload.swift       # Multi-format pasteboard payload (text, HTML, RTF)
 │   │   ├── StatusFeedback.swift              # Toast notification model
@@ -157,6 +157,7 @@ Sources/
     │   │   ├── RemoteExtensionInstaller.swift # Zip download and extraction installer
     │   │   ├── SecretActionOptionStore.swift # Composite option store; .secret options → SecretStore (~/.openclip/secrets.json)
     │   │   ├── VisibilityPredicateRuntime.swift # Persistent JS predicate environments; read-only input, package-confined require, 5 ms budget
+    │   ├── EditabilityProbe.swift            # Focused-element editability read for sessions with no selected range
     │   ├── HotkeyManager.swift               # Global shortcut manager (⌥⌘C toggles popup actions → search → dismiss when visible)
     │   ├── InstalledAppsScanner.swift        # Running and installed app scanner
     │   ├── LaunchAtLoginManager.swift        # Login item manager (SMAppService; persisted state via SettingKey.startAtLogin)

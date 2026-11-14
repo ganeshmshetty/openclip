@@ -103,6 +103,15 @@ public class PopupWindowController {
     /// Paste-support probe; injectable for tests.
     private let pasteProbe: PasteAvailabilityProbing
 
+    /// Focused-element editability probe for sessions that start without a selection; injectable for tests.
+    private let editabilityProbe: @MainActor () async -> Bool?
+
+    /// Capabilities from the last shown session. A completion paste delivered after `hide()` still
+    /// knows where the session pointed; liveness is rechecked at delivery. The session ID keeps a
+    /// late editability probe from leaking into a later session.
+    private var lastCapabilities: TargetCapabilities = .unknown
+    private var lastCapabilitiesSession: UUID?
+
     /// Toast surface for statuses and the paste→copy notice. Independent of the panel, so it shows after hide().
     let toastController: ToastPanelController
     private var captureToastPresentationID: UUID?
@@ -149,12 +158,16 @@ public class PopupWindowController {
 
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                  pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
+                 editabilityProbe: @escaping @MainActor () async -> Bool? = {
+                     await EditabilityProbe().probe()
+                 },
                  toastController: ToastPanelController = ToastPanelController(),
                  subBarController: SubBarPanelController = SubBarPanelController(),
                  tooltipController: TooltipPanelController = .shared,
                  settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.resultHandler = resultHandler
         self.pasteProbe = pasteProbe
+        self.editabilityProbe = editabilityProbe
         self.toastController = toastController
         self.subBarController = subBarController
         self.tooltipController = tooltipController
@@ -176,6 +189,33 @@ public class PopupWindowController {
                 panel.pinBottomEdgeOnResize = self.modeStore.searchResultsAbove
             }
         }.store(in: &cancellables)
+    }
+
+    /// Sessions that open without a selected range have no selection read to source editability
+    /// from. Ask the focused element once, without delaying the popup; delivery reads the updated
+    /// context, so a paste result still lands only where text can be inserted.
+    private func refreshTargetEditability(attemptID: UUID) {
+        Task { [weak self] in
+            guard let self, let editable = await self.editabilityProbe() else { return }
+            guard self.presentationAttemptID == attemptID else { return }
+            // Record the answer even if the popup already hid: a loading action may deliver after
+            // the probe finishes.
+            self.lastCapabilities.textInsertion = editable ? .available : .unavailable
+            guard let context = self.currentContext, context.isEditable == nil else { return }
+            let updated = context.with(isEditable: editable)
+            self.currentContext = updated
+            self.lastCapabilities = updated.targetCapabilities()
+            if let existing = self.currentActionContext {
+                self.currentActionContext = ActionContext(
+                    selection: updated,
+                    modifiers: existing.modifiers,
+                    isSecondaryClick: existing.isSecondaryClick,
+                    match: existing.match,
+                    pasteTargetAvailable: existing.pasteTargetAvailable,
+                    visibilityMemo: existing.visibilityMemo
+                )
+            }
+        }
     }
 
     /// Starts the paste-availability probe (rules first, then AX), run in parallel with selection retrieval. Not cached,
@@ -229,6 +269,11 @@ public class PopupWindowController {
 
         let actionContext = ActionContext(selection: selectionContext, modifiers: [])
         currentActionContext = actionContext
+        lastCapabilities = actionContext.capabilities
+        lastCapabilitiesSession = attemptID
+        if selectionContext.isEditable == nil {
+            refreshTargetEditability(attemptID: attemptID)
+        }
         let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
 
         let panel = self.panel ?? PopupPanel()
@@ -269,9 +314,7 @@ public class PopupWindowController {
         // Probed before this frame so Paste/Cut are gated on the first render; nil keeps them visible.
         modeStore.canPaste = pasteAvailable
 
-        let activeActions = pasteAvailable == false
-            ? availableActions.filter { !($0 is any PasteRequiringAction) }
-            : availableActions
+        let activeActions = availableActions
         self.currentActions = activeActions
 
         modeStore.inlineResults.removeAll()
@@ -527,6 +570,8 @@ public class PopupWindowController {
         captureFrontmostAppIfNeeded()
         let actionContext = ActionContext(selection: selectionContext, modifiers: [])
         currentActionContext = actionContext
+        lastCapabilities = actionContext.capabilities
+        lastCapabilitiesSession = presentationAttemptID
         modeStore.mode = initialMode
         modeStore.canPaste = pasteAvailable
         openedDirectlyInSearch = (initialMode == .search)
@@ -2238,8 +2283,13 @@ public class PopupWindowController {
         /// Display icon for the card header (customization-resolved).
         let actionIcon: ActionIcon?
         /// Input/destination requirements rechecked immediately before effects are executed.
-        let inputRequirement: ActionInputRequirement?
-        let requiresPasteTarget: Bool
+        let requirements: ActionRequirements?
+        /// Capability snapshot captured with the selection; liveness and the delivery-time probe
+        /// are applied by `resolveDelivery` before effects run.
+        let capabilities: TargetCapabilities
+        /// The session that produced this snapshot. A late editability probe may only fill in an
+        /// unknown answer for the same session.
+        let sessionID: UUID
         /// The selection context captured before any early-close (loading actions), used to re-show
         /// the popup as a preview card. nil when the popup never closed.
         let selection: SelectionContext?
@@ -2261,8 +2311,9 @@ public class PopupWindowController {
                 presentation: presentation,
                 actionTitle: actionTitle,
                 actionIcon: actionIcon,
-                inputRequirement: inputRequirement,
-                requiresPasteTarget: requiresPasteTarget,
+                requirements: requirements,
+                capabilities: capabilities,
+                sessionID: sessionID,
                 selection: selection
             )
             return (declared, consumed)
@@ -2292,8 +2343,9 @@ public class PopupWindowController {
             presentation: presentation,
             actionTitle: title,
             actionIcon: icon,
-            inputRequirement: (action as? any ActionWithRules).map { $0.rules?.requirements?.input ?? .text },
-            requiresPasteTarget: (action as? any ActionWithRules)?.rules?.requirements?.requiresPasteTarget ?? false,
+            requirements: (action as? any ActionWithRules)?.rules?.requirements,
+            capabilities: currentActionContext?.capabilities ?? lastCapabilities,
+            sessionID: presentationAttemptID,
             selection: currentActionContext?.selection
         )
     }
@@ -2310,7 +2362,7 @@ public class PopupWindowController {
 
     /// Declared paste-target requirements also apply to the async paste probe.
     private func requiredPasteTargetIsActive(_ delivery: DeliveryContext?) -> Bool {
-        guard let delivery, delivery.requiresPasteTarget else { return true }
+        guard let delivery, delivery.requirements?.requiresPasteTarget == true else { return true }
         return isTargetApplicationActive(delivery.application)
     }
 
@@ -2328,47 +2380,10 @@ public class PopupWindowController {
         pendingActionOutputKind = nil
         pendingActionPresentation = nil
         let (deliveredResult, effectiveDelivery) = resolvedDelivery.consumeDeclaredSecondary(for: result)
-        let effectiveResult = normalizeOCRResult(deliveredResult, delivery: effectiveDelivery)
-        if shouldDismiss(effectiveResult, delivery: effectiveDelivery) {
+        if shouldDismiss(deliveredResult, delivery: effectiveDelivery) {
             hide()
         }
-        handleActionResult(effectiveResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveResult.containsToast, completionActionID: completedActionID)
-    }
-
-    private func copyOnlyOCRResult(_ result: ActionResult) -> ActionResult {
-        switch result {
-        case .paste(let text), .cut(let text): return .copy(text)
-        case .pasteContent(let payload): return .copyContent(payload)
-        case .simulatePaste: return .none
-        case .sequence(let items): return .sequence(items.map(copyOnlyOCRResult))
-        default: return result
-        }
-    }
-
-    private func normalizeOCRResult(_ result: ActionResult, delivery: DeliveryContext?) -> ActionResult {
-        let isOCRDelivery = delivery?.selection?.source == .ocr
-            || (delivery == nil && currentContext?.source == .ocr)
-        let ocrSafe = isOCRDelivery ? copyOnlyOCRResult(result) : result
-        guard let delivery, delivery.inputRequirement != nil || delivery.requiresPasteTarget else { return ocrSafe }
-
-        let selection = delivery.selection
-        let input = delivery.inputRequirement ?? .optional
-        let hasText = !(selection?.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-        let liveAndCurrent = selection?.source == .selection
-            && (selection.map(selectionIsCurrent) ?? false)
-            && isTargetApplicationActive(delivery.application)
-        let inputSatisfied: Bool
-        switch input {
-        case .optional: inputSatisfied = true
-        case .text: inputSatisfied = hasText
-        case .liveSelection: inputSatisfied = hasText && liveAndCurrent
-        case .editableSelection: inputSatisfied = hasText && liveAndCurrent && selection?.isEditable == true
-        }
-        let pasteTargetSatisfied = !delivery.requiresPasteTarget
-            || (selection?.pasteTargetAvailable == true
-                && PasteAvailability.effective(policy: delivery.policy, probe: selection?.pasteTargetAvailable) == true
-                && isTargetApplicationActive(delivery.application))
-        return inputSatisfied && pasteTargetSatisfied ? ocrSafe : .none
+        handleActionResult(deliveredResult, delivery: effectiveDelivery, suppressDeliveryToast: deliveredResult.containsToast, completionActionID: completedActionID)
     }
 
     /// Walks a performed result: presentation renders in the popup, leaf effects go to the effect handler. Dismissal is decided
@@ -2376,9 +2391,8 @@ public class PopupWindowController {
     @discardableResult
     func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil, suppressDeliveryToast: Bool = false, completionActionID: String? = nil, isFinalStep: Bool = true) -> Task<Void, Never>? {
         let (selectedResult, effectiveDelivery) = delivery?.consumeDeclaredSecondary(for: result) ?? (result, delivery)
-        let effectiveResult = normalizeOCRResult(selectedResult, delivery: effectiveDelivery)
-        let effectiveSuppressToast = suppressDeliveryToast || effectiveResult.containsToast
-        switch effectiveResult {
+        let effectiveSuppressToast = suppressDeliveryToast || selectedResult.containsToast
+        switch selectedResult {
         case .toast(let feedback):
             presentToast(feedback)
             ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
@@ -2394,7 +2408,7 @@ public class PopupWindowController {
                 }
             }
         default:
-            return handleEffect(effectiveResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isFinalStep)
+            return handleEffect(selectedResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isFinalStep)
         }
     }
 
@@ -2483,7 +2497,8 @@ public class PopupWindowController {
     }
 
     /// Decides a text result's delivery and companion toast from the snapshot. A nil `delivery` passes through with no toast.
-    /// The paste probe runs only when a paste outcome is on the table, since only `.paste` can downgrade to `.copy`.
+    /// Text insertion uses the captured editability; the paste probe runs only for payloads that
+    /// need a paste destination, since only those consult the app's Paste command.
     internal var selectionIsCurrent: @MainActor (SelectionContext) -> Bool = { _ in true }
     internal private(set) var lastDeliveryStatus: SelectionReadStatus?
 
@@ -2497,33 +2512,42 @@ public class PopupWindowController {
             recommendedResult: delivery.recommendedResult,
             outputKind: delivery.outputKind
         )
-        let couldPaste = delivery.selection?.source != .ocr && isPaste(selected)
+        var capabilities = delivery.capabilities
+        if capabilities.textInsertion == .unknown, delivery.sessionID == lastCapabilitiesSession {
+            capabilities.textInsertion = lastCapabilities.textInsertion
+        }
         let isTargetActive = isTargetApplicationActive(delivery.application)
             && (delivery.selection.map(selectionIsCurrent) ?? true)
-        var canPaste: Bool
-        if !couldPaste || !isTargetActive {
-            canPaste = false
-        } else if !PasteAvailability.needsProbe(policy: delivery.policy) {
-            canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
-        } else {
-            canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
+        capabilities.targetIsLive = isTargetActive ? .available : .unavailable
+        capabilities.applyDenyPaste(delivery.policy)
+        if !delivery.policy.denyPaste, isTargetActive, needsPasteboardProbe(selected, delivery: delivery) {
+            let probed = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy)
+            capabilities.pasteboardPaste = CapabilityAvailability(
+                PasteAvailability.effective(policy: delivery.policy, probe: probed)
+            )
         }
         // A target may change while the AX paste probe is suspended.
-        if couldPaste, !isTargetApplicationActive(delivery.application)
-            || !(delivery.selection.map(selectionIsCurrent) ?? true) {
-            canPaste = false
-        }
-        if couldPaste, !isTargetActive || !(delivery.selection.map(selectionIsCurrent) ?? true)
-            || !isTargetApplicationActive(delivery.application) {
+        let stillActive = isTargetApplicationActive(delivery.application)
+            && (delivery.selection.map(selectionIsCurrent) ?? true)
+        capabilities.targetIsLive = stillActive ? .available : .unavailable
+        if !isTargetActive || !stillActive {
             lastDeliveryStatus = .targetChanged
             Log.selection.debug("delivery outcome: targetChanged")
         } else {
             lastDeliveryStatus = nil
         }
+        if let requirements = delivery.requirements,
+           !ActionEligibility.isSatisfied(
+               requirements: requirements,
+               selection: delivery.selection,
+               capabilities: capabilities
+           ) {
+            return (.none, nil)
+        }
         let resolved = ActionResultDelivery.resolve(
             raw: result,
             clickIntent: delivery.clickIntent,
-            canPaste: canPaste,
+            capabilities: capabilities,
             delivery: delivery.delivery ?? .none,
             preference: delivery.userOverride,
             recommendedResult: delivery.recommendedResult,
@@ -2532,14 +2556,13 @@ public class PopupWindowController {
         return (resolved.result, suppressDeliveryToast ? nil : resolved.toast)
     }
 
-    private func isPaste(_ result: ActionResult?) -> Bool {
-        guard let result else { return false }
-        switch result {
-        case .paste, .pasteContent:
-            return true
-        default:
-            return false
-        }
+    /// Text insertion is decided by editability. The Paste command only has to be consulted for
+    /// payloads that need a destination, or when the action explicitly declared one.
+    private func needsPasteboardProbe(_ result: ActionResult, delivery: DeliveryContext) -> Bool {
+        // OCR text has no destination; its captured no-paste answer is the final word.
+        guard delivery.selection?.source != .ocr else { return false }
+        if delivery.requirements?.requiresPasteTarget == true { return true }
+        return ActionEligibility.requirement(for: result) == .pasteboardPaste
     }
 
     private func isText(_ result: ActionResult) -> Bool {
@@ -2556,7 +2579,7 @@ public class PopupWindowController {
         let resolved = ActionResultDelivery.resolve(
             raw: effectiveResult,
             clickIntent: effectiveDelivery.clickIntent,
-            canPaste: false,
+            capabilities: .unknown,
             delivery: effectiveDelivery.delivery ?? .none,
             preference: effectiveDelivery.userOverride,
             recommendedResult: effectiveDelivery.recommendedResult,
@@ -2591,23 +2614,14 @@ public class PopupWindowController {
         guard let ruledAction = action as? any ActionWithRules else { return true }
         let requirements = ruledAction.rules?.requirements ?? ActionRequirements()
         let selection = context.selection
-        let liveAndCurrent = selection.source == .selection
-            && selectionIsCurrent(selection)
-            && isTargetApplicationActive(previousFrontmostApp)
-        switch requirements.input {
-        case .optional, .text:
-            break
-        case .liveSelection:
-            guard liveAndCurrent else { return false }
-        case .editableSelection:
-            guard liveAndCurrent, selection.isEditable == true else { return false }
-        }
-        if requirements.requiresPasteTarget {
-            guard context.pasteTargetAvailable == true,
-                  PasteAvailability.effective(policy: selection.appPolicy, probe: context.pasteTargetAvailable) == true,
-                  isTargetApplicationActive(previousFrontmostApp) else { return false }
-        }
-        return true
+        var capabilities = context.capabilities
+        capabilities.targetIsLive = selectionIsCurrent(selection) && isTargetApplicationActive(previousFrontmostApp)
+            ? .available : .unavailable
+        return ActionEligibility.isSatisfied(
+            requirements: requirements,
+            selection: selection,
+            capabilities: capabilities
+        )
     }
 
     /// Performs an action directly for the right-click path, which the SwiftUI button never fires. Builds the delivery context
@@ -2725,9 +2739,8 @@ public class PopupWindowController {
     /// results fade the spinner. With `suppressDeliveryToast`, the script toast owns the toast (one per run).
     private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext, suppressDeliveryToast: Bool = false, completionActionID: String? = nil, isFinalStep: Bool = true) async {
         let (selectedResult, effectiveDelivery) = delivery.consumeDeclaredSecondary(for: result)
-        let effectiveResult = normalizeOCRResult(selectedResult, delivery: effectiveDelivery)
-        let effectiveSuppressToast = suppressDeliveryToast || effectiveResult.containsToast
-        switch effectiveResult {
+        let effectiveSuppressToast = suppressDeliveryToast || selectedResult.containsToast
+        switch selectedResult {
         case .toast(var feedback):
             feedback.keepVisible = false
             toastController.show(feedback)
@@ -2741,9 +2754,8 @@ public class PopupWindowController {
                 await settleLoadingResult(item, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isLast)
             }
         default:
-            let effect = effectiveResult
             do {
-                let resolved = await resolveDelivery(effect, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast)
+                let resolved = await resolveDelivery(selectedResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast)
                 guard requiredPasteTargetIsActive(effectiveDelivery) else {
                     toastController.hide()
                     return

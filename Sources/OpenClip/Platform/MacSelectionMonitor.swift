@@ -523,7 +523,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                 rtf: selectionRTF,
                 flavors: selectionFlavors,
                 selectionGeneration: self.selectionGeneration,
-                isEditable: isClipboardFallback ? false : isEditable,
+                isEditable: isEditable,
                 pasteTargetAvailable: canPaste,
                 traceID: read.traceID
             )

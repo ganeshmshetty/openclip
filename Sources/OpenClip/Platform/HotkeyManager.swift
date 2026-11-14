@@ -200,7 +200,7 @@ public final class HotkeyManager {
                 isClipboardFallback: isClipboardFallback,
                 html: pasteboard.string(forType: .html),
                 rtf: pasteboard.string(forType: .rtf),
-                isEditable: false
+                isEditable: nil
             )
             return (context, nil)
         }
@@ -214,7 +214,7 @@ public final class HotkeyManager {
             timestamp: Date(),
             appPolicy: policy,
             isClipboardFallback: false,
-            isEditable: false
+            isEditable: nil
         )
         return (emptyContext, nil)
     }
@@ -414,7 +414,7 @@ public final class HotkeyManager {
             rtf: selectionRTF,
             flavors: selectionFlavors,
             selectionGeneration: generation,
-            isEditable: isClipboardFallback ? false : read.isEditable,
+            isEditable: read.isEditable,
             traceID: read.traceID
         )
         let canPaste = await probeTask?.value

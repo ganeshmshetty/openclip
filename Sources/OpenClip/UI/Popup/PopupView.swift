@@ -284,17 +284,11 @@ public struct PopupView: View {
         )
         return actions.filter { action in
             guard !ActionIdentity.isCompletionPseudoAction(action) else { return false }
-            if hiddenForPasteAvailability(action) { return false }
             if action.chrome.popupBehavior == .showSubActions || action.chrome.launchesAI {
                 return isStatic || !resolver.subActions(of: action, in: actions).isEmpty
             }
             return !subActionIDs.contains(action.id)
         }
-    }
-
-    /// Paste/Cut are hidden on a confirmed cannot-paste probe; nil keeps them visible.
-    private func hiddenForPasteAvailability(_ action: any Action) -> Bool {
-        modeStore.canPaste == false && action is any PasteRequiringAction
     }
 
     private var maxBarBudget: CGFloat {
@@ -612,10 +606,8 @@ public struct PopupView: View {
         .environment(\.popupEffectiveTheme, effectiveTheme)
     }
 
-    /// Palette catalog minus Paste-requiring actions when the target can't paste.
     private var searchCatalog: [any Action] {
         ActionCoordinator.shared.searchCatalog(for: context)
-            .filter { !hiddenForPasteAvailability($0) }
     }
 
     // MARK: - AI Helpers
