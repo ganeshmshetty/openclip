@@ -62,32 +62,49 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         if let tab {
             SettingsRouter.shared.select(tab.page)
         }
-        guard let window else { return }
-        if window.frame.height < 640 {
-            var frame = window.frame
-            let delta: CGFloat = 640 - frame.height
-            frame.origin.y = max(window.screen?.visibleFrame.minY ?? 0, frame.origin.y - delta)
-            frame.size.height = 640
-            window.setFrame(frame, display: true)
+
+        if let window, window.isVisible {
+            // Pair each `enter()` with exactly one `leave()` in `windowWillClose`. Presenting an
+            // already-visible window must not increment the count again, or the app never returns
+            // to accessory mode and the Dock icon lingers until quit.
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            postDidShow()
+            return
         }
 
-        // Pair each `enter()` with exactly one `leave()` in `windowWillClose`. Presenting an
-        // already-visible window must not increment the count again, or the app never returns
-        // to accessory mode and the Dock icon lingers until quit.
-        if !window.isVisible {
-            AppActivationPolicy.enter()
-        }
-
-        if window.isMiniaturized {
-            window.deminiaturize(nil)
-        }
+        // A window kept alive across closes stays bound to the Space it was created on, so
+        // reopening it from another desktop drags the user back to that one. Building a fresh
+        // window per open binds it to the Space the user is actually on.
+        // Enter regular before the window exists. A window created by an accessory-policy app
+        // while another app's fullscreen Space is active is placed on that fullscreen Space,
+        // over the fullscreen app. A regular app's window is placed on a normal desktop instead,
+        // which is where Settings belongs.
+        AppActivationPolicy.enter()
+        let window = makeWindow()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // Activation lands asynchronously; re-assert once so a first open cannot stay behind.
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window, self.window === window, window.isVisible else { return }
+            window.makeKeyAndOrderFront(nil)
+        }
+        postDidShow()
+    }
+
+    private func postDidShow() {
         NotificationCenter.default.post(name: .openClipPreferencesWindowDidShow, object: nil)
         StarPrompt.shared.present()
     }
 
     private init() {
+        super.init(window: nil)
+    }
+
+    private func makeWindow() -> NSWindow {
         let initialSize = NSSize(width: 860, height: 640)
         let minimumContent = NSSize(width: 760, height: 560)
 
@@ -107,7 +124,11 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         window.minSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumContent)).size
         window.contentMinSize = minimumContent
         window.setFrameAutosaveName("OpenClipSettingsWindow")
+        window.setFrameUsingName("OpenClipSettingsWindow")
         window.isReleasedWhenClosed = false
+        // A restorable window can be resurrected by AppKit at launch, on whatever Space it was
+        // last saved to, before the rest of the app is wired.
+        window.isRestorable = false
         window.center()
 
         // Empty NSToolbar is required for macOS 26 to render the large corner radius
@@ -124,11 +145,10 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         window.contentViewController = controller
         controller.view.wantsLayer = true
         controller.view.layer?.backgroundColor = NSColor.clear.cgColor
-        window.isOpaque = false
-        window.backgroundColor = .clear
 
-        super.init(window: window)
         window.delegate = self
+        self.window = window
+        return window
     }
 
     @available(*, unavailable)
@@ -141,6 +161,12 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
     public func windowWillClose(_ notification: Notification) {
         StarPrompt.shared.dismissIfShowing()
         AppActivationPolicy.leave()
+        // Drop the reference so the next open builds a window for the then-active Space. Deferred
+        // because the close notification runs while AppKit is still tearing the window down.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window = self.window, !window.isVisible else { return }
+            self.window = nil
+        }
     }
 
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
