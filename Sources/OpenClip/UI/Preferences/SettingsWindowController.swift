@@ -79,8 +79,12 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         // A window kept alive across closes stays bound to the Space it was created on, so
         // reopening it from another desktop drags the user back to that one. Building a fresh
         // window per open binds it to the Space the user is actually on.
-        let window = makeWindow()
+        // Enter regular before the window exists. A window created by an accessory-policy app
+        // while another app's fullscreen Space is active is placed on that fullscreen Space,
+        // over the fullscreen app. A regular app's window is placed on a normal desktop instead,
+        // which is where Settings belongs.
         AppActivationPolicy.enter()
+        let window = makeWindow()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         // Activation lands asynchronously; re-assert once so a first open cannot stay behind.
