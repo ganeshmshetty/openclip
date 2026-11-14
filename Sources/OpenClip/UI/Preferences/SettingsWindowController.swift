@@ -15,24 +15,39 @@ public enum AppActivationPolicy {
     private static var count = 0
     private static var previousPolicy: NSApplication.ActivationPolicy?
 
-    /// The test host is the app itself, so a window opened by a test would give it a Dock icon that outlives an
-    /// interrupted run. Tests that assert the policy switch turn this off.
+    /// The test host is the app itself. Under XCTest the requested policy is recorded instead of
+    /// applied: a test run must never claim a Dock icon, and an interrupted run must not leave one
+    /// behind. Tests assert `recordedPolicy`.
     static var isSuppressed = NSClassFromString("XCTestCase") != nil
+    private(set) static var recordedPolicy: NSApplication.ActivationPolicy?
+
+    private static func currentPolicy() -> NSApplication.ActivationPolicy {
+        isSuppressed ? (recordedPolicy ?? .accessory) : NSApp.activationPolicy()
+    }
+
+    private static func apply(_ policy: NSApplication.ActivationPolicy) {
+        guard !isSuppressed else {
+            recordedPolicy = policy
+            return
+        }
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
+        }
+    }
 
     public static func enter() {
-        guard !isSuppressed else { return }
         if count == 0 && previousPolicy == nil {
-            previousPolicy = NSApp.activationPolicy()
+            previousPolicy = currentPolicy()
         }
         count += 1
-        if NSApp.activationPolicy() != .regular {
-            NSApp.setActivationPolicy(.regular)
+        apply(.regular)
+        if !isSuppressed {
+            NSApp.activate(ignoringOtherApps: true)
         }
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     public static func leave() {
-        guard !isSuppressed, count > 0 else { return }
+        guard count > 0 else { return }
         count -= 1
         guard count == 0 else { return }
         Task { @MainActor in
@@ -43,10 +58,22 @@ public enum AppActivationPolicy {
                 $0.isVisible && $0.level == .normal && !($0.className.contains("Popup") || $0.className.contains("Panel"))
             }
             if !hasVisibleRegularWindows {
-                NSApp.setActivationPolicy(previousPolicy ?? .accessory)
+                apply(previousPolicy ?? .accessory)
                 previousPolicy = nil
             }
         }
+    }
+
+    /// Clears the lease and the recorded policy between tests.
+    static func resetForTesting() {
+        count = 0
+        previousPolicy = nil
+        recordedPolicy = nil
+    }
+
+    /// Pretends the app was already showing `policy` before the next lease.
+    static func seedPolicyForTesting(_ policy: NSApplication.ActivationPolicy?) {
+        recordedPolicy = policy
     }
 }
 
