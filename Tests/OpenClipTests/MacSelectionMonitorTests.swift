@@ -1880,6 +1880,9 @@ final class MacSelectionMonitorTests: XCTestCase {
             monitor.isExcludedBundle = { _ in false }
             monitor.policyResolver = { _ in AppPolicyContext.default }
             monitor.isOverlayPresent = { _ in overlay }
+            // The copy tier is reachable only for a gesture with a text cue; the overlay gate is
+            // what this test varies.
+            monitor.currentCursorProvider = { .beam }
             monitor.retriever = SelectionRetrievalCoordinator(
                 inspect: { Self.copyEvidenceTarget(role: "AXWebArea") },
                 copyCapture: { _ in SelectionResult(text: "from copy", strategy: .keyboardCopy) }
@@ -1908,6 +1911,8 @@ final class MacSelectionMonitorTests: XCTestCase {
     func testTextDragKeepsPressEvidenceWhenReleasedOverBlankSpace() async {
         for releaseCursor: CursorClass in [.arrow, .pointingHand, .unknown, .other] {
             let monitor = makeKeyboardMonitor(overlay: false, bundleID: "com.openai.codex", role: "AXGroup")
+            // This test is about the cue gate, which copy-only policies are exempt from.
+            monitor.policyResolver = { _ in AppPolicyContext.default }
             var cursor: CursorClass = .beam
             monitor.currentCursorProvider = { cursor }
             final class EvidenceBox: @unchecked Sendable { var value: CopyEvidence? }
@@ -1931,14 +1936,73 @@ final class MacSelectionMonitorTests: XCTestCase {
             XCTAssertEqual(evidence.value?.strength, .weak, "A text cursor is context, not proof of a selection")
 
             // The next gesture starts on a blank/canvas surface and cannot inherit the prior beam.
-            // A completed drag is still weak gesture evidence, gated on an enabled Copy command.
+            // It completes a drag, but with no text cue its synthetic copy stays withheld (#210);
+            // AX reads are unaffected, so an exposed selection would still be delivered.
             cursor = .arrow
             evidence.value = nil
             monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
             monitor.handleMouseUp(app: MockTestApp(bundleID: "com.openai.codex"), cursor: end, clickCount: 1)
             await monitor.debounceTask?.value
-            XCTAssertEqual(evidence.value?.reason, "selection-gesture:dragEnd", "release cursor: \(releaseCursor)")
-            XCTAssertEqual(evidence.value?.strength, .weak)
+            XCTAssertNil(evidence.value, "an arrow press must not authorize a synthetic copy")
+            XCTAssertNil(monitor.latestSelection)
+        }
+    }
+
+    /// Regression (issue #210): the alert sound on a drag or double-click that selected nothing.
+    /// A selection *gesture* is not a selection; when neither the press nor the release showed the
+    /// I-beam, the copy tier must not post a synthetic ⌘C, because the target app has nothing to
+    /// copy and answers with the system alert sound. AX reads stay unconditional.
+    func testAutomaticCopyFallbackRequiresATextCursorCue() async {
+        let gestures: [(name: String, clickCount: Int, release: CGPoint)] = [
+            ("drag", 1, CGPoint(x: 200, y: 100)),
+            ("doubleClick", 2, CGPoint(x: 100, y: 100))
+        ]
+        for gesture in gestures {
+            for cursor: CursorClass in [.arrow, .pointingHand, .unknown, .other] {
+                let monitor = makeMonitor()
+                monitor.isExcludedBundle = { _ in false }
+                monitor.policyResolver = { _ in AppPolicyContext.default }
+                monitor.currentCursorProvider = { cursor }
+                monitor.retriever = SelectionRetrievalCoordinator(
+                    // The Safari shape from #210: an exposed web area that reports no selection.
+                    inspect: { Self.fixtureTarget(role: "AXWebArea", selectedText: nil) },
+                    copyCapture: { _ in
+                        XCTFail("\(gesture.name) with \(cursor.rawValue) must not post a synthetic copy")
+                        return nil
+                    }
+                )
+
+                monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+                monitor.handleMouseUp(app: MockTestApp(bundleID: "com.apple.Safari"),
+                                      cursor: gesture.release, clickCount: gesture.clickCount)
+                await monitor.debounceTask?.value
+
+                XCTAssertNil(monitor.latestSelection, "\(gesture.name) \(cursor.rawValue)")
+            }
+        }
+    }
+
+    /// The cue gate must not remove the only read path for an app that declares copy as its
+    /// retrieval strategy. Such an app's AX tree cannot expose the selection, so a copy-only
+    /// policy opts back into the fallback without an I-beam; the copy engine still requires
+    /// selection evidence and an enabled Copy command.
+    func testAutomaticCopyFallbackRunsWithoutACueForCopyOnlyPolicy() async {
+        for cursor: CursorClass in [.arrow, .pointingHand, .unknown] {
+            let monitor = makeMonitor()
+            monitor.isExcludedBundle = { _ in false }
+            monitor.policyResolver = { _ in AppPolicyContext(retrievalMode: .keyboardCopy) }
+            monitor.currentCursorProvider = { cursor }
+            monitor.retriever = SelectionRetrievalCoordinator(
+                inspect: { Self.fixtureTarget(role: "AXGroup", selectedText: nil) },
+                copyCapture: { _ in SelectionResult(text: "copy-only selection", strategy: .keyboardCopy) }
+            )
+
+            monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+            monitor.handleMouseUp(app: MockTestApp(bundleID: "com.microsoft.VSCode"),
+                                  cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+            await monitor.debounceTask?.value
+
+            XCTAssertEqual(monitor.latestSelection?.context.text, "copy-only selection", cursor.rawValue)
         }
     }
 

@@ -718,6 +718,19 @@ lines by height interleaved multi-column text.
   timeout on the system-wide element (that would change the process-wide AX default); its
   deadline race bounds it instead, as in `SelectionEditabilityProbe`.
   Multi-clicks also recheck window geometry after their settle delay for delayed zoom/resize updates.
+- Automatic Copy needs a text cue from the gesture. A drag or multi-click is a selection *gesture*,
+  not a selection: the pointer may have been on a scrollbar, a photo, a video, or window content,
+  and the copy tier would post a real ⌘C against an app with nothing selected. AppKit answers that
+  with the system alert sound and a flashing Edit menu (issues #210, #159, #109). `handleMouseUp`
+  therefore requests the copy fallback only when the press or the release showed the I-beam
+  (`textCue` in the selection log); arrow, pointing-hand, and unclassified cursors keep every AX
+  strategy but never reach a synthetic copy. The cue is structural, not per-app: text drags
+  (including one released over whitespace), multi-clicks on text, and the Chromium/Electron
+  fallback still copy. An app whose policy puts `keyboard-copy` first is exempt: that policy
+  declares its AX tree cannot expose the selection, so the cue gate would remove its only read
+  path; the copy engine still requires selection evidence and an enabled Copy command. Keyboard, hold, and hotkey paths are not gated. Remaining hole: the
+  package's browser fallback still grants weak evidence when an exposed web area reports no
+  selection (the Safari shape in #210); closing that belongs in OpenSelection.
 - Mouse-gesture results must be where the gesture was. AX reports the document's selection,
   not the gesture's: Chromium's double-click selects the closest word even over a video, so a
   player with `opacity: 0` controls yields an invisible selection far from the click (issue #162),
