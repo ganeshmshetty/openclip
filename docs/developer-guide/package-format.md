@@ -114,9 +114,12 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `contextual` | Boolean | Optional contextual-promotion override. `true` promotes even without requirements; `false` prevents promotion even with requirements; absent uses the uniform narrowing-requirement rule. User settings override this value. |
 
 `text` accepts nonblank selection, clipboard, or OCR text. `liveSelection` requires text from the
-current live selection. `editableSelection` additionally requires confirmed editability of that
-selection; unknown editability fails closed. Paste destination support is independent from input
-source, so clipboard-derived transformations can still be pasted into a confirmed destination.
+current live selection. `editableSelection` additionally requires confirmed editability of the
+focused target; unknown editability fails closed. Paste destination support is independent from
+input source, so clipboard-derived transformations can still be pasted into a confirmed
+destination. `requiresPasteTarget` tests the app's Paste command, which is not the same evidence as
+text insertion: a result that pastes text still needs a confirmed editable target, and falls back
+to copy otherwise.
 Older OpenClip releases ignore unknown manifest keys; do not publish catalog packages that rely on
 these gates until an enforcing release exists. The current source version 1.7.3 is not a confirmed
 compatibility floor, so `minOpenClipVersion` must wait for that release's version to be established.

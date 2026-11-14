@@ -7,7 +7,7 @@
 // derived copy for a cut), and there is no declared toast — matching the default behavior.
 import Foundation
 
-public struct CutAction: ConfigurableAction, PasteRequiringAction {
+public struct CutAction: ConfigurableAction {
     public let id = "builtin.cut"
     public var title: String { String(localized: "Cut") }
     public let preferenceIconName = "scissors"
@@ -21,9 +21,14 @@ public struct CutAction: ConfigurableAction, PasteRequiringAction {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        // Cut deletes the selection, so the control has to accept edits. Paste only needs a
-        // paste target and keeps using the paste-availability probe.
-        return !context.selection.text.isEmpty && context.selection.isEditable == true
+        // Cut deletes the selection, so it needs positive proof the control accepts edits. The
+        // paste destination is irrelevant; paste availability is a different capability.
+        ActionEligibility.isSatisfied(
+            [.text, .editableText],
+            selection: context.selection,
+            capabilities: context.capabilities,
+            unknownSatisfies: false
+        )
     }
     
     @MainActor
@@ -31,4 +36,3 @@ public struct CutAction: ConfigurableAction, PasteRequiringAction {
         return .cut(context.selection.text)
     }
 }
-

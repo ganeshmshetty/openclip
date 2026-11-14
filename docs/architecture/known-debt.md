@@ -605,13 +605,14 @@ lines by height interleaved multi-column text.
   (`performCardEffect`) that carry no delivery context and are never re-decided. The live probe
   (`PasteAvailabilityProbe`) needs
   Accessibility permission and
-  walks the target's Edit ▸ Paste AX menu item; without AX it returns "unknown" and delivery falls
-  back to copy (safe but means paste never happens for AX-less users). The same unified decision drives
-  `modeStore.canPaste`, which hides the card's Paste button and the bar/search Paste + Cut
-  (`PasteRequiringAction`) actions on a confirmed cannot-paste; unknown keeps them visible. The
-  probe is started by the trigger sites in parallel with selection retrieval and applied before the
-  first frame (probe-before-render, nothing cached), so a same-app focus-context change re-probes
-  cleanly. The click-intent capture reads
+  walks the target's Edit ▸ Paste AX menu item; without AX it returns "unknown", which hides
+  built-in Paste only when a destination is confirmed unavailable. Text insertion is separate
+  evidence (AX settable state), so text paste requires confirmed editability and degrades to copy
+  instead of trusting the app-level menu. `modeStore.canPaste` still feeds the card's Paste button
+  and palette labels, while Paste/Cut visibility comes from their `isEnabled` gates
+  (`ActionEligibility`). The probe is started by the trigger sites in parallel with selection
+  retrieval and applied before the first frame (probe-before-render, nothing cached), so a
+  same-app focus-context change re-probes cleanly. The click-intent capture reads
   only ⇧ (not ⌘/⌥); the bar/sub-bar take it from mouse-down, while the palette resolves it itself
   (`replace` for ⇧⏎ / the ⇧⏎ badge, else the captured mouse intent) and passes it explicitly into
   the delivery snapshot, and entering the palette resets `pendingClickIntent` so a keyboard run
@@ -731,15 +732,20 @@ lines by height interleaved multi-column text.
   path; the copy engine still requires selection evidence and an enabled Copy command. Keyboard, hold, and hotkey paths are not gated. Remaining hole: the
   package's browser fallback still grants weak evidence when an exposed web area reports no
   selection (the Safari shape in #210); closing that belongs in OpenSelection.
-- Editability comes from Accessibility's settable state, not from a selected-text range.
-  A read-only text view exposes a range too, so the old range check reported read-only text as
-  editable and kept Cut and `editableSelection` actions visible. OpenSelection v2.16.3 reads
-  `AXUIElementIsAttributeSettable` for the value and selected-text attributes during inspect;
-  a standard text control that reports both as non-settable is read-only, and an unavailable
-  read falls back to the role so partial AX implementations keep working. Cut deletes the
-  selection, so `CutAction` now requires a positively editable context. Paste stays on the
-  paste-availability probe, because a target can accept a paste without an editable text field.
-  Extensions that declare `input: editableSelection` inherit the same signal.
+- Capability facts are tri-state and decided in one place. `TargetCapabilities` carries text
+  insertion (Accessibility settable state), pasteboard paste (the Edit ▸ Paste probe), and target
+  liveness; `ActionEligibility` turns them into visibility and delivery decisions. Text insertion
+  is element-level evidence: a read-only text view exposes a selection range but accepts no edits,
+  and the app-level Paste command is enabled in browsers that cannot insert text at the caret.
+  Cut and text paste therefore require positive editability (paste degrades to copy otherwise);
+  clipboard and file payloads use the Paste probe because Finder, Preview, and canvases accept
+  them without a text control. OpenSelection v2.16.5 reads settable state during inspect and adds
+  `EditabilityProbe` for sessions that open without a selection. Extensions that declare
+  `input: editableSelection` or `requiresPasteTarget` map onto the same needs.
+  Residual debt: a loading action captures editability at selection time and does not re-probe
+  the focused element at delivery, so a focus change inside the same app is caught only by the
+  selection-generation check. `requiresLiveSelection` plus `OCRInputAction` remain a separate
+  input-provenance axis from target capabilities.
 - Mouse-gesture results must be where the gesture was. AX reports the document's selection,
   not the gesture's: Chromium's double-click selects the closest word even over a video, so a
   player with `opacity: 0` controls yields an invisible selection far from the click (issue #162),

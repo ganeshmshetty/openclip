@@ -34,7 +34,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (result, _) = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         assertCase(result, .paste("hello"))
@@ -46,7 +46,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (result, _) = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         assertCase(result, .copy("hello"))
@@ -58,7 +58,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (result, _) = ActionResultDelivery.resolve(
             raw: .paste("hello"),
             clickIntent: .primary,
-            canPaste: false,
+            capabilities: .stubUnavailable,
             delivery: .none
         )
         assertCase(result, .copy("hello"))
@@ -70,7 +70,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (result, _) = ActionResultDelivery.resolve(
             raw: .copy("hello"),
             clickIntent: .secondary,
-            canPaste: false,
+            capabilities: .stubUnavailable,
             delivery: .none
         )
         assertCase(result, .copy("hello"))
@@ -80,7 +80,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let selection = SelectionContext(text: "Selected", selectionGeneration: 7)
         for intent in [ActionResultDelivery.ClickIntent.primary, .secondary] {
             let (result, toast) = ActionResultDelivery.resolve(
-                raw: .copySelection(selection), clickIntent: intent, canPaste: false, delivery: .none
+                raw: .copySelection(selection), clickIntent: intent, capabilities: .stubUnavailable, delivery: .none
             )
             guard case .copySelection(let copied) = result else { return XCTFail("Native Copy must stay native") }
             XCTAssertEqual(copied.selectionGeneration, 7)
@@ -88,14 +88,66 @@ final class ActionResultDeliveryTests: XCTestCase {
         }
     }
 
-    func testCutStaysCut() {
+    func testCutStaysCutWhenOnlyPasteIsUnavailable() {
         let (result, _) = ActionResultDelivery.resolve(
             raw: .cut("hello"),
             clickIntent: .secondary,
-            canPaste: false,
+            capabilities: .stub(pasteboardPaste: .unavailable),
             delivery: .none
         )
         assertCase(result, .cut("hello"))
+    }
+
+    func testReadOnlyTargetDegradesCutToCopy() {
+        let (result, toast) = ActionResultDelivery.resolve(
+            raw: .cut("hello"),
+            clickIntent: .primary,
+            capabilities: .stubUnavailable,
+            delivery: .none
+        )
+        assertCase(result, .copy("hello"))
+        XCTAssertEqual(toast?.message, String(localized: "Copied"))
+    }
+
+    func testTextPasteDoesNotTrustThePasteMenuWhenInsertionIsUnknown() {
+        let (result, _) = ActionResultDelivery.resolve(
+            raw: .paste("hello"),
+            clickIntent: .primary,
+            capabilities: .stub(textInsertion: .unknown, pasteboardPaste: .available),
+            delivery: .none
+        )
+        assertCase(result, .copy("hello"))
+    }
+
+    func testTargetChangeDegradesTextPasteToCopy() {
+        let (result, _) = ActionResultDelivery.resolve(
+            raw: .paste("hello"),
+            clickIntent: .primary,
+            capabilities: .stub(targetIsLive: .unavailable),
+            delivery: .none
+        )
+        assertCase(result, .copy("hello"))
+    }
+
+    func testFilePayloadUsesThePasteMenuInsteadOfTextInsertion() {
+        let payload = RichPasteboardPayload(flavors: [
+            RichPasteboardFlavor(type: "public.file-url", data: Data("file:///tmp/a".utf8))
+        ])
+        let (pasted, _) = ActionResultDelivery.resolve(
+            raw: .pasteContent(payload),
+            clickIntent: .primary,
+            capabilities: .stub(textInsertion: .unavailable, pasteboardPaste: .available),
+            delivery: .none
+        )
+        assertPayload(pasted, .pasteContent(payload))
+
+        let (copied, _) = ActionResultDelivery.resolve(
+            raw: .pasteContent(payload),
+            clickIntent: .primary,
+            capabilities: .stub(textInsertion: .available, pasteboardPaste: .unavailable),
+            delivery: .none
+        )
+        assertPayload(copied, .copyContent(payload))
     }
 
     func testNonTextResultsPassThrough() {
@@ -103,7 +155,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (result, _) = ActionResultDelivery.resolve(
             raw: .openURL(url),
             clickIntent: .secondary,
-            canPaste: false,
+            capabilities: .stubUnavailable,
             delivery: .none
         )
         assertCase(result, .openURL(url))
@@ -112,23 +164,23 @@ final class ActionResultDeliveryTests: XCTestCase {
     // MARK: - Primary/secondary selection
 
     func testPrimaryUsesRawResult() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: true, delivery: .none)
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, capabilities: .stub(), delivery: .none)
         assertCase(r, .paste("a"))
     }
 
     func testSecondaryWithoutDeclaredSecondaryCopiesPaste() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: .none)
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, capabilities: .stub(), delivery: .none)
         assertCase(r, .copy("a"))
     }
 
     func testSecondaryWithNonPastePrimaryStaysPrimary() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .openURL(URL(string: "https://x")!), clickIntent: .secondary, canPaste: true, delivery: .none)
+        let (r, _) = ActionResultDelivery.resolve(raw: .openURL(URL(string: "https://x")!), clickIntent: .secondary, capabilities: .stub(), delivery: .none)
         assertCase(r, .openURL(URL(string: "https://x")!))
     }
 
     func testSecondaryUsesDeclaredSecondary() {
         let d = ActionDelivery(secondary: .openURL(URL(string: "https://alt")!))
-        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: d)
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, capabilities: .stub(), delivery: d)
         assertCase(r, .openURL(URL(string: "https://alt")!))
     }
 
@@ -136,12 +188,12 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     func testProbeAppliesToDeclaredPasteSecondary() {
         let d = ActionDelivery(secondary: .paste("a"))
-        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: false, delivery: d)
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, capabilities: .stubUnavailable, delivery: d)
         assertCase(r, .copy("a"))   // declared paste still downgrades when target can't paste
     }
 
     func testProbeAppliesToPrimary() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: false, delivery: .none)
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, capabilities: .stubUnavailable, delivery: .none)
         assertCase(r, .copy("a"))
     }
 
@@ -163,30 +215,30 @@ final class ActionResultDeliveryTests: XCTestCase {
     }
 
     func testPrimaryRichPasteStaysPasteWhenTargetCanPaste() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .primary, canPaste: true, delivery: .none)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .primary, capabilities: .stub(), delivery: .none)
         assertPayload(r, .pasteContent(richPayload))
         XCTAssertNil(toast)
     }
 
     func testProbeDowngradesRichPasteWhenTargetCannotPaste() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .primary, canPaste: false, delivery: .none)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .primary, capabilities: .stubUnavailable, delivery: .none)
         assertPayload(r, .copyContent(richPayload))
         XCTAssertEqual(toast?.message, String(localized: "Copied"))
     }
 
     func testSecondaryClickOnRichPasteDerivesCopyContent() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .secondary, canPaste: true, delivery: .none)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .secondary, capabilities: .stub(), delivery: .none)
         assertPayload(r, .copyContent(richPayload))
         XCTAssertEqual(toast?.message, String(localized: "Copied"))
     }
 
     func testSecondaryClickOnRichPasteDowngradesCopyWhenTargetCannotPaste() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .secondary, canPaste: false, delivery: .none)
+        let (r, _) = ActionResultDelivery.resolve(raw: .pasteContent(richPayload), clickIntent: .secondary, capabilities: .stubUnavailable, delivery: .none)
         assertPayload(r, .copyContent(richPayload))
     }
 
     func testExplicitCopyContentNeverDowngraded() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .copyContent(richPayload), clickIntent: .primary, canPaste: true, delivery: .none)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .copyContent(richPayload), clickIntent: .primary, capabilities: .stub(), delivery: .none)
         assertPayload(r, .copyContent(richPayload))
         XCTAssertEqual(toast?.message, String(localized: "Copied"))
         XCTAssertEqual(toast?.style, .success)
@@ -195,62 +247,62 @@ final class ActionResultDeliveryTests: XCTestCase {
     // MARK: - Toast
 
     func testDefaultCopiedToastOnDerivedCopy() {
-        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: .none)
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, capabilities: .stub(), delivery: .none)
         XCTAssertEqual(toast?.message, String(localized: "Copied"))
         XCTAssertEqual(toast?.style, .success)
     }
 
     func testNoDefaultToastOnHonoredPaste() {
-        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: true, delivery: .none)
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, capabilities: .stub(), delivery: .none)
         XCTAssertNil(toast)
     }
 
     func testDefaultToastOnNativeCopy() {
-        let (_, toast) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, canPaste: true, delivery: .none)
+        let (_, toast) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, capabilities: .stub(), delivery: .none)
         XCTAssertEqual(toast?.message, String(localized: "Copied"))
         XCTAssertEqual(toast?.style, .success)
     }
 
     func testDeclaredPrimaryToastOverridesDefault() {
         let t = StatusFeedback(message: "Saved", style: .info)
-        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: true, delivery: ActionDelivery(primaryToast: t))
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, capabilities: .stub(), delivery: ActionDelivery(primaryToast: t))
         XCTAssertEqual(toast, t)
     }
 
     func testDeclaredSecondaryToastUsed() {
         let t = StatusFeedback(message: "Copied alt", style: .success)
-        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: ActionDelivery(secondaryToast: t))
+        let (_, toast) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, capabilities: .stub(), delivery: ActionDelivery(secondaryToast: t))
         XCTAssertEqual(toast, t)
     }
 
     // MARK: - Implicit returned text (.text) + user preference
 
     func testTextWithPastePreferencePastesWhenCanPaste() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .paste)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, capabilities: .stub(), delivery: .none, preference: .paste)
         assertCase(r, .paste("hello"))
         XCTAssertNil(toast, "an honored paste fires no companion toast")
     }
 
     func testTextWithPastePreferenceCopiesWhenCannotPaste() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .paste)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, capabilities: .stubUnavailable, delivery: .none, preference: .paste)
         assertCase(r, .copy("hello"))
         XCTAssertEqual(toast?.message, String(localized: "Copied"), "a paste context delivered as a copy fires the default Copied toast")
     }
 
     func testTextWithCopyPreferenceCopiesWithToast() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .copy)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, capabilities: .stub(), delivery: .none, preference: .copy)
         assertCase(r, .copy("hello"))
         XCTAssertEqual(toast?.message, String(localized: "Copied"), "a delivered copy outcome fires the default Copied toast")
     }
 
     func testTextWithPreviewPreferenceStaysText() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none, preference: .preview)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, capabilities: .stub(), delivery: .none, preference: .preview)
         assertCase(r, .text("hello"))
         XCTAssertNil(toast)
     }
 
     func testTextWithPreviewPreferenceIgnoresProbe() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .preview)
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, capabilities: .stubUnavailable, delivery: .none, preference: .preview)
         assertCase(r, .text("hello"))
     }
 
@@ -258,7 +310,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (r, toast) = ActionResultDelivery.resolve(
             raw: .presentedText("hello", .markdown),
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: .preview
         )
@@ -274,7 +326,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (pasteResult, _) = ActionResultDelivery.resolve(
             raw: .presentedText("hello", .code),
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         assertCase(pasteResult, .paste("hello"), "the presentation never changes delivery")
@@ -282,56 +334,56 @@ final class ActionResultDeliveryTests: XCTestCase {
         let (copyResult, _) = ActionResultDelivery.resolve(
             raw: .presentedText("hello", .diff),
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         assertCase(copyResult, .copy("hello"))
     }
 
     func testTextNilPreferencePrimaryDefaultsToPaste() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, canPaste: true, delivery: .none)
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .primary, capabilities: .stub(), delivery: .none)
         assertCase(r, .paste("hello"))
     }
 
     func testTextNilPreferenceSecondaryDefaultsToCopy() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none)
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, capabilities: .stub(), delivery: .none)
         assertCase(r, .copy("hello"))
     }
 
     func testTextWithPreviewPreferenceSecondaryStaysInCard() {
-        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none, preference: .preview)
+        let (r, toast) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, capabilities: .stub(), delivery: .none, preference: .preview)
         assertCase(r, .text("hello"), "Show in card applies to secondary clicks too")
         XCTAssertNil(toast)
     }
 
     func testRecommendedPreviewSecondaryStillCopies() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none, recommendedResult: .preview)
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, capabilities: .stub(), delivery: .none, recommendedResult: .preview)
         assertCase(r, .copy("hello"), "only the user's own Show in card choice overrides the clipboard invariant")
     }
 
     func testPastePreferenceSecondaryStillCopies() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, canPaste: true, delivery: .none, preference: .paste)
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("hello"), clickIntent: .secondary, capabilities: .stub(), delivery: .none, preference: .paste)
         assertCase(r, .copy("hello"))
     }
 
     func testPreviewPreferenceSecondaryExplicitPasteStillCopies() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, canPaste: true, delivery: .none, preference: .preview)
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .secondary, capabilities: .stub(), delivery: .none, preference: .preview)
         assertCase(r, .copy("a"))
     }
 
     func testDeclaredSecondaryWinsOverTextPreference() {
         let d = ActionDelivery(secondary: .openURL(URL(string: "https://alt")!))
-        let (r, _) = ActionResultDelivery.resolve(raw: .text("a"), clickIntent: .secondary, canPaste: true, delivery: d, preference: .preview)
+        let (r, _) = ActionResultDelivery.resolve(raw: .text("a"), clickIntent: .secondary, capabilities: .stub(), delivery: d, preference: .preview)
         assertCase(r, .openURL(URL(string: "https://alt")!))
     }
 
     func testPreferenceIsNoOpForExplicitPaste() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .preview)
+        let (r, _) = ActionResultDelivery.resolve(raw: .paste("a"), clickIntent: .primary, capabilities: .stubUnavailable, delivery: .none, preference: .preview)
         assertCase(r, .copy("a"), "an explicit .paste is never previewed — the probe downgrade still applies")
     }
 
     func testPreferenceIsNoOpForExplicitCopy() {
-        let (r, _) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, canPaste: false, delivery: .none, preference: .preview)
+        let (r, _) = ActionResultDelivery.resolve(raw: .copy("a"), clickIntent: .primary, capabilities: .stubUnavailable, delivery: .none, preference: .preview)
         assertCase(r, .copy("a"))
     }
 
@@ -341,7 +393,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let pasted = ActionResultDelivery.resolve(
             raw: .sequence([.text("a"), .paste("b")]),
             clickIntent: .primary,
-            canPaste: false,
+            capabilities: .stubUnavailable,
             delivery: .none,
             preference: .paste
         )
@@ -351,7 +403,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let preview = ActionResultDelivery.resolve(
             raw: .sequence([.text("a")]),
             clickIntent: .primary,
-            canPaste: false,
+            capabilities: .stubUnavailable,
             delivery: .none,
             preference: .preview
         )
@@ -362,7 +414,7 @@ final class ActionResultDeliveryTests: XCTestCase {
         let replaced = ActionResultDelivery.resolve(
             raw: .sequence([.paste("a"), .notify(title: "t", body: "b")]),
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: declared
         )
         assertCase(replaced.result, .openURL(URL(string: "https://alt")!))
@@ -441,7 +493,8 @@ final class ActionResultDeliveryTests: XCTestCase {
                                  appPolicy: AppPolicyContext,
                                  toastController: ToastPanelController = ToastPanelController(),
                                  settingsStore: SettingsStore = MemorySettingsStore(),
-                                 source: SelectionSource = .selection) -> PopupWindowController {
+                                 source: SelectionSource = .selection,
+                                 isEditable: Bool? = nil) -> PopupWindowController {
         let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe, toastController: toastController, settingsStore: settingsStore)
         let context = SelectionContext(
             text: "hello",
@@ -449,9 +502,10 @@ final class ActionResultDeliveryTests: XCTestCase {
             cursorPosition: CGPoint(x: 300, y: 300),
             timestamp: Date(),
             appPolicy: appPolicy,
-            source: source
+            source: source,
+            isEditable: isEditable ?? (source == .selection)
         )
-        controller.startTestSession(for: context)
+        controller.startTestSession(for: context, pasteAvailable: source == .ocr ? false : nil)
         return controller
     }
 
@@ -503,13 +557,14 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     /// Default primary = paste + cannot paste → copy with the default "Copied" toast.
     @MainActor
-    func testTextDeliversCopyAndCopiedToastWhenCannotPaste() async throws {
+    func testTextDeliversCopyAndCopiedToastWhenTargetIsReadOnly() async throws {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
         let controller = shownController(resultHandler: handler,
-                                         pasteProbe: FixedProbe(result: false),
+                                         pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
-                                         toastController: toast)
+                                         toastController: toast,
+                                         isEditable: false)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.text("hello"))
@@ -883,11 +938,12 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     /// Left-click + probe says cannot paste → copy.
     @MainActor
-    func testDeliverResultCopiesWhenProbeSaysCannotPaste() async throws {
+    func testDeliverResultCopiesWhenTargetIsReadOnly() async throws {
         let handler = RecordingHandler()
         let controller = shownController(resultHandler: handler,
-                                         pasteProbe: FixedProbe(result: false),
-                                         appPolicy: .default)
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         isEditable: false)
         defer { controller.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -917,9 +973,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 100_000_000)
         let controller = shownController(resultHandler: handler,
-                                         pasteProbe: FixedProbe(result: false),
+                                         pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
-                                         toastController: toast)
+                                         toastController: toast,
+                                         isEditable: false)
         defer { controller.hide(); toast.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -1048,7 +1105,8 @@ final class ActionResultDeliveryTests: XCTestCase {
             cursorPosition: CGPoint(x: 300, y: 300),
             timestamp: Date(),
             appPolicy: .default,
-            source: source
+            source: source,
+            isEditable: source == .selection
         )
         return ActionContext(selection: context, modifiers: [])
     }
@@ -1289,9 +1347,10 @@ final class ActionResultDeliveryTests: XCTestCase {
         let handler = RecordingHandler()
         let toast = ToastPanelController(autoDismissNanoseconds: 60_000_000_000)
         let controller = shownController(resultHandler: handler,
-                                         pasteProbe: FixedProbe(result: false),
+                                         pasteProbe: FixedProbe(result: true),
                                          appPolicy: .default,
-                                         toastController: toast)
+                                         toastController: toast,
+                                         isEditable: false)
         defer { controller.hide(); toast.hide() }
 
         let scriptToast = StatusFeedback(message: "saved", style: .info)
@@ -1492,11 +1551,12 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     /// If the target cannot paste, the probe still downgrades a declared sequence's `.paste` to `.copy`.
     @MainActor
-    func testDeclaredSequenceSecondaryDowngradesToCopyWhenCannotPaste() async throws {
+    func testDeclaredSequenceSecondaryDowngradesToCopyWhenTargetIsReadOnly() async throws {
         let handler = RecordingHandler()
         let controller = shownController(resultHandler: handler,
-                                         pasteProbe: FixedProbe(result: false),
-                                         appPolicy: .default)
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         isEditable: false)
         defer { controller.hide() }
 
         let url = URL(string: "https://alt")!
@@ -1557,11 +1617,12 @@ final class ActionResultDeliveryTests: XCTestCase {
 
     /// Same declared `.paste` secondary, target cannot paste: the probe downgrades it to copy, never pastes blindly.
     @MainActor
-    func testDeclaredPasteSecondaryDowngradesToCopyWhenCannotPaste() async throws {
+    func testDeclaredPasteSecondaryDowngradesToCopyWhenTargetIsReadOnly() async throws {
         let handler = RecordingHandler()
         let controller = shownController(resultHandler: handler,
-                                         pasteProbe: FixedProbe(result: false),
-                                         appPolicy: .default)
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default,
+                                         isEditable: false)
         defer { controller.hide() }
 
         let stub = DeclaredDeliveryStub(delivery: ActionDelivery(secondary: .paste("alt")))
@@ -1693,7 +1754,8 @@ final class ActionResultDeliveryTests: XCTestCase {
         controller.startTestSession(for: SelectionContext(
             text: "hello",
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
-            appPolicy: .default
+            appPolicy: .default,
+            isEditable: true
         ), pasteAvailable: true)
         let action = SlowResultStubAction(
             result: .paste("stale destination"),
@@ -1709,28 +1771,36 @@ final class ActionResultDeliveryTests: XCTestCase {
     }
 
     @MainActor
-    func testFieldChangeWhilePasteProbeSuspendsCopiesInsteadOfPasting() async throws {
+    func testFieldChangeDuringDeliveryCopiesInsteadOfPasting() async throws {
         let handler = RecordingHandler()
         let probe = SwitchingTargetProbe()
         let controller = shownController(resultHandler: handler, pasteProbe: probe, appPolicy: .default)
         let target = DeliveryTestApp(pid: 90001)
         controller.previousFrontmostApp = target
         controller.frontmostApplicationProvider = { target }
-        controller.selectionIsCurrent = { _ in !probe.switched }
+        var checks = 0
+        controller.selectionIsCurrent = { _ in
+            checks += 1
+            return checks == 1
+        }
         controller.deliverResult(.paste("late result"))
         assertCase(try await awaitDelivery(from: handler), .copy("late result"))
         XCTAssertEqual(controller.lastDeliveryStatus, .targetChanged)
     }
 
     @MainActor
-    func testAppSwitchWhilePasteProbeSuspendsDowngradesToCopy() async throws {
+    func testAppSwitchDuringDeliveryDowngradesToCopy() async throws {
         let handler = RecordingHandler()
         let probe = SwitchingTargetProbe()
         let controller = shownController(resultHandler: handler, pasteProbe: probe, appPolicy: .default)
         let target = DeliveryTestApp(pid: 90001)
         let other = DeliveryTestApp(pid: 90002)
+        var checks = 0
         controller.previousFrontmostApp = target
-        controller.frontmostApplicationProvider = { probe.switched ? other : target }
+        controller.frontmostApplicationProvider = {
+            checks += 1
+            return checks == 1 ? target : other
+        }
         controller.deliverResult(.paste("safe text"))
         assertCase(try await awaitDelivery(from: handler), .copy("safe text"))
     }

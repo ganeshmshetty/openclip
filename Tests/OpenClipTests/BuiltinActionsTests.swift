@@ -272,6 +272,56 @@ final class BuiltinActionsTests: XCTestCase {
     }
 
     @MainActor
+    func testCutActionStaysAvailableWhenOnlyPasteIsUnavailable() {
+        let action = CutAction()
+        let selection = SelectionContext(
+            text: "editable",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default,
+            isEditable: true,
+            pasteTargetAvailable: false
+        )
+        XCTAssertTrue(action.isEnabled(for: ActionContext(selection: selection, modifiers: [])))
+    }
+
+    @MainActor
+    func testPasteActionHidesOnlyWhenPasteIsConfirmedUnavailable() {
+        let action = PasteAction()
+        func context(pasteAvailable: Bool?) -> ActionContext {
+            let selection = SelectionContext(
+                text: "",
+                sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+                cursorPosition: .zero,
+                timestamp: Date(),
+                appPolicy: .default,
+                pasteTargetAvailable: pasteAvailable
+            )
+            return ActionContext(selection: selection, modifiers: [])
+        }
+        XCTAssertFalse(action.isEnabled(for: context(pasteAvailable: false)))
+        XCTAssertTrue(action.isEnabled(for: context(pasteAvailable: true)))
+        XCTAssertTrue(action.isEnabled(for: context(pasteAvailable: nil)), "a timed-out probe is not a disabled command")
+    }
+
+    @MainActor
+    func testPasteActionIgnoresEditability() {
+        let action = PasteAction()
+        let readOnly = SelectionContext(
+            text: "read only",
+            sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            cursorPosition: .zero,
+            timestamp: Date(),
+            appPolicy: .default,
+            isEditable: false,
+            pasteTargetAvailable: true
+        )
+        XCTAssertTrue(action.isEnabled(for: ActionContext(selection: readOnly, modifiers: [])),
+                      "Paste delivers the clipboard, not text insertion")
+    }
+
+    @MainActor
     func testCutAction() async throws {
         let action = CutAction()
         let context = createMockContext(with: "test cut")

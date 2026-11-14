@@ -192,7 +192,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (primary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: nil,
             recommendedResult: .preview,
@@ -204,7 +204,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (secondary, toast) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: nil,
             recommendedResult: .preview,
@@ -220,7 +220,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (primary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: nil,
             recommendedResult: .paste,
@@ -231,7 +231,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (secondary, toast) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: nil,
             recommendedResult: .paste,
@@ -246,7 +246,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (primary, toast) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: nil,
             recommendedResult: .copy,
@@ -258,7 +258,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (secondary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: nil,
             recommendedResult: .copy,
@@ -277,7 +277,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (previewPrimary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             recommendedResult: .preview,
             outputKind: .file
@@ -287,7 +287,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (previewSecondary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             recommendedResult: .preview,
             outputKind: .file
@@ -298,7 +298,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (savePrimary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             recommendedResult: .save,
             outputKind: .file
@@ -309,7 +309,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (openPrimary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             recommendedResult: .open,
             outputKind: .file
@@ -323,7 +323,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (primary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: .paste,
             recommendedResult: .preview,
@@ -335,7 +335,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (secondary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none,
             preference: .paste,
             recommendedResult: .preview,
@@ -352,7 +352,7 @@ final class ExtensionOutputContractTests: XCTestCase {
         let (secondary, _) = ActionResultDelivery.resolve(
             raw: raw,
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: declared,
             recommendedResult: .paste,
             outputKind: .text

@@ -49,25 +49,12 @@ public enum ActionVisibility {
         let sourceBundleID = context.selection.sourceApp.bundleIdentifier
         let noMatch = ActionMatchInfo(text: text, matchedText: text, captures: [], sourceBundleID: sourceBundleID)
 
-        // Unknown capability evidence fails closed only when explicitly required.
-        let inputRequirement = requirements?.input ?? .text
-        let hasText = !trimmed.isEmpty
-        let isLiveSelection = context.selection.source == .selection
-        let inputSatisfied: Bool
-        switch inputRequirement {
-        case .optional:
-            inputSatisfied = true
-        case .text:
-            inputSatisfied = hasText
-        case .liveSelection:
-            inputSatisfied = hasText && isLiveSelection
-        case .editableSelection:
-            inputSatisfied = hasText && isLiveSelection && context.selection.isEditable == true
-        }
-        if !inputSatisfied {
-            return (false, noMatch)
-        }
-        if requirements?.requiresPasteTarget == true && context.pasteTargetAvailable != true {
+        // Declared requirements fail closed: unknown evidence does not satisfy them.
+        if !ActionEligibility.isSatisfied(
+            requirements: requirements,
+            selection: context.selection,
+            capabilities: context.capabilities
+        ) {
             return (false, noMatch)
         }
 

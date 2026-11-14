@@ -6,7 +6,7 @@
 // then the clipboard invariant on secondary clicks, except a user "Show in card" preference keeps
 // text in the card) -> Probe (paste downgraded to copy when the target can't paste) -> Toast.
 // Only paste outcomes are downgraded; non-text results pass through.
-// Core stays free of AppKit and UserDefaults; `canPaste` is injected so this is unit-testable.
+// Core stays free of AppKit and UserDefaults; `capabilities` is injected so this is unit-testable.
 import Foundation
 
 /// Behavior for an action that implicitly returns text. The controller injects the per-click value into `resolve`.
@@ -32,7 +32,7 @@ public enum ActionResultDelivery {
     public static func resolve(
         raw: ActionResult,
         clickIntent: ClickIntent,
-        canPaste: Bool,
+        capabilities: TargetCapabilities,
         delivery: ActionDelivery = .none,
         preference: ResultDeliveryPreference? = nil,
         recommendedResult: ActionResultDeliveryMode? = nil,
@@ -46,7 +46,7 @@ public enum ActionResultDelivery {
             recommendedResult: recommendedResult,
             outputKind: outputKind
         )
-        let delivered = applyProbe(to: selected, canPaste: canPaste)
+        let delivered = ActionEligibility.degrade(selected, capabilities: capabilities)
         let toast = toast(for: delivered, clickIntent: clickIntent, delivery: delivery)
         return (delivered, toast)
     }
@@ -185,20 +185,6 @@ public enum ActionResultDelivery {
             }
         }
         return raw
-    }
-
-    /// Step 2: downgrades `.paste`/`.pasteContent` to copy when the target can't paste. The single choke point.
-    private static func applyProbe(to selected: ActionResult, canPaste: Bool) -> ActionResult {
-        switch selected {
-        case .paste(let text):
-            return canPaste ? .paste(text) : .copy(text)
-        case .pasteContent(let payload):
-            return canPaste ? .pasteContent(payload) : .copyContent(payload)
-        case .sequence(let items):
-            return .sequence(items.map { applyProbe(to: $0, canPaste: canPaste) })
-        default:
-            return selected
-        }
     }
 
     /// Step 3: the click's declared toast wins; otherwise a default toast for copy and save outcomes.
