@@ -107,8 +107,10 @@ public class PopupWindowController {
     private let editabilityProbe: @MainActor () async -> Bool?
 
     /// Capabilities from the last shown session. A completion paste delivered after `hide()` still
-    /// knows where the session pointed; liveness is rechecked at delivery.
+    /// knows where the session pointed; liveness is rechecked at delivery. The session ID keeps a
+    /// late editability probe from leaking into a later session.
     private var lastCapabilities: TargetCapabilities = .unknown
+    private var lastCapabilitiesSession: UUID?
 
     /// Toast surface for statuses and the paste→copy notice. Independent of the panel, so it shows after hide().
     let toastController: ToastPanelController
@@ -195,9 +197,11 @@ public class PopupWindowController {
     private func refreshTargetEditability(attemptID: UUID) {
         Task { [weak self] in
             guard let self, let editable = await self.editabilityProbe() else { return }
-            guard self.presentationAttemptID == attemptID,
-                  let context = self.currentContext,
-                  context.isEditable == nil else { return }
+            guard self.presentationAttemptID == attemptID else { return }
+            // Record the answer even if the popup already hid: a loading action may deliver after
+            // the probe finishes.
+            self.lastCapabilities.textInsertion = editable ? .available : .unavailable
+            guard let context = self.currentContext, context.isEditable == nil else { return }
             let updated = context.with(isEditable: editable)
             self.currentContext = updated
             self.lastCapabilities = updated.targetCapabilities()
@@ -266,6 +270,7 @@ public class PopupWindowController {
         let actionContext = ActionContext(selection: selectionContext, modifiers: [])
         currentActionContext = actionContext
         lastCapabilities = actionContext.capabilities
+        lastCapabilitiesSession = attemptID
         if selectionContext.isEditable == nil {
             refreshTargetEditability(attemptID: attemptID)
         }
@@ -566,6 +571,7 @@ public class PopupWindowController {
         let actionContext = ActionContext(selection: selectionContext, modifiers: [])
         currentActionContext = actionContext
         lastCapabilities = actionContext.capabilities
+        lastCapabilitiesSession = presentationAttemptID
         modeStore.mode = initialMode
         modeStore.canPaste = pasteAvailable
         openedDirectlyInSearch = (initialMode == .search)
@@ -2281,6 +2287,9 @@ public class PopupWindowController {
         /// Capability snapshot captured with the selection; liveness and the delivery-time probe
         /// are applied by `resolveDelivery` before effects run.
         let capabilities: TargetCapabilities
+        /// The session that produced this snapshot. A late editability probe may only fill in an
+        /// unknown answer for the same session.
+        let sessionID: UUID
         /// The selection context captured before any early-close (loading actions), used to re-show
         /// the popup as a preview card. nil when the popup never closed.
         let selection: SelectionContext?
@@ -2304,6 +2313,7 @@ public class PopupWindowController {
                 actionIcon: actionIcon,
                 requirements: requirements,
                 capabilities: capabilities,
+                sessionID: sessionID,
                 selection: selection
             )
             return (declared, consumed)
@@ -2335,6 +2345,7 @@ public class PopupWindowController {
             actionIcon: icon,
             requirements: (action as? any ActionWithRules)?.rules?.requirements,
             capabilities: currentActionContext?.capabilities ?? lastCapabilities,
+            sessionID: presentationAttemptID,
             selection: currentActionContext?.selection
         )
     }
@@ -2369,18 +2380,10 @@ public class PopupWindowController {
         pendingActionOutputKind = nil
         pendingActionPresentation = nil
         let (deliveredResult, effectiveDelivery) = resolvedDelivery.consumeDeclaredSecondary(for: result)
-        let effectiveResult = normalizeResult(deliveredResult, delivery: effectiveDelivery)
-        if shouldDismiss(effectiveResult, delivery: effectiveDelivery) {
+        if shouldDismiss(deliveredResult, delivery: effectiveDelivery) {
             hide()
         }
-        handleActionResult(effectiveResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveResult.containsToast, completionActionID: completedActionID)
-    }
-
-    /// Degrades effects that cannot land before the dismissal decision. Declared requirements are
-    /// rechecked later, after the delivery probe, so a slow action sees the target's final state.
-    private func normalizeResult(_ result: ActionResult, delivery: DeliveryContext?) -> ActionResult {
-        guard let delivery else { return result }
-        return ActionEligibility.degrade(result, capabilities: delivery.capabilities)
+        handleActionResult(deliveredResult, delivery: effectiveDelivery, suppressDeliveryToast: deliveredResult.containsToast, completionActionID: completedActionID)
     }
 
     /// Walks a performed result: presentation renders in the popup, leaf effects go to the effect handler. Dismissal is decided
@@ -2388,9 +2391,8 @@ public class PopupWindowController {
     @discardableResult
     func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil, suppressDeliveryToast: Bool = false, completionActionID: String? = nil, isFinalStep: Bool = true) -> Task<Void, Never>? {
         let (selectedResult, effectiveDelivery) = delivery?.consumeDeclaredSecondary(for: result) ?? (result, delivery)
-        let effectiveResult = normalizeResult(selectedResult, delivery: effectiveDelivery)
-        let effectiveSuppressToast = suppressDeliveryToast || effectiveResult.containsToast
-        switch effectiveResult {
+        let effectiveSuppressToast = suppressDeliveryToast || selectedResult.containsToast
+        switch selectedResult {
         case .toast(let feedback):
             presentToast(feedback)
             ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
@@ -2406,7 +2408,7 @@ public class PopupWindowController {
                 }
             }
         default:
-            return handleEffect(effectiveResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isFinalStep)
+            return handleEffect(selectedResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isFinalStep)
         }
     }
 
@@ -2511,6 +2513,9 @@ public class PopupWindowController {
             outputKind: delivery.outputKind
         )
         var capabilities = delivery.capabilities
+        if capabilities.textInsertion == .unknown, delivery.sessionID == lastCapabilitiesSession {
+            capabilities.textInsertion = lastCapabilities.textInsertion
+        }
         let isTargetActive = isTargetApplicationActive(delivery.application)
             && (delivery.selection.map(selectionIsCurrent) ?? true)
         capabilities.targetIsLive = isTargetActive ? .available : .unavailable
@@ -2554,6 +2559,8 @@ public class PopupWindowController {
     /// Text insertion is decided by editability. The Paste command only has to be consulted for
     /// payloads that need a destination, or when the action explicitly declared one.
     private func needsPasteboardProbe(_ result: ActionResult, delivery: DeliveryContext) -> Bool {
+        // OCR text has no destination; its captured no-paste answer is the final word.
+        guard delivery.selection?.source != .ocr else { return false }
         if delivery.requirements?.requiresPasteTarget == true { return true }
         return ActionEligibility.requirement(for: result) == .pasteboardPaste
     }
@@ -2732,9 +2739,8 @@ public class PopupWindowController {
     /// results fade the spinner. With `suppressDeliveryToast`, the script toast owns the toast (one per run).
     private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext, suppressDeliveryToast: Bool = false, completionActionID: String? = nil, isFinalStep: Bool = true) async {
         let (selectedResult, effectiveDelivery) = delivery.consumeDeclaredSecondary(for: result)
-        let effectiveResult = normalizeResult(selectedResult, delivery: effectiveDelivery)
-        let effectiveSuppressToast = suppressDeliveryToast || effectiveResult.containsToast
-        switch effectiveResult {
+        let effectiveSuppressToast = suppressDeliveryToast || selectedResult.containsToast
+        switch selectedResult {
         case .toast(var feedback):
             feedback.keepVisible = false
             toastController.show(feedback)
@@ -2748,9 +2754,8 @@ public class PopupWindowController {
                 await settleLoadingResult(item, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isLast)
             }
         default:
-            let effect = effectiveResult
             do {
-                let resolved = await resolveDelivery(effect, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast)
+                let resolved = await resolveDelivery(selectedResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast)
                 guard requiredPasteTargetIsActive(effectiveDelivery) else {
                     toastController.hide()
                     return

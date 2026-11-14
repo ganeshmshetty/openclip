@@ -965,6 +965,25 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(try await awaitDelivery(from: handler), .paste("hello"))
     }
 
+    /// A file payload must reach the delivery-time probe before it is downgraded. The session may
+    /// start with an unknown Paste answer (palette, clipboard fallback); the probe supplies the
+    /// final one, so the early normalization step must not copy it first.
+    @MainActor
+    func testFilePasteUsesDeliveryProbeWhenSessionPasteWasUnknown() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: .default)
+        defer { controller.hide() }
+
+        let payload = RichPasteboardPayload(flavors: [
+            RichPasteboardFlavor(type: "public.file-url", data: Data("file:///tmp/a".utf8))
+        ])
+        controller.deliverResult(.pasteContent(payload))
+
+        assertPayload(try await awaitDelivery(from: handler), .pasteContent(payload))
+    }
+
     // MARK: - Toast routing: paste→copy downgrade shows "Copied"; native copy shows nothing
 
     /// A `.paste` downgraded to `.copy` surfaces the "Copied" toast, independent of the popup.
