@@ -731,6 +731,15 @@ lines by height interleaved multi-column text.
   path; the copy engine still requires selection evidence and an enabled Copy command. Keyboard, hold, and hotkey paths are not gated. Remaining hole: the
   package's browser fallback still grants weak evidence when an exposed web area reports no
   selection (the Safari shape in #210); closing that belongs in OpenSelection.
+- Editability comes from Accessibility's settable state, not from a selected-text range.
+  A read-only text view exposes a range too, so the old range check reported read-only text as
+  editable and kept Cut and `editableSelection` actions visible. OpenSelection v2.16.3 reads
+  `AXUIElementIsAttributeSettable` for the value and selected-text attributes during inspect;
+  a standard text control that reports both as non-settable is read-only, and an unavailable
+  read falls back to the role so partial AX implementations keep working. Cut deletes the
+  selection, so `CutAction` now requires a positively editable context. Paste stays on the
+  paste-availability probe, because a target can accept a paste without an editable text field.
+  Extensions that declare `input: editableSelection` inherit the same signal.
 - Mouse-gesture results must be where the gesture was. AX reports the document's selection,
   not the gesture's: Chromium's double-click selects the closest word even over a video, so a
   player with `opacity: 0` controls yields an invisible selection far from the click (issue #162),

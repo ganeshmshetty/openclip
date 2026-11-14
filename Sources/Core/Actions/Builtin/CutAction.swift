@@ -21,7 +21,9 @@ public struct CutAction: ConfigurableAction, PasteRequiringAction {
     
     @MainActor
     public func isEnabled(for context: ActionContext) -> Bool {
-        return !context.selection.text.isEmpty
+        // Cut deletes the selection, so the control has to accept edits. Paste only needs a
+        // paste target and keeps using the paste-availability probe.
+        return !context.selection.text.isEmpty && context.selection.isEditable == true
     }
     
     @MainActor
