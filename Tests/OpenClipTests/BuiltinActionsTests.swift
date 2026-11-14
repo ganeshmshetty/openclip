@@ -10,7 +10,7 @@ final class BuiltinActionsTests: XCTestCase {
     }
     
     func createMockContext(with text: String) -> ActionContext {
-        let selection = SelectionContext(text: text, sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default)
+        let selection = SelectionContext(text: text, sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"), cursorPosition: .zero, timestamp: Date(), appPolicy: .default, isEditable: true)
         return ActionContext(selection: selection, modifiers: [])
     }
     
@@ -251,6 +251,23 @@ final class BuiltinActionsTests: XCTestCase {
             guard case .openURLInApp(let url, let bundleID) = effects[index] else { return XCTFail("Expected source browser") }
             XCTAssertEqual(url.absoluteString, expected)
             XCTAssertEqual(bundleID, "com.apple.Safari")
+        }
+    }
+
+    @MainActor
+    func testCutActionHidesForReadOnlyOrUnknownSelection() {
+        let action = CutAction()
+        for editable: Bool? in [false, nil] {
+            let selection = SelectionContext(
+                text: "read only",
+                sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+                cursorPosition: .zero,
+                timestamp: Date(),
+                appPolicy: .default,
+                isEditable: editable
+            )
+            XCTAssertFalse(action.isEnabled(for: ActionContext(selection: selection, modifiers: [])),
+                           "editable=\(String(describing: editable))")
         }
     }
 
