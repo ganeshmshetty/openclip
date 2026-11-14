@@ -44,6 +44,28 @@ final class ElectronAccessibilityEnablerTests: XCTestCase {
         XCTAssertFalse(ElectronAccessibilityEnabler.isElectronApp(bundleURL: nil))
     }
 
+    /// Forks can rename the Electron framework (the Codex app ships "Codex Framework.framework").
+    /// The shipped app source under Resources identifies them without a bundle-ID allowlist.
+    func testDetectsRenamedElectronFrameworkByResources() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let renamed = root.appendingPathComponent("Codex.app")
+        let unpacked = root.appendingPathComponent("Unpacked.app")
+        try FileManager.default.createDirectory(
+            at: renamed.appendingPathComponent("Contents/Frameworks/Codex Framework.framework"),
+            withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: renamed.appendingPathComponent("Contents/Resources"),
+            withIntermediateDirectories: true)
+        try Data().write(to: renamed.appendingPathComponent("Contents/Resources/app.asar"))
+        try FileManager.default.createDirectory(
+            at: unpacked.appendingPathComponent("Contents/Resources/app"),
+            withIntermediateDirectories: true)
+
+        XCTAssertTrue(ElectronAccessibilityEnabler.isElectronApp(bundleURL: renamed))
+        XCTAssertTrue(ElectronAccessibilityEnabler.isElectronApp(bundleURL: unpacked))
+    }
+
     func testSetsManualAccessibilityOncePerElectronProcess() async {
         let log = SetterLog()
         let enabler = ElectronAccessibilityEnabler(isElectron: { _ in true }, setter: { pid in
