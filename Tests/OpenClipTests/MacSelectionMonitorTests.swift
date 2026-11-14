@@ -1911,6 +1911,8 @@ final class MacSelectionMonitorTests: XCTestCase {
     func testTextDragKeepsPressEvidenceWhenReleasedOverBlankSpace() async {
         for releaseCursor: CursorClass in [.arrow, .pointingHand, .unknown, .other] {
             let monitor = makeKeyboardMonitor(overlay: false, bundleID: "com.openai.codex", role: "AXGroup")
+            // This test is about the cue gate, which copy-only policies are exempt from.
+            monitor.policyResolver = { _ in AppPolicyContext.default }
             var cursor: CursorClass = .beam
             monitor.currentCursorProvider = { cursor }
             final class EvidenceBox: @unchecked Sendable { var value: CopyEvidence? }
@@ -1977,6 +1979,30 @@ final class MacSelectionMonitorTests: XCTestCase {
 
                 XCTAssertNil(monitor.latestSelection, "\(gesture.name) \(cursor.rawValue)")
             }
+        }
+    }
+
+    /// The cue gate must not remove the only read path for an app that declares copy as its
+    /// retrieval strategy. Such an app's AX tree cannot expose the selection, so a copy-only
+    /// policy opts back into the fallback without an I-beam; the copy engine still requires
+    /// selection evidence and an enabled Copy command.
+    func testAutomaticCopyFallbackRunsWithoutACueForCopyOnlyPolicy() async {
+        for cursor: CursorClass in [.arrow, .pointingHand, .unknown] {
+            let monitor = makeMonitor()
+            monitor.isExcludedBundle = { _ in false }
+            monitor.policyResolver = { _ in AppPolicyContext(retrievalMode: .keyboardCopy) }
+            monitor.currentCursorProvider = { cursor }
+            monitor.retriever = SelectionRetrievalCoordinator(
+                inspect: { Self.fixtureTarget(role: "AXGroup", selectedText: nil) },
+                copyCapture: { _ in SelectionResult(text: "copy-only selection", strategy: .keyboardCopy) }
+            )
+
+            monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+            monitor.handleMouseUp(app: MockTestApp(bundleID: "com.microsoft.VSCode"),
+                                  cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+            await monitor.debounceTask?.value
+
+            XCTAssertEqual(monitor.latestSelection?.context.text, "copy-only selection", cursor.rawValue)
         }
     }
 

@@ -726,7 +726,9 @@ lines by height interleaved multi-column text.
   (`textCue` in the selection log); arrow, pointing-hand, and unclassified cursors keep every AX
   strategy but never reach a synthetic copy. The cue is structural, not per-app: text drags
   (including one released over whitespace), multi-clicks on text, and the Chromium/Electron
-  fallback still copy. Keyboard, hold, and hotkey paths are not gated. Remaining hole: the
+  fallback still copy. An app whose policy puts `keyboard-copy` first is exempt: that policy
+  declares its AX tree cannot expose the selection, so the cue gate would remove its only read
+  path; the copy engine still requires selection evidence and an enabled Copy command. Keyboard, hold, and hotkey paths are not gated. Remaining hole: the
   package's browser fallback still grants weak evidence when an exposed web area reports no
   selection (the Safari shape in #210); closing that belongs in OpenSelection.
 - Mouse-gesture results must be where the gesture was. AX reports the document's selection,
