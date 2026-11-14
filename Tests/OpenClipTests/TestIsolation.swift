@@ -7,6 +7,7 @@ import XCTest
 @MainActor
 enum TestIsolation {
     static func reset() {
+        AppActivationPolicy.resetForTesting()
         ActionRegistry.shared.reset()
         ActionCustomizationManager.shared.reset()
         ActionBindingStore.shared.reset()
