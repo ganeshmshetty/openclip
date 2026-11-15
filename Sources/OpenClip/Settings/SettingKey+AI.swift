@@ -18,6 +18,8 @@ extension SettingKey where Value == String {
         SettingKey<String>("aiCloudService", defaultValue: CloudServiceProvider.openai.rawValue)
     }
 
+    /// Legacy single endpoint override. Read only for the Custom provider; Custom writes mirror
+    /// here so older builds keep working.
     static var aiCloudCustomURL: SettingKey<String> {
         SettingKey<String>("aiCloudCustomURL", defaultValue: "")
     }
@@ -78,5 +80,12 @@ extension SettingKey where Value == String {
     /// System Prompt). Empty means the built-in prompt.
     static var aiCustomSystemPrompt: SettingKey<String> {
         SettingKey<String>("aiCustomSystemPrompt", defaultValue: "")
+    }
+}
+
+extension SettingKey where Value == [String: String] {
+    /// Provider raw value -> base endpoint override. Missing means use the provider default.
+    static var aiCloudCustomURLs: SettingKey<[String: String]> {
+        SettingKey<[String: String]>("aiCloudCustomURLs", defaultValue: [:])
     }
 }

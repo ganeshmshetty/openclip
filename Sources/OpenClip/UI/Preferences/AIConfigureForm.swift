@@ -19,6 +19,7 @@ public struct AIConfigureForm: View {
     @State private var cloudFetchError: String? = nil
     @State private var cloudFetchGeneration: Int = 0
     @State private var cloudKeyDebounceTask: Task<Void, Never>?
+    @State private var cloudURLDebounceTask: Task<Void, Never>?
 
     @State private var fetchedLocalModels: [String] = []
     @State private var isFetchingLocalModels: Bool = false
@@ -215,14 +216,47 @@ public struct AIConfigureForm: View {
                         }
                     }
                     .onChange(of: aiManager.cloudServiceProvider) { _ in
+                        cloudURLDebounceTask?.cancel()
                         fetchedCloudModels = []
                         cloudFetchError = nil
                         refreshCloudModelsIfStale()
                     }
 
-                    if aiManager.cloudServiceProvider == .custom {
-                        TextField("Base Endpoint URL", text: $aiManager.cloudCustomURL)
-                            .textFieldStyle(.roundedBorder)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            TextField("Base Endpoint URL", text: $aiManager.cloudCustomURL)
+                                .textFieldStyle(.roundedBorder)
+                                .help(aiManager.cloudDefaultURL)
+
+                            if aiManager.cloudServiceProvider != .custom {
+                                Button {
+                                    aiManager.cloudCustomURL = ""
+                                } label: {
+                                    Image(systemName: "arrow.counterclockwise")
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Reset to Default")
+                                .accessibilityLabel(Text("Reset to Default"))
+                                .disabled(aiManager.cloudCustomURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+
+                        if aiManager.cloudServiceProvider != .custom {
+                            Text("Leave empty to use the provider default.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .onChange(of: aiManager.cloudCustomURL) { _ in
+                        cloudURLDebounceTask?.cancel()
+                        fetchedCloudModels = []
+                        cloudFetchError = nil
+                        cloudURLDebounceTask = Task {
+                            try? await Task.sleep(nanoseconds: 600_000_000)
+                            guard !Task.isCancelled else { return }
+                            guard aiManager.activeProviderType == .cloud else { return }
+                            fetchCloudModels()
+                        }
                     }
 
                     SecureField("API Key", text: $aiManager.cloudAPIKey)
@@ -300,6 +334,7 @@ public struct AIConfigureForm: View {
         }
         .onDisappear {
             cloudKeyDebounceTask?.cancel()
+            cloudURLDebounceTask?.cancel()
             customReadinessTask?.cancel()
         }
         .onChange(of: aiManager.activeProviderRaw) { newRaw in

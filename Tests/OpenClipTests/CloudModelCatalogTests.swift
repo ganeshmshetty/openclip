@@ -37,6 +37,18 @@ final class CloudModelCatalogTests: XCTestCase {
         XCTAssertFalse(CloudModelCatalog.isFresh(snapshot!, now: now.addingTimeInterval(CloudModelCatalog.cacheLifetime + 1)))
     }
 
+    func testInvalidateRemovesOnlyThatProvidersCache() {
+        let store = MemorySettingsStore()
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        CloudModelCatalog.save(["a"], for: .openai, now: now, store: store)
+        CloudModelCatalog.save(["b"], for: .google, now: now, store: store)
+
+        CloudModelCatalog.invalidate(for: .openai, store: store)
+
+        XCTAssertNil(CloudModelCatalog.cached(for: .openai, store: store))
+        XCTAssertEqual(CloudModelCatalog.cached(for: .google, store: store)?.models, ["b"])
+    }
+
     func testChoicesPreferLiveThenCacheThenFallbackAndKeepSavedModel() {
         let cached = CloudModelCatalog.Snapshot(fetchedAt: Date(), models: ["cached-1"])
         XCTAssertEqual(CloudModelCatalog.choices(live: ["live-1"], cached: cached, provider: .openai, current: nil), ["live-1"])
