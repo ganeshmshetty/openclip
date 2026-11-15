@@ -26,7 +26,7 @@ OpenClip 1.10 adds five more AI providers, Markdown answers in the result card, 
 - Cut requires a confirmed editable selection. Read-only text no longer offers it.
 - Text paste checks that the target accepts text insertion; if it does not, the result is copied instead. File and image payloads still use the app's Paste command, and `denyPaste` rules force text to copy.
 - Automatic copy waits for an I-beam text cue, so a drag or double-click on a scrollbar, image, video, or window chrome no longer sends a stray ⌘C.
-- Electron apps that rename their framework are detected again.
+- ChatGPT desktop selections show the popup again, including the renamed Codex/Electron build.
 - A stale system screenshot overlay no longer blocks copy for the rest of the session.
 - Double-click selections show the popup without waiting out a possible third click.
 - Smart Cut keeps macOS's space handling.
@@ -57,9 +57,7 @@ OpenClip 1.10 adds five more AI providers, Markdown answers in the result card, 
 ### Contributors
 - **moonopposite (@moonopposite)** — first contribution: Markdown rendering in AI answer cards.
 - **Yuqi Xiong (@Mr-xiongyq)** — first contribution: clearing extension sub-action options and secrets on uninstall.
-- **dvartbox (@dvartbox)** — co-authored the copy-only selection fallback fix.
-
-OpenSelection also carries contributions from @oecer (text-control focus handling) and @iiHawe (passive-copy and window-drag guards).
+- **dvartbox (@dvartbox)** — ChatGPT desktop selection fixes and the copy-only selection fallback.
 
 ---
 
