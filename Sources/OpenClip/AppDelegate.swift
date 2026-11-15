@@ -214,6 +214,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
         }
 
+        // One-time support ask: schedule the week on the first launch that can have it, then show
+        // once due. The environment override is the only way to see it before the week is up.
+        let forceSupportPrompt = ProcessInfo.processInfo.environment["OPENCLIP_SHOW_SUPPORT_PROMPT"] == "1"
+        StarPrompt.shared.scheduleIfNeeded()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64((forceSupportPrompt ? 0.8 : 2.0) * 1_000_000_000))
+            StarPrompt.shared.presentIfDue(force: forceSupportPrompt)
+        }
+
         NotificationCenter.default.addObserver(
             forName: .openClipShowSandboxPopup,
             object: nil,

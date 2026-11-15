@@ -124,7 +124,6 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
 
     private func postDidShow() {
         NotificationCenter.default.post(name: .openClipPreferencesWindowDidShow, object: nil)
-        StarPrompt.shared.present()
     }
 
     private init() {
@@ -186,7 +185,6 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
     // MARK: - NSWindowDelegate
 
     public func windowWillClose(_ notification: Notification) {
-        StarPrompt.shared.dismissIfShowing()
         AppActivationPolicy.leave()
         // Drop the reference so the next open builds a window for the then-active Space. Deferred
         // because the close notification runs while AppKit is still tearing the window down.

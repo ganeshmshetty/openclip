@@ -154,6 +154,8 @@ public extension SettingKey where Value == Double {
     /// Timestamp (seconds since 1970) onboarding finished. Installs that predate the key get it stamped
     /// on first check, so an update never surfaces the star ask on day one.
     static var onboardingCompletedAt: SettingKey<Double> { SettingKey<Double>("onboardingCompletedAt", defaultValue: 0.0) }
+    /// Unix timestamp after which the one-time support window may show. 0 means not scheduled.
+    static var starPromptEligibleAt: SettingKey<Double> { SettingKey<Double>("starPromptEligibleAt", defaultValue: 0.0) }
 }
 
 public extension SettingKey where Value == Data? {

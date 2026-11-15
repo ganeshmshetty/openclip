@@ -35,6 +35,7 @@ public enum SettingsCatalog {
             SettingKey.hasCompletedOnboarding.erased,
             SettingKey.hasDismissedPostOnboardingCoachMark.erased,
             SettingKey.hasDismissedStarPrompt.erased,
+            SettingKey.starPromptEligibleAt.erased,
             SettingKey.startAtLogin.erased,
             SettingKey.completionCopyToClipboard.erased,
             SettingKey.completionOnlyMisspelled.erased,

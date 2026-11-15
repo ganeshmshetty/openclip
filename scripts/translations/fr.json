@@ -864,7 +864,7 @@
   "Star the repo": "Mettre une étoile au dépôt",
   "Finding OpenClip useful?": "OpenClip vous est utile ?",
   "It's free and open source. A star on GitHub helps more people find it.": "C’est gratuit et open source. Une étoile sur GitHub aide plus de gens à le découvrir.",
-  "Star on GitHub": "Mettre une étoile sur GitHub",
+  "Star on GitHub": "Ajouter une étoile sur GitHub",
   "Not Now": "Non merci",
   "Suggestions": "Suggestions",
   "Only suggest for misspelled words": "Suggérer seulement les mots mal orthographiés",
@@ -879,5 +879,12 @@
   "Command “%@” not found": "Commande « %@ » introuvable",
   "Auth check failed": "Échec de la vérification de l’authentification",
   "Sign In": "Se connecter",
-  "Install failed": "Échec de l’installation"
+  "Install failed": "Échec de l’installation",
+  "Support OpenClip": "Soutenir OpenClip",
+  "Thank you for using OpenClip!": "Merci d’utiliser OpenClip !",
+  "OpenClip is free and open source.": "OpenClip est gratuit et open source.",
+  "A star on GitHub helps more people find it.": "Une étoile sur GitHub aide plus de personnes à le trouver.",
+  "You can support development with a tip.": "Vous pouvez soutenir le développement avec un don.",
+  "Opens the OpenClip repository on GitHub": "Ouvre le dépôt OpenClip sur GitHub",
+  "Opens the OpenClip support page": "Ouvre la page de soutien d’OpenClip"
 }
