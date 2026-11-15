@@ -1,35 +1,19 @@
 // AppFilter.swift
 // OpenClip
 //
-// Maintains exclusion pattern lists to prevent OpenClip from running on unsupported system or game applications.
+// Identities that must never be targeted: OpenClip itself, system chrome, input methods, and
+// clipboard managers with their own popup. App categories (VMs, remotes, emulators, editors) are
+// default-disabled rules instead, so a user can re-enable them.
 import Foundation
 
 public struct AppFilter: Sendable {
     public static let excludedBundleIDPatterns: [String] = [
-        "com.adobe.*",
-        "com.adobe.aerendercore",
-        "com.amazon.Kindle",
         "com.apple.CharacterPaletteIM",
         "com.apple.dock",
-        "com.apple.iphonesimulator",
-        "com.google.android.emulator",
-        "com.android.emulator",
         "com.apple.systemuiserver",
-        "com.blizzard.*",
-        "com.codeweavers.*",
-        "com.collectorz.*",
         "com.openclip.*",      // Never trigger on ourselves
-        "com.oracle.SQLDeveloper",
-        "com.parallels.*",
         "com.pilotmoon.popclip",
-        "com.pixelmatorteam.*",
-        "com.revolversoftware.office",
-        "com.screencastomatic.app",
-        "com.unity3d.*",
-        "com.vmware.*",
-        "net.java.openjdk.cmd",
-        "org.keepassx.keepassx",
-        "com.edovia.screens.*"
+        "net.java.openjdk.cmd"
     ]
     
     public static func isExcluded(bundleID: String) -> Bool {

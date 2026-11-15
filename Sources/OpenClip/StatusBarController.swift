@@ -21,8 +21,8 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
     internal var actionsMenuItem: NSMenuItem?
     internal var resumeItem: NSMenuItem?
     internal var toggleEnabledItem: NSMenuItem?
-    internal var pauseAppItem: NSMenuItem?
-    internal var pauseAppSeparatorItem: NSMenuItem?
+    internal var disableAppItem: NSMenuItem?
+    internal var disableAppSeparatorItem: NSMenuItem?
     internal var pauseSubmenu: NSMenu?
     internal var pauseParentMenuItem: NSMenuItem?
     internal var updateMenuItem: NSMenuItem?
@@ -144,22 +144,22 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
         menu.addItem(toggleItem)
         self.toggleEnabledItem = toggleItem
 
-        let pauseMenu = NSMenu(title: String(localized: "Pause"))
-
-        let pauseApp = NSMenuItem(
-            title: String(localized: "Pause in App"),
-            action: #selector(toggleCurrentAppPause),
+        let disableApp = NSMenuItem(
+            title: String(localized: "Disable in App"),
+            action: #selector(toggleCurrentAppDisabled),
             keyEquivalent: ""
         )
-        pauseApp.target = self
-        pauseApp.isHidden = true
-        pauseMenu.addItem(pauseApp)
-        self.pauseAppItem = pauseApp
+        disableApp.target = self
+        disableApp.isHidden = true
+        menu.addItem(disableApp)
+        self.disableAppItem = disableApp
 
-        let pauseAppSep = NSMenuItem.separator()
-        pauseAppSep.isHidden = true
-        pauseMenu.addItem(pauseAppSep)
-        self.pauseAppSeparatorItem = pauseAppSep
+        let disableAppSep = NSMenuItem.separator()
+        disableAppSep.isHidden = true
+        menu.addItem(disableAppSep)
+        self.disableAppSeparatorItem = disableAppSep
+
+        let pauseMenu = NSMenu(title: String(localized: "Pause"))
 
         let pause30 = menuItem(title: String(localized: "Pause for 30 Minutes"), action: #selector(pause30Minutes))
         let pause60 = menuItem(title: String(localized: "Pause for 1 Hour"), action: #selector(pause1Hour))
@@ -378,19 +378,16 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
             let policy = RuleEngine.shared.resolvePolicies(for: identity)
             let isAppDisabled = policy.disabled
 
-            pauseAppItem?.isHidden = false
-            pauseAppSeparatorItem?.isHidden = false
-            if isAppDisabled {
-                pauseAppItem?.title = String(localized: "Paused in \(appName)")
-                pauseAppItem?.state = .on
-            } else {
-                pauseAppItem?.title = String(localized: "Pause in \(appName)")
-                pauseAppItem?.state = .off
-            }
-            pauseAppItem?.image = nil
+            disableAppItem?.isHidden = false
+            disableAppSeparatorItem?.isHidden = false
+            disableAppItem?.title = isAppDisabled
+                ? String(localized: "Disabled in \(appName)")
+                : String(localized: "Disable in \(appName)")
+            disableAppItem?.state = isAppDisabled ? .on : .off
+            disableAppItem?.image = nil
         } else {
-            pauseAppItem?.isHidden = true
-            pauseAppSeparatorItem?.isHidden = true
+            disableAppItem?.isHidden = true
+            disableAppSeparatorItem?.isHidden = true
         }
 
         updateStatusIcon(isEnabled: isEnabled)
@@ -470,7 +467,7 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationCenter.post(name: .openClipEnabledStateChanged, object: nil)
     }
 
-    @objc internal func toggleCurrentAppPause() {
+    @objc internal func toggleCurrentAppDisabled() {
         guard let app = currentTargetApp else { return }
         let identity = AppIdentity(app)
         guard let identifier = identity.ruleIdentifier else { return }
@@ -614,8 +611,8 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
             self.statusItem = nil
             toggleEnabledItem = nil
             resumeItem = nil
-            pauseAppItem = nil
-            pauseAppSeparatorItem = nil
+            disableAppItem = nil
+            disableAppSeparatorItem = nil
             pauseSubmenu = nil
             pauseParentMenuItem = nil
             rootMenu = nil

@@ -57,6 +57,14 @@ Rules live in a JSON file such as `~/.openclip/rules.json`, which follows `RuleE
 
 These match the per-app defaults in the built-in catalog (`DefaultAppRules.catalog`). A rule overrides only the keys it sets, so a rule with just `gate` leaves the app's default `retrieval-mode` alone.
 
+## Blocked by default
+
+`DefaultAppRules.disabledApps` is a built-in `disabled: true` rule for apps where OpenClip has nothing useful to read: virtual machines and remote desktops (Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon Workspaces, Screen Sharing, Screens), emulators and canvas-first apps (iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator), and a few apps that expose no text selection.
+
+These are ordinary rules, not a separate blocklist. The menu bar shows **Disabled in &lt;App&gt;** for them, and turning that item off writes a user rule with `disabled: false` that overrides the default. The App Rules page sees the same user rule.
+
+`AppFilter` is narrower and not user-editable. It only holds identities that must never be targeted: OpenClip itself, the Dock, SystemUIServer, the character palette, PopClip, and the bundle-less Java launcher.
+
 ## Matching apps
 
 ### Bundle IDs
@@ -66,7 +74,7 @@ A plain entry matches the app's bundle identifier. Apps without one, such as com
 - `"process:scrcpy"` matches the process's executable or localized name. Matching ignores case, and `*` wildcards work (`"process:scr*"`).
 - `"path:/opt/homebrew/bin/scrcpy"` matches the executable path, and `*` wildcards work (`"path:/opt/tools/*"`).
 
-The App Rules page and the menu bar's **Pause in &lt;App&gt;** item write `process:` rules for apps without a bundle ID.
+The App Rules page and the menu bar's **Disable in &lt;App&gt;** item write `process:` rules for apps without a bundle ID.
 
 ### Wildcards
 

@@ -267,4 +267,43 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertFalse(randomContext.disabled)
         XCTAssertFalse(randomContext.hotkeyOnly)
     }
+
+    @MainActor
+    func testVMsRemotesAndCanvasAppsAreDisabledByDefault() {
+        let blocked = [
+            "com.utmapp.UTM",
+            "com.parallels.desktop.console",
+            "com.vmware.fusion",
+            "org.virtualbox.app.VirtualBox",
+            "com.microsoft.rdc.macos",
+            "com.citrix.Workspace",
+            "com.apple.iphonesimulator",
+            "com.adobe.Photoshop"
+        ]
+        for bundleID in blocked {
+            XCTAssertTrue(RuleEngine.shared.resolvePolicies(for: bundleID).disabled, bundleID)
+        }
+        XCTAssertFalse(RuleEngine.shared.resolvePolicies(for: "com.apple.TextEdit").disabled)
+    }
+
+    @MainActor
+    func testUserRuleReEnablesADefaultBlockedApp() throws {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rules_re_enable_\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        RuleEngine.shared.addOrUpdateRule(
+            AppRule(bundleIdentifiers: ["com.utmapp.UTM"], disabled: false),
+            saveURL: tempURL
+        )
+
+        XCTAssertFalse(RuleEngine.shared.resolvePolicies(for: "com.utmapp.UTM").disabled)
+    }
+
+    func testAppFilterKeepsOnlyNeverTargetIdentities() {
+        XCTAssertTrue(AppFilter.isExcluded(bundleID: "com.openclip.app"))
+        XCTAssertFalse(AppFilter.isExcluded(bundleID: "com.utmapp.UTM"))
+        XCTAssertFalse(AppFilter.isExcluded(bundleID: "com.parallels.desktop.console"))
+        XCTAssertFalse(AppFilter.isExcluded(bundleID: "com.adobe.Photoshop"))
+    }
 }
