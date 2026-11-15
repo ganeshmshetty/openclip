@@ -1,9 +1,9 @@
 // StarPrompt.swift
 // OpenClip
 //
-// Schedules the one-time "support OpenClip" window: seven days after a fresh install's onboarding
-// completes, or seven days after the first launch of the build that introduces it for existing
-// installs. Once dismissed, it never returns.
+// Schedules the one-time "support OpenClip" window. Eligibility is derived from onboarding
+// completion: fresh installs wait a week, while an established install is already past that and
+// sees the window on its first launch after updating. Once shown, it never returns.
 import AppKit
 import Core
 
@@ -18,7 +18,6 @@ final class StarPrompt {
     private let settingsStore: any SettingsStore
     private let now: () -> Date
     private var windowController: SupportPromptWindowController?
-    private var isForcedDemo = false
 
     init(
         settingsStore: any SettingsStore = DefaultSettingsStore.shared,
@@ -28,32 +27,29 @@ final class StarPrompt {
         self.now = now
     }
 
-    /// Called at launch. Installs that predate this window get their week from this first launch;
-    /// a scheduled anchor is never moved by later updates.
-    func scheduleIfNeeded() {
-        guard !settingsStore.get(.hasDismissedStarPrompt) else { return }
-        guard settingsStore.get(.hasCompletedOnboarding) else { return }
-        guard settingsStore.get(.starPromptEligibleAt) <= 0 else { return }
-        settingsStore.set(.starPromptEligibleAt, value: now().timeIntervalSince1970 + Self.minimumAge)
-    }
-
-    /// Whether the window may show now. Touches no UI, which is what the tests drive.
+    /// Seven days after onboarding completes. Installs that finished onboarding before the
+    /// timestamp existed count as established and are due immediately.
     func isDue() -> Bool {
-        guard !settingsStore.get(.hasDismissedStarPrompt) else { return false }
+        guard !settingsStore.get(.hasSeenStarPrompt) else { return false }
         guard settingsStore.get(.hasCompletedOnboarding) else { return false }
+
         let current = now().timeIntervalSince1970
-        let eligibleAt = settingsStore.get(.starPromptEligibleAt)
-        guard eligibleAt > 0, current >= eligibleAt else { return false }
         guard settingsStore.get(.pauseUntilTimestamp) <= current else { return false }
-        return true
+
+        let completedAt = settingsStore.get(.onboardingCompletedAt)
+        return completedAt <= 0 || current - completedAt >= Self.minimumAge
     }
 
-    /// Presents the window when due. `force` is the debug/demo path: it ignores the schedule and
-    /// leaves dismissal unrecorded, so the real prompt still appears later.
+    /// Presents when due. The ask is consumed here rather than on close, so quitting with the
+    /// window open cannot show it again. `force` is the debug/demo path and does not consume it.
     func presentIfDue(force: Bool = false) {
         guard force || isDue() else { return }
         guard windowController == nil else { return }
-        isForcedDemo = force
+
+        if !force {
+            settingsStore.set(.hasSeenStarPrompt, value: true)
+        }
+
         let controller = SupportPromptWindowController(
             onStar: { [weak self] in self?.open(Self.repositoryURL) },
             onSupport: { [weak self] in self?.open(Self.supportURL) },
@@ -64,19 +60,12 @@ final class StarPrompt {
         controller.showWindow(nil)
     }
 
-    func dismiss() {
-        finish()
-    }
-
     private func open(_ url: URL) {
         NSWorkspace.shared.open(url)
         finish()
     }
 
     private func finish() {
-        if !isForcedDemo {
-            settingsStore.set(.hasDismissedStarPrompt, value: true)
-        }
         windowController?.closeProgrammatically()
         windowController = nil
         AppActivationPolicy.leave()

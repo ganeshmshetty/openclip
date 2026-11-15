@@ -4,6 +4,63 @@ All notable user-facing changes to OpenClip.
 
 ---
 
+## v1.10.0 - 2026-11-15
+
+OpenClip 1.10 adds five more AI providers, Markdown answers in the result card, typed inline results and visibility predicates for extensions, and a one-time support window. Paste and cut now check that the target accepts text, and OpenClip starts disabled in VMs, remote desktops, emulators, and canvas-first apps.
+
+### AI
+- Mistral, xAI, Cerebras, Together AI, and Fireworks join the cloud providers. Settings and the per-action model picker get a search field.
+- CLI presets are current: standalone Copilot, Gemini CLI, and Cursor Agent. The selected CLI shows **Ready** with its version, **Sign in needed**, or **Not installed**, with a copyable install or sign-in command. Model lists come from the CLI when it exposes them.
+- AI answer cards render Markdown once the answer settles; Copy, Paste, and drag still use the original Markdown source.
+- AI prompts keep replacement tasks plain and let explanatory answers use Markdown that fits the card. Remote images are not loaded into cards.
+
+### Extensions
+- Typed inline results: synchronous inline actions can return text or a canonical color. Colors render as a swatch card with Copy (hex) and Save.
+- `displayOnly` rows stay visible and searchable but never execute, deliver, or bind to a hotkey.
+- Text results can declare `presentation`: `plain`, `markdown`, `code`, or `diff`, at package, action, or result level.
+- `requirements.predicate` adds a package-local JavaScript visibility check. `contextual` overrides automatic contextual promotion.
+- Selected-text language is available to shell, custom, and JavaScript actions as `OPENCLIP_TEXT_LANGUAGE` and `openclip.textLanguage`.
+- Typed inline values, colors, and `displayOnly` require `minOpenClipVersion: "1.10.0"` in the manifest.
+
+### Selection & Actions
+- Cut requires a confirmed editable selection. Read-only text no longer offers it.
+- Text paste checks that the target accepts text insertion; if it does not, the result is copied instead. File and image payloads still use the app's Paste command, and `denyPaste` rules force text to copy.
+- Automatic copy waits for an I-beam text cue, so a drag or double-click on a scrollbar, image, video, or window chrome no longer sends a stray ⌘C.
+- ChatGPT desktop selections show the popup again, including the renamed Codex/Electron build.
+- A stale system screenshot overlay no longer blocks copy for the rest of the session.
+- Double-click selections show the popup without waiting out a possible third click.
+- Smart Cut keeps macOS's space handling.
+- Pages now reads selections through keyboard copy, avoiding its AX text engine.
+- Define shows dictionary definitions with readable structure instead of one flat block.
+- Formatting shortcuts that use punctuation, such as Strikethrough's ⌘⇧- and ⌘⌃-, are now delivered.
+- Word Completion can suggest only for misspelled words and can appear as a contextual action instead of the inline row.
+
+### App Rules & Support
+- VMs and remote desktop clients are disabled by default: Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon WorkSpaces, Screen Sharing, Remote Desktop, Screens, TeamViewer, AnyDesk, Parsec, Jump Desktop, RealVNC, NoMachine, Splashtop, and LogMeIn.
+- Emulators and canvas-first apps are also disabled: iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator, and a few others.
+- Re-enable any of them from the menu bar's **Disable in &lt;App&gt;** item or the App Rules page. The menu item is a top-level permanent switch; the timed Pause menu holds only the temporary options.
+- The App Rules switch reflects the effective policy, so a default-blocked app cannot look enabled.
+- OpenClip asks for support once. A small window appears a week after onboarding with **Star on GitHub**, **Support OpenClip**, and a quiet Close. Established installs already past that week see it on their first launch after updating. The ask is consumed when the window appears, so quitting with it open does not bring it back.
+
+### Fixes & Stability
+- The result card takes focus when it opens, and whitespace-only diffs stay hidden.
+- Firefox private-window searches open in a private window.
+- The Settings window is built per open, so a restored window cannot appear on the wrong Space.
+- The app icon is padded to the standard macOS icon grid.
+- The palette's search header shows its drag affordance.
+- Uninstalling an extension clears its sub-action options and secrets.
+- Smaller app and DMG: symbols stripped, no coverage instrumentation, and linker optimizations enabled.
+
+### Notes for extension authors
+- Declare `minOpenClipVersion: "1.10.0"` for typed inline values, `color`, `displayOnly`, predicates, or result presentation formats. Older OpenClip versions ignore unknown keys, but the new types need 1.10.0.
+
+### Contributors
+- **moonopposite (@moonopposite)** — first contribution: Markdown rendering in AI answer cards.
+- **Yuqi Xiong (@Mr-xiongyq)** — first contribution: clearing extension sub-action options and secrets on uninstall.
+- **dvartbox (@dvartbox)** — ChatGPT desktop selection fixes and the copy-only selection fallback.
+
+---
+
 ## v1.9.2 - 2026-10-30
 
 ### Improvements

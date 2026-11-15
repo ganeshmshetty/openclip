@@ -119,8 +119,9 @@ public extension SettingKey where Value == Bool {
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     /// Once dismissed by any path, the post-onboarding coach-mark never shows again.
     static var hasDismissedPostOnboardingCoachMark: SettingKey<Bool> { SettingKey<Bool>("hasDismissedPostOnboardingCoachMark", defaultValue: false) }
-    /// Once dismissed by any path, the one-time "star the repo" ask never shows again.
-    static var hasDismissedStarPrompt: SettingKey<Bool> { SettingKey<Bool>("hasDismissedStarPrompt", defaultValue: false) }
+    /// Once shown (or dismissed), the one-time support ask never returns. Keeps the historical
+    /// storage key so installs that dismissed the old in-Settings prompt stay suppressed.
+    static var hasSeenStarPrompt: SettingKey<Bool> { SettingKey<Bool>("hasDismissedStarPrompt", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
     /// Plays a short system sound when an action copies to the clipboard.
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
@@ -154,8 +155,6 @@ public extension SettingKey where Value == Double {
     /// Timestamp (seconds since 1970) onboarding finished. Installs that predate the key get it stamped
     /// on first check, so an update never surfaces the star ask on day one.
     static var onboardingCompletedAt: SettingKey<Double> { SettingKey<Double>("onboardingCompletedAt", defaultValue: 0.0) }
-    /// Unix timestamp after which the one-time support window may show. 0 means not scheduled.
-    static var starPromptEligibleAt: SettingKey<Double> { SettingKey<Double>("starPromptEligibleAt", defaultValue: 0.0) }
 }
 
 public extension SettingKey where Value == Data? {

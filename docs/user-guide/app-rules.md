@@ -59,7 +59,7 @@ These match the per-app defaults in the built-in catalog (`DefaultAppRules.catal
 
 ## Blocked by default
 
-`DefaultAppRules.disabledApps` is a built-in `disabled: true` rule for apps where OpenClip has nothing useful to read: virtual machines and remote desktops (Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon Workspaces, Screen Sharing, Screens), emulators and canvas-first apps (iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator), and a few apps that expose no text selection.
+`DefaultAppRules.disabledApps` is a built-in `disabled: true` rule for apps where OpenClip has nothing useful to read: virtual machines and remote desktops (Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon Workspaces, Screen Sharing, Remote Desktop, Screens, TeamViewer, AnyDesk, Parsec, Jump Desktop, RealVNC, NoMachine, Splashtop, LogMeIn), emulators and canvas-first apps (iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator), and a few apps that expose no text selection.
 
 These are ordinary rules, not a separate blocklist. The menu bar shows **Disabled in &lt;App&gt;** for them, and turning that item off writes a user rule with `disabled: false` that overrides the default. The App Rules page sees the same user rule.
 

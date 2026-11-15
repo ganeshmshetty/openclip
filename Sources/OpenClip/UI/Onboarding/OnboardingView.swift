@@ -234,7 +234,6 @@ public struct OnboardingView: View {
         DefaultSettingsStore.shared.set(.hasCompletedOnboarding, value: true)
         let completedAt = Date().timeIntervalSince1970
         DefaultSettingsStore.shared.set(.onboardingCompletedAt, value: completedAt)
-        DefaultSettingsStore.shared.set(.starPromptEligibleAt, value: completedAt + StarPrompt.minimumAge)
         onComplete()
     }
 
