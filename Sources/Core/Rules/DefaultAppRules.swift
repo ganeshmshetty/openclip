@@ -98,7 +98,6 @@ public enum DefaultAppRules: Sendable {
         "com.apple.TextEdit",
         "com.apple.mail",
         "com.apple.finder",
-        "com.apple.iWork.Pages",
         "com.apple.iWork.Numbers",
         "com.apple.iWork.Keynote",
         "com.apple.MobileSMS",
@@ -139,6 +138,8 @@ public enum DefaultAppRules: Sendable {
         
         // Notes, Knowledge & Markdown
         "com.apple.Notes",
+        // Pages' text engine does not expose a usable AX selection.
+        "com.apple.iWork.Pages",
         "notion.id",
         "md.obsidian",
         "net.shinyfrog.bear",
@@ -232,6 +233,15 @@ public enum DefaultAppRules: Sendable {
         "com.apple.ScreenSharing",
         "com.apple.RemoteDesktop",
         "com.edovia.screens.*",
+        "com.teamviewer.*",
+        "com.anydesk.*",
+        "tv.parsec.*",
+        "com.parsecgaming.*",
+        "com.jumpdesktop.*",
+        "com.realvnc.*",
+        "com.nomachine.*",
+        "com.splashtop.*",
+        "com.logmein.*",
         // Emulators, game engines, and canvas-first apps
         "com.apple.iphonesimulator",
         "com.google.android.emulator",

@@ -277,6 +277,9 @@ final class RuleEngineTests: XCTestCase {
             "org.virtualbox.app.VirtualBox",
             "com.microsoft.rdc.macos",
             "com.citrix.Workspace",
+            "com.teamviewer.TeamViewer",
+            "com.anydesk.AnyDesk",
+            "com.jumpdesktop.JumpDesktop",
             "com.apple.iphonesimulator",
             "com.adobe.Photoshop"
         ]
@@ -298,6 +301,14 @@ final class RuleEngineTests: XCTestCase {
         )
 
         XCTAssertFalse(RuleEngine.shared.resolvePolicies(for: "com.utmapp.UTM").disabled)
+    }
+
+    @MainActor
+    func testPagesUsesKeyboardCopyForItsAXOpaqueTextEngine() {
+        XCTAssertEqual(
+            RuleEngine.shared.resolvePolicies(for: "com.apple.iWork.Pages").retrievalMode,
+            .keyboardCopy
+        )
     }
 
     func testAppFilterKeepsOnlyNeverTargetIdentities() {
