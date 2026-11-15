@@ -54,6 +54,13 @@ OpenClip 1.10 adds five more AI providers, Markdown answers in the result card, 
 ### Notes for extension authors
 - Declare `minOpenClipVersion: "1.10.0"` for typed inline values, `color`, `displayOnly`, predicates, or result presentation formats. Older OpenClip versions ignore unknown keys, but the new types need 1.10.0.
 
+### Contributors
+- **moonopposite (@moonopposite)** — first contribution: Markdown rendering in AI answer cards.
+- **Yuqi Xiong (@Mr-xiongyq)** — first contribution: clearing extension sub-action options and secrets on uninstall.
+- **dvartbox (@dvartbox)** — co-authored the copy-only selection fallback fix.
+
+OpenSelection also carries contributions from @oecer (text-control focus handling) and @iiHawe (passive-copy and window-drag guards).
+
 ---
 
 ## v1.9.2 - 2026-10-30
