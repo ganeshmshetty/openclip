@@ -53,8 +53,17 @@ public final class AIServiceManager: ObservableObject {
         set { objectWillChange.send(); settingsStore.set(.aiCloudService, value: newValue) }
     }
     public var cloudCustomURL: String {
-        get { settingsStore.get(.aiCloudCustomURL) }
-        set { objectWillChange.send(); settingsStore.set(.aiCloudCustomURL, value: newValue) }
+        get { CloudEndpointSettings.customURL(for: cloudServiceProvider, store: settingsStore) }
+        set {
+            objectWillChange.send()
+            CloudEndpointSettings.setCustomURL(newValue, for: cloudServiceProvider, store: settingsStore)
+            CloudModelCatalog.invalidate(for: cloudServiceProvider, store: settingsStore)
+        }
+    }
+
+    /// The endpoint used when `cloudCustomURL` is empty.
+    public var cloudDefaultURL: String {
+        CloudEndpointSettings.defaultURL(for: cloudServiceProvider)
     }
     public var cloudModel: String {
         get { settingsStore.get(.aiCloudModel) }
@@ -308,6 +317,7 @@ public final class AIServiceManager: ObservableObject {
 
     private init() {
         Self.importSiblingBuildSettings(into: settingsStore)
+        CloudEndpointSettings.migrateLegacyCustomURLIfNeeded(store: settingsStore)
         if let stored = SecretStore.get(account: Self.cloudAPIKeyAccount) {
             self.cloudAPIKey = stored
         } else if let legacy = UserDefaults.standard.string(forKey: "aiCloudAPIKey"), !legacy.isEmpty {

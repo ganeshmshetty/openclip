@@ -11229,6 +11229,34 @@
         }
       }
     },
+    "Leave empty to use the provider default.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留空以使用提供商默认值。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留空以使用供應商預設值。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laissez vide pour utiliser la valeur par défaut du fournisseur."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空欄の場合はプロバイダーのデフォルトを使用します。"
+          }
+        }
+      }
+    },
     "Left": {
       "localizations": {
         "zh-Hans": {
