@@ -1,7 +1,8 @@
 // StarPromptTests.swift
 // OpenClipTests
 //
-// The one-time support window: the seven-day anchor, update installs, pause, and permanent dismissal.
+// The one-time support window: the week after onboarding, established installs, pause, and the
+// one-shot consumption.
 
 import XCTest
 @testable import Core
@@ -16,6 +17,7 @@ final class StarPromptTests: XCTestCase {
         super.setUp()
         store = MemorySettingsStore()
         store.set(.hasCompletedOnboarding, value: true)
+        store.set(.onboardingCompletedAt, value: installedAt.timeIntervalSince1970)
     }
 
     private func makePrompt(daysAfterInstall: Double) -> StarPrompt {
@@ -23,75 +25,40 @@ final class StarPromptTests: XCTestCase {
         return StarPrompt(settingsStore: store, now: { now })
     }
 
-    func testExistingInstallSchedulesOneWeekOut() {
-        let prompt = makePrompt(daysAfterInstall: 0)
-        prompt.scheduleIfNeeded()
-
-        XCTAssertEqual(
-            store.get(.starPromptEligibleAt),
-            installedAt.addingTimeInterval(StarPrompt.minimumAge).timeIntervalSince1970,
-            accuracy: 0.001
-        )
-        XCTAssertFalse(prompt.isDue())
+    func testStaysHiddenBeforeTheWeekIsUp() {
+        XCTAssertFalse(makePrompt(daysAfterInstall: 6.9).isDue())
     }
 
     func testBecomesDueOnceTheWeekIsUp() {
-        makePrompt(daysAfterInstall: 0).scheduleIfNeeded()
-
-        XCTAssertFalse(makePrompt(daysAfterInstall: 6.9).isDue())
         XCTAssertTrue(makePrompt(daysAfterInstall: 7).isDue())
     }
 
-    func testLaterLaunchesDoNotMoveTheAnchor() {
-        makePrompt(daysAfterInstall: 0).scheduleIfNeeded()
-        let anchor = store.get(.starPromptEligibleAt)
-
-        makePrompt(daysAfterInstall: 3).scheduleIfNeeded()
-        XCTAssertEqual(store.get(.starPromptEligibleAt), anchor, accuracy: 0.001)
-
-        XCTAssertFalse(makePrompt(daysAfterInstall: 6.9).isDue())
-        XCTAssertTrue(makePrompt(daysAfterInstall: 7).isDue())
+    func testEstablishedInstallIsDueImmediately() {
+        XCTAssertTrue(makePrompt(daysAfterInstall: 400).isDue())
     }
 
-    func testDismissalIsPermanent() {
-        makePrompt(daysAfterInstall: 0).scheduleIfNeeded()
-        let prompt = makePrompt(daysAfterInstall: 7)
-        XCTAssertTrue(prompt.isDue())
+    func testMissingOnboardingTimestampCountsAsEstablished() {
+        store.set(.onboardingCompletedAt, value: 0)
 
-        prompt.dismiss()
+        XCTAssertTrue(makePrompt(daysAfterInstall: 0).isDue())
+    }
 
-        XCTAssertTrue(store.get(.hasDismissedStarPrompt))
+    func testSeenAskNeverReturns() {
+        store.set(.hasSeenStarPrompt, value: true)
+
         XCTAssertFalse(makePrompt(daysAfterInstall: 400).isDue())
-    }
-
-    func testDismissedPromptNeverSchedules() {
-        store.set(.hasDismissedStarPrompt, value: true)
-
-        makePrompt(daysAfterInstall: 0).scheduleIfNeeded()
-
-        XCTAssertEqual(store.get(.starPromptEligibleAt), 0, accuracy: 0.001)
     }
 
     func testStaysHiddenWhilePaused() {
         store.set(.pauseUntilTimestamp, value: installedAt.addingTimeInterval(30 * 86_400).timeIntervalSince1970)
-        makePrompt(daysAfterInstall: 0).scheduleIfNeeded()
 
         XCTAssertFalse(makePrompt(daysAfterInstall: 7).isDue())
     }
 
     func testIgnoresInstallsThatNeverFinishedOnboarding() {
         store.set(.hasCompletedOnboarding, value: false)
+        store.set(.onboardingCompletedAt, value: 0)
 
-        makePrompt(daysAfterInstall: 0).scheduleIfNeeded()
-
-        XCTAssertEqual(store.get(.starPromptEligibleAt), 0, accuracy: 0.001)
         XCTAssertFalse(makePrompt(daysAfterInstall: 400).isDue())
-    }
-
-    func testOnboardingAnchorsTheWeekFromCompletion() {
-        store.set(.starPromptEligibleAt, value: installedAt.addingTimeInterval(StarPrompt.minimumAge).timeIntervalSince1970)
-
-        XCTAssertFalse(makePrompt(daysAfterInstall: 6.9).isDue())
-        XCTAssertTrue(makePrompt(daysAfterInstall: 7).isDue())
     }
 }

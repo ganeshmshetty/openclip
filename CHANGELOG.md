@@ -44,7 +44,7 @@ All notable user-facing changes to OpenClip.
 - VMs, remote desktops, emulators, game engines, and canvas-first apps are disabled by default: Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon WorkSpaces, Screen Sharing, Remote Desktop, Screens, TeamViewer, AnyDesk, Parsec, Jump Desktop, RealVNC, NoMachine, Splashtop, LogMeIn, iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator, and a few others.
 - Re-enable any of them from the menu bar's **Disable in &lt;App&gt;** item or the App Rules page. The menu item is now a top-level permanent switch, not part of the timed Pause menu.
 - The App Rules switch reflects the effective policy, so a default-blocked app cannot look enabled.
-- OpenClip asks for support once: a small window appears seven days after installation, or seven days after this update's first launch for existing users, with **Star on GitHub**, **Support OpenClip**, and a quiet Close. Dismissing it is permanent.
+- OpenClip asks for support once: a small window appears a week after onboarding, with **Star on GitHub**, **Support OpenClip**, and a quiet Close. Established installs already past that week see it on their first launch after updating. The ask is consumed when the window appears, so quitting with it open does not bring it back.
 
 ### Fixes & Stability
 - The result card takes focus when it opens, and whitespace-only diffs stay hidden.
