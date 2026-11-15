@@ -864,7 +864,7 @@
   "Star the repo": "リポジトリにスターを付ける",
   "Finding OpenClip useful?": "OpenClip はお役に立っていますか？",
   "It's free and open source. A star on GitHub helps more people find it.": "無料のオープンソースです。GitHub でスターを付けると、より多くの人に見つけてもらえます。",
-  "Star on GitHub": "GitHub でスターを付ける",
+  "Star on GitHub": "GitHubでスターを付ける",
   "Not Now": "結構です",
   "Suggestions": "候補",
   "Only suggest for misspelled words": "誤字のときだけ提案する",
@@ -879,5 +879,12 @@
   "Command “%@” not found": "コマンド「%@」が見つかりません",
   "Auth check failed": "認証チェックに失敗しました",
   "Sign In": "サインイン",
-  "Install failed": "インストールに失敗しました"
+  "Install failed": "インストールに失敗しました",
+  "Support OpenClip": "OpenClipを支援",
+  "Thank you for using OpenClip!": "OpenClipをご利用いただきありがとうございます！",
+  "OpenClip is free and open source.": "OpenClipは無料のオープンソースです。",
+  "A star on GitHub helps more people find it.": "GitHubでのスターがより多くの人に見つけてもらう助けになります。",
+  "You can support development with a tip.": "チップで開発を支援することもできます。",
+  "Opens the OpenClip repository on GitHub": "GitHubでOpenClipのリポジトリを開きます",
+  "Opens the OpenClip support page": "OpenClipのサポートページを開きます"
 }

@@ -864,7 +864,7 @@
   "Star the repo": "為專案標星",
   "Finding OpenClip useful?": "OpenClip 好用嗎？",
   "It's free and open source. A star on GitHub helps more people find it.": "它免費且開源。在 GitHub 上打一顆星，能讓更多人發現它。",
-  "Star on GitHub": "在 GitHub 上打星",
+  "Star on GitHub": "在 GitHub 上加星",
   "Not Now": "不用了",
   "Suggestions": "建議",
   "Only suggest for misspelled words": "僅為拼錯的單字提供建議",
@@ -879,5 +879,12 @@
   "Command “%@” not found": "找不到指令「%@」",
   "Auth check failed": "驗證檢查未通過",
   "Sign In": "登入",
-  "Install failed": "安裝失敗"
+  "Install failed": "安裝失敗",
+  "Support OpenClip": "支持 OpenClip",
+  "Thank you for using OpenClip!": "感謝使用 OpenClip！",
+  "OpenClip is free and open source.": "OpenClip 免費且開源。",
+  "A star on GitHub helps more people find it.": "在 GitHub 上加星能讓更多人發現它。",
+  "You can support development with a tip.": "你也可以透過打賞支持開發。",
+  "Opens the OpenClip repository on GitHub": "在 GitHub 上開啟 OpenClip 儲存庫",
+  "Opens the OpenClip support page": "開啟 OpenClip 支援頁面"
 }

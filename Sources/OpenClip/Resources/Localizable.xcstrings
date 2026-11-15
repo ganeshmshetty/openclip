@@ -421,6 +421,34 @@
         }
       }
     },
+    "A star on GitHub helps more people find it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上加星能让更多人发现它。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上加星能讓更多人發現它。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une étoile sur GitHub aide plus de personnes à le trouver."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubでのスターがより多くの人に見つけてもらう助けになります。"
+          }
+        }
+      }
+    },
     "AI": {
       "localizations": {
         "zh-Hans": {
@@ -14281,6 +14309,34 @@
         }
       }
     },
+    "OpenClip is free and open source.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 免费且开源。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 免費且開源。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip est gratuit et open source."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipは無料のオープンソースです。"
+          }
+        }
+      }
+    },
     "OpenClip is paused": {
       "localizations": {
         "zh-Hans": {
@@ -14501,6 +14557,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@を開いています…"
+          }
+        }
+      }
+    },
+    "Opens the OpenClip repository on GitHub": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上打开 OpenClip 仓库"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上開啟 OpenClip 儲存庫"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre le dépôt OpenClip sur GitHub"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubでOpenClipのリポジトリを開きます"
+          }
+        }
+      }
+    },
+    "Opens the OpenClip support page": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 OpenClip 支持页面"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟 OpenClip 支援頁面"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre la page de soutien d’OpenClip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipのサポートページを開きます"
           }
         }
       }
@@ -20586,25 +20698,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 GitHub 上点星"
+            "value": "在 GitHub 上加星"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 GitHub 上打星"
+            "value": "在 GitHub 上加星"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mettre une étoile sur GitHub"
+            "value": "Ajouter une étoile sur GitHub"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "GitHub でスターを付ける"
+            "value": "GitHubでスターを付ける"
           }
         }
       }
@@ -20829,6 +20941,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "サポート"
+          }
+        }
+      }
+    },
+    "Support OpenClip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 OpenClip"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 OpenClip"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soutenir OpenClip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipを支援"
           }
         }
       }
@@ -21193,6 +21333,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "クラウドAIを使わない限り、テキストはMacから出ません。"
+          }
+        }
+      }
+    },
+    "Thank you for using OpenClip!": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "感谢使用 OpenClip！"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "感謝使用 OpenClip！"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merci d’utiliser OpenClip !"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipをご利用いただきありがとうございます！"
           }
         }
       }
@@ -24133,6 +24301,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Yahoo! JAPAN"
+          }
+        }
+      }
+    },
+    "You can support development with a tip.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你也可以通过打赏支持开发。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你也可以透過打賞支持開發。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous pouvez soutenir le développement avec un don."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チップで開発を支援することもできます。"
           }
         }
       }

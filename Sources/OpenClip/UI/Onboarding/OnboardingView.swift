@@ -232,7 +232,9 @@ public struct OnboardingView: View {
         DefaultSettingsStore.shared.set(.lastRunVersion, value: currentVersion)
         DefaultSettingsStore.shared.set(.lastRunBuild, value: currentBuild)
         DefaultSettingsStore.shared.set(.hasCompletedOnboarding, value: true)
-        DefaultSettingsStore.shared.set(.onboardingCompletedAt, value: Date().timeIntervalSince1970)
+        let completedAt = Date().timeIntervalSince1970
+        DefaultSettingsStore.shared.set(.onboardingCompletedAt, value: completedAt)
+        DefaultSettingsStore.shared.set(.starPromptEligibleAt, value: completedAt + StarPrompt.minimumAge)
         onComplete()
     }
 
