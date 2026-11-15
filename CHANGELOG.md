@@ -6,18 +6,13 @@ All notable user-facing changes to OpenClip.
 
 ## v1.10.0 - 2026-11-15
 
-### Highlights
-- **AI, leveled up**: five more cloud providers, live CLI readiness, model search, and Markdown answers in the result card.
-- **Richer extensions**: typed inline results (including color swatches), display-only rows, result presentation formats, and JavaScript visibility predicates.
-- **Safer actions**: Cut only appears for editable text, text paste confirms an insertion point before pasting, and automatic copy waits for a real text-selection cue.
-- **App rules that cover the noisy apps**: VMs, remote desktops, emulators, and canvas-first apps are disabled by default and easy to re-enable.
-- **A one-time support window** after the first week, with a star link and a sponsor page.
+OpenClip 1.10 adds five more AI providers, Markdown answers in the result card, typed inline results and visibility predicates for extensions, and a one-time support window. Paste and cut now check that the target accepts text, and OpenClip starts disabled in VMs, remote desktops, emulators, and canvas-first apps.
 
 ### AI
 - Mistral, xAI, Cerebras, Together AI, and Fireworks join the cloud providers. Settings and the per-action model picker get a search field.
 - CLI presets are current: standalone Copilot, Gemini CLI, and Cursor Agent. The selected CLI shows **Ready** with its version, **Sign in needed**, or **Not installed**, with a copyable install or sign-in command. Model lists come from the CLI when it exposes them.
 - AI answer cards render Markdown once the answer settles; Copy, Paste, and drag still use the original Markdown source.
-- AI prompts keep replacement tasks plain and let explanatory answers use card-friendly Markdown. Remote images are not loaded into cards.
+- AI prompts keep replacement tasks plain and let explanatory answers use Markdown that fits the card. Remote images are not loaded into cards.
 
 ### Extensions
 - Typed inline results: synchronous inline actions can return text or a canonical color. Colors render as a swatch card with Copy (hex) and Save.
@@ -37,14 +32,15 @@ All notable user-facing changes to OpenClip.
 - Smart Cut keeps macOS's space handling.
 - Pages now reads selections through keyboard copy, avoiding its AX text engine.
 - Define shows dictionary definitions with readable structure instead of one flat block.
-- Formatting shortcuts that use punctuation — Strikethrough's ⌘⇧- / ⌘⌃- — are now delivered instead of being dropped.
+- Formatting shortcuts that use punctuation, such as Strikethrough's ⌘⇧- and ⌘⌃-, are now delivered.
 - Word Completion can suggest only for misspelled words and can appear as a contextual action instead of the inline row.
 
 ### App Rules & Support
-- VMs, remote desktops, emulators, game engines, and canvas-first apps are disabled by default: Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon WorkSpaces, Screen Sharing, Remote Desktop, Screens, TeamViewer, AnyDesk, Parsec, Jump Desktop, RealVNC, NoMachine, Splashtop, LogMeIn, iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator, and a few others.
-- Re-enable any of them from the menu bar's **Disable in &lt;App&gt;** item or the App Rules page. The menu item is now a top-level permanent switch, not part of the timed Pause menu.
+- VMs and remote desktop clients are disabled by default: Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon WorkSpaces, Screen Sharing, Remote Desktop, Screens, TeamViewer, AnyDesk, Parsec, Jump Desktop, RealVNC, NoMachine, Splashtop, and LogMeIn.
+- Emulators and canvas-first apps are also disabled: iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator, and a few others.
+- Re-enable any of them from the menu bar's **Disable in &lt;App&gt;** item or the App Rules page. The menu item is a top-level permanent switch; the timed Pause menu holds only the temporary options.
 - The App Rules switch reflects the effective policy, so a default-blocked app cannot look enabled.
-- OpenClip asks for support once: a small window appears a week after onboarding, with **Star on GitHub**, **Support OpenClip**, and a quiet Close. Established installs already past that week see it on their first launch after updating. The ask is consumed when the window appears, so quitting with it open does not bring it back.
+- OpenClip asks for support once. A small window appears a week after onboarding with **Star on GitHub**, **Support OpenClip**, and a quiet Close. Established installs already past that week see it on their first launch after updating. The ask is consumed when the window appears, so quitting with it open does not bring it back.
 
 ### Fixes & Stability
 - The result card takes focus when it opens, and whitespace-only diffs stay hidden.
