@@ -76,8 +76,13 @@ private struct AppRuleRowView: View {
         return identifier
     }
 
+    /// The default catalog can disable an app without a user rule. The switch must show the
+    /// effective policy, or a default-blocked app looks enabled while it is not.
     private var isDisabled: Bool {
-        rule.disabled == true
+        let scoped = identifier.hasPrefix(DefaultAppRules.processNamePrefix)
+            || identifier.hasPrefix(DefaultAppRules.executablePathPrefix)
+        guard !scoped, !identifier.contains("*") else { return rule.disabled == true }
+        return RuleEngine.shared.resolvePolicies(for: identifier).disabled
     }
 
     private var isHotkeyOnly: Bool {
@@ -127,7 +132,7 @@ private struct AppRuleRowView: View {
                 set: { isEnabled in
                     let updated = AppRule(
                         bundleIdentifiers: rule.bundleIdentifiers,
-                        disabled: isEnabled ? nil : true,
+                        disabled: !isEnabled,
                         hotkeyOnly: rule.hotkeyOnly,
                         useMenuCopy: rule.useMenuCopy,
                         denyPaste: rule.denyPaste,

@@ -145,7 +145,7 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(controller.resumeItem?.isHidden, true)
     }
 
-    func testToggleCurrentAppPauseAddsAndRemovesDisabledRule() {
+    func testToggleCurrentAppDisabledAddsAndRemovesRule() {
         let store = MemorySettingsStore()
         let notificationCenter = NotificationCenter()
         let controller = StatusBarController(
@@ -159,30 +159,30 @@ final class StatusBarControllerTests: XCTestCase {
 
         // Initially Safari is not disabled
         controller.updateRootMenuDynamicItems()
-        XCTAssertEqual(controller.pauseAppItem?.isHidden, false)
-        XCTAssertEqual(controller.pauseAppItem?.state, .off)
-        XCTAssertEqual(controller.pauseAppItem?.title, "Pause in Safari")
-        XCTAssertNil(controller.pauseAppItem?.image)
+        XCTAssertEqual(controller.disableAppItem?.isHidden, false)
+        XCTAssertEqual(controller.disableAppItem?.state, .off)
+        XCTAssertEqual(controller.disableAppItem?.title, "Disable in Safari")
+        XCTAssertNil(controller.disableAppItem?.image)
 
         // Toggle pause for Safari
-        controller.toggleCurrentAppPause()
+        controller.toggleCurrentAppDisabled()
         let policyAfterPause = RuleEngine.shared.resolvePolicies(for: "com.apple.Safari")
         XCTAssertTrue(policyAfterPause.disabled, "Safari should now be disabled")
-        XCTAssertEqual(controller.pauseAppItem?.state, .on)
-        XCTAssertEqual(controller.pauseAppItem?.title, "Paused in Safari")
-        XCTAssertFalse(controller.pauseAppItem?.title.contains("Click to Resume") == true)
-        XCTAssertNil(controller.pauseAppItem?.image)
+        XCTAssertEqual(controller.disableAppItem?.state, .on)
+        XCTAssertEqual(controller.disableAppItem?.title, "Disabled in Safari")
+        XCTAssertFalse(controller.disableAppItem?.title.contains("Click to Resume") == true)
+        XCTAssertNil(controller.disableAppItem?.image)
 
         // Toggle resume for Safari
-        controller.toggleCurrentAppPause()
+        controller.toggleCurrentAppDisabled()
         let policyAfterResume = RuleEngine.shared.resolvePolicies(for: "com.apple.Safari")
         XCTAssertFalse(policyAfterResume.disabled, "Safari should no longer be disabled")
-        XCTAssertEqual(controller.pauseAppItem?.state, .off)
-        XCTAssertEqual(controller.pauseAppItem?.title, "Pause in Safari")
-        XCTAssertNil(controller.pauseAppItem?.image)
+        XCTAssertEqual(controller.disableAppItem?.state, .off)
+        XCTAssertEqual(controller.disableAppItem?.title, "Disable in Safari")
+        XCTAssertNil(controller.disableAppItem?.image)
     }
 
-    func testToggleCurrentAppPausePreservesMultiAppRule() {
+    func testToggleCurrentAppDisabledPreservesMultiAppRule() {
         let store = MemorySettingsStore()
         let notificationCenter = NotificationCenter()
         let controller = StatusBarController(
@@ -199,7 +199,7 @@ final class StatusBarControllerTests: XCTestCase {
         controller.currentTargetApp = mockSafari
 
         // Unpause Safari
-        controller.toggleCurrentAppPause()
+        controller.toggleCurrentAppDisabled()
 
         // Safari should now be enabled, but Chrome must remain disabled
         XCTAssertFalse(RuleEngine.shared.resolvePolicies(for: "com.apple.Safari").disabled)
@@ -230,7 +230,7 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(toggleItem.state, .on)
     }
 
-    func testPauseAppItemIsNestedInsidePauseSubmenu() {
+    func testDisableAppItemIsTopLevelAndHidesWithoutApp() {
         let store = MemorySettingsStore()
         let controller = StatusBarController(
             settingsStore: store,
@@ -238,28 +238,48 @@ final class StatusBarControllerTests: XCTestCase {
             rulesSaveURL: tempRulesURL
         )
 
-        guard let pauseSubmenu = controller.pauseSubmenu,
-              let pauseAppItem = controller.pauseAppItem,
-              let pauseSep = controller.pauseAppSeparatorItem else {
-            return XCTFail("Expected pauseSubmenu, pauseAppItem, and separator")
+        guard let rootMenu = controller.rootMenu,
+              let pauseSubmenu = controller.pauseSubmenu,
+              let disableItem = controller.disableAppItem,
+              let disableSep = controller.disableAppSeparatorItem else {
+            return XCTFail("Expected rootMenu, pauseSubmenu, disableAppItem, and separator")
         }
 
-        XCTAssertTrue(pauseSubmenu.items.contains(pauseAppItem))
-        XCTAssertTrue(pauseSubmenu.items.contains(pauseSep))
-        XCTAssertLessThan(pauseSubmenu.items.firstIndex(of: pauseAppItem)!, pauseSubmenu.items.firstIndex(of: pauseSep)!)
+        XCTAssertTrue(rootMenu.items.contains(disableItem))
+        XCTAssertTrue(rootMenu.items.contains(disableSep))
+        XCTAssertFalse(pauseSubmenu.items.contains(disableItem), "disabling an app is permanent, not a timed pause")
+        XCTAssertLessThan(rootMenu.items.firstIndex(of: disableItem)!, rootMenu.items.firstIndex(of: disableSep)!)
 
         // With mock app:
         let mockSafari = MockStatusBarApp(bundleID: "com.apple.Safari", localizedName: "Safari")
         controller.currentTargetApp = mockSafari
         controller.updateRootMenuDynamicItems()
-        XCTAssertFalse(pauseAppItem.isHidden)
-        XCTAssertFalse(pauseSep.isHidden)
+        XCTAssertFalse(disableItem.isHidden)
+        XCTAssertFalse(disableSep.isHidden)
 
         // Without valid app:
         controller.currentTargetApp = MockStatusBarApp(bundleID: nil)
         controller.updateRootMenuDynamicItems()
-        XCTAssertTrue(pauseAppItem.isHidden)
-        XCTAssertTrue(pauseSep.isHidden)
+        XCTAssertTrue(disableItem.isHidden)
+        XCTAssertTrue(disableSep.isHidden)
+    }
+
+    func testDefaultBlockedAppShowsDisabledAndCanBeReEnabled() {
+        let controller = StatusBarController(
+            settingsStore: MemorySettingsStore(),
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+        controller.currentTargetApp = MockStatusBarApp(bundleID: "com.utmapp.UTM", localizedName: "UTM")
+
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.disableAppItem?.state, .on)
+        XCTAssertEqual(controller.disableAppItem?.title, "Disabled in UTM")
+
+        controller.toggleCurrentAppDisabled()
+        XCTAssertFalse(RuleEngine.shared.resolvePolicies(for: "com.utmapp.UTM").disabled)
+        XCTAssertEqual(controller.disableAppItem?.state, .off)
+        XCTAssertEqual(controller.disableAppItem?.title, "Disable in UTM")
     }
 }
 

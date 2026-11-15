@@ -98,7 +98,6 @@ public enum DefaultAppRules: Sendable {
         "com.apple.TextEdit",
         "com.apple.mail",
         "com.apple.finder",
-        "com.apple.iWork.Pages",
         "com.apple.iWork.Numbers",
         "com.apple.iWork.Keynote",
         "com.apple.MobileSMS",
@@ -139,6 +138,8 @@ public enum DefaultAppRules: Sendable {
         
         // Notes, Knowledge & Markdown
         "com.apple.Notes",
+        // Pages' text engine does not expose a usable AX selection.
+        "com.apple.iWork.Pages",
         "notion.id",
         "md.obsidian",
         "net.shinyfrog.bear",
@@ -215,6 +216,50 @@ public enum DefaultAppRules: Sendable {
         "extraterm"
     ]
     
+    /// Blocked by default, visible and reversible through the same `disabled` rule the App Rules
+    /// screen and the menu-bar toggle write. Running inside a VM or remote session means the host
+    /// app exposes no text selection, and editors/emulators that paint their own canvas do not
+    /// either. A user rule with `disabled: false` re-enables any of these.
+    public static let disabledApps: [String] = [
+        // Virtual machines and remote desktops
+        "com.parallels.*",
+        "com.vmware.*",
+        "com.utmapp.UTM",
+        "org.virtualbox.app.VirtualBox",
+        "com.microsoft.rdc.*",
+        "com.citrix.*",
+        "com.citrixonline.*",
+        "com.amazon.workspaces",
+        "com.apple.ScreenSharing",
+        "com.apple.RemoteDesktop",
+        "com.edovia.screens.*",
+        "com.teamviewer.*",
+        "com.anydesk.*",
+        "tv.parsec.*",
+        "com.parsecgaming.*",
+        "com.jumpdesktop.*",
+        "com.realvnc.*",
+        "com.nomachine.*",
+        "com.splashtop.*",
+        "com.logmein.*",
+        // Emulators, game engines, and canvas-first apps
+        "com.apple.iphonesimulator",
+        "com.google.android.emulator",
+        "com.android.emulator",
+        "com.unity3d.*",
+        "com.blizzard.*",
+        "com.codeweavers.*",
+        "com.adobe.*",
+        "com.adobe.aerendercore",
+        "com.amazon.Kindle",
+        "com.collectorz.*",
+        "com.oracle.SQLDeveloper",
+        "com.pixelmatorteam.*",
+        "com.revolversoftware.office",
+        "com.screencastomatic.app",
+        "org.keepassx.keepassx"
+    ]
+
     public static let denyPasteApps: [String] = [
         "com.apple.Terminal",
         "com.googlecode.iterm2",
@@ -248,6 +293,10 @@ public enum DefaultAppRules: Sendable {
     ]
     
     public static let catalog: [AppRule] = [
+        AppRule(
+            bundleIdentifiers: disabledApps,
+            disabled: true
+        ),
         AppRule(
             bundleIdentifiers: nativeApps,
             retrievalMode: .axTextControl

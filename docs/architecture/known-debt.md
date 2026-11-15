@@ -998,3 +998,17 @@ requirements; other schemes retain their system handlers. Effects run through th
 BrowserTabOpener front-window scripting and LaunchServices fallback. JavaScript owns its loop
 and deduplication when opening multiple URLs. Firefox has no tab scripting; from a private window
 (detected by the English "Private Browsing" title suffix) it runs `firefox --private-window URL`.
+
+## Default app blocks
+
+`DefaultAppRules.disabledApps` ships a `disabled: true` catalog rule for VMs, remote desktops,
+emulators, and canvas-first apps. It is a normal rule layer: a user rule with `disabled: false`
+overrides it, and the menu bar's **Disable in <App>** item writes exactly that override. `AppFilter`
+is now only the never-target tier (OpenClip itself, Dock, SystemUIServer, the character palette,
+PopClip, and the bundle-less Java launcher); it runs before the rules engine, so those identities
+cannot be re-enabled from a rule file.
+
+Known UI gap: the App Rules page lists only user rules. A default-blocked app therefore shows
+"No App Rules Configured" there until the menu bar writes an override, and the row switch reads the
+effective policy so it never claims a blocked app is enabled. Planned: one merged list with a
+Default badge and Reset-to-default.

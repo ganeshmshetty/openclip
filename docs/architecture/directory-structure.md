@@ -92,7 +92,7 @@ Sources/
 │   │   ├── SelectionGatePolicy.swift         # Pre-retrieval role & cursor gate policy
 │   │   └── SelectionRetrievalMode.swift      # Selection retrieval strategy selector
 │   ├── Selection/                            # Text selection & monitoring models
-│   │   ├── AppFilter.swift                   # App bundle filtering helpers
+│   │   ├── AppFilter.swift                   # Never-target identities (self, system chrome, input methods, conflicting clipboard managers)
 │   │   ├── AppIdentifying.swift              # Application identity protocol
 │   │   ├── BrowserDetector.swift             # Browser bundle ID classifier
 │   │   ├── Constants.swift                   # Domain/runtime constants (timeouts, key codes, env vars, manifest keys), no UI sizing
