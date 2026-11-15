@@ -654,8 +654,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         ))
     }
 
-    /// QWERTY ANSI virtual key codes; other layouts may remap letters and digits.
-    private static func keyCode(for keyName: String) -> CGKeyCode? {
+    /// QWERTY ANSI virtual key codes; other layouts may remap letters, digits and punctuation.
+    static func keyCode(for keyName: String) -> CGKeyCode? {
         let lower = keyName.lowercased()
         let named: [String: CGKeyCode] = [
             "return": 0x24, "enter": 0x24,
@@ -666,7 +666,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             "forwarddelete": 0x75,
             "up": 0x7E, "down": 0x7D, "left": 0x7B, "right": 0x7C,
             "home": 0x73, "end": 0x77,
-            "pageup": 0x74, "pagedown": 0x79
+            "pageup": 0x74, "pagedown": 0x79,
+            "minus": 0x1B, "equal": 0x18
         ]
         if let code = named[lower] { return code }
 
@@ -683,6 +684,11 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 let digits: [CGKeyCode] = [0x1D, 0x12, 0x13, 0x14, 0x15, 0x17, 0x16, 0x1A, 0x1C, 0x19]
                 return digits[value - 0x30]
             }
+            let punctuation: [Character: CGKeyCode] = [ // kVK_ANSI_* punctuation
+                "-": 0x1B, "=": 0x18, "[": 0x21, "]": 0x1E, ";": 0x29, "'": 0x27,
+                ",": 0x2B, ".": 0x2F, "/": 0x2C, "\\": 0x2A, "`": 0x32
+            ]
+            if let code = punctuation[Character(lower)] { return code }
         }
         return nil
     }
