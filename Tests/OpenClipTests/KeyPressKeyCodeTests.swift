@@ -1,6 +1,7 @@
 import XCTest
 @testable import OpenClip
 
+@MainActor
 final class KeyPressKeyCodeTests: XCTestCase {
     func testPunctuationKeysResolveToANSIKeyCodes() {
         XCTAssertEqual(DefaultActionResultHandler.keyCode(for: "-"), 0x1B)
