@@ -95,4 +95,4 @@ The App Rules page and the menu bar's **Disable in &lt;App&gt;** item write `pro
 2. `RuleEngine` compares the app's identity with the effective rules (default rules plus your rules). Plain patterns match the bundle ID, `process:` patterns the process name, and `path:` patterns the executable path, with `.*` prefix and `*` wildcards.
 3. Matching settings override the default `AppPolicyContext` values. The resolved `retrieval-mode` and `gate` go to `SelectionRetrievalCoordinator`, which reads the selection.
 4. A legacy `use-menu-copy: true` becomes `retrieval-mode: "menu-copy"` only when the rule has no explicit `retrieval-mode` and the built-in catalog hasn't already given the app a different mode.
-5. If `denyPaste: true` applies to the frontmost app, paste delivery falls back to copy and the Paste and Cut actions are hidden from the popup bar, through the shared `PasteAvailability` decision.
+5. If `denyPaste: true` applies to the frontmost app, text delivery falls back to copy. Paste availability and text editability are separate capability facts; `denyPaste` forces both to copy.
