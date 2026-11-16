@@ -16,9 +16,25 @@ public typealias TextResult = Core.TextResult
 public typealias SelectionReadStatus = Core.SelectionReadStatus
 public typealias LogLevel = Core.LogLevel
 
+extension SelectionConfiguration {
+    /// Standard OpenClip selection configuration tuned with Core constants.
+    public static var openClipDefault: SelectionConfiguration {
+        var config = SelectionConfiguration.default
+        config.webAreaSettleInterval = Constants.webAreaSettleInterval
+        config.webAreaSettleMaxRetries = Constants.webAreaSettleMaxRetries
+        config.axReadTimeout = Constants.axReadTimeout
+        config.pasteboardCopyTimeout = Constants.pasteboardCopyTimeout
+        config.safariPasteboardCopyTimeout = Constants.safariPasteboardCopyTimeout
+        config.pasteProbeTimeout = Constants.pasteProbeTimeout
+        config.pasteProbeMaxConcurrent = Constants.pasteProbeMaxConcurrent
+        return config
+    }
+}
+
 extension SelectionRetrievalCoordinator {
     /// Compatibility init for TextResult-based copy captures.
     public init(
+        configuration: SelectionConfiguration = .openClipDefault,
         inspect: @escaping TargetProvider = { trace in AXElementInspector.inspect(trace: trace) },
         copyCapture: (@Sendable (CopyTrigger) async -> Core.TextResult?)?,
         menuPress: @escaping MenuPress = SelectionRetrievalCoordinator.pressEditCopyMenu,
@@ -40,7 +56,7 @@ extension SelectionRetrievalCoordinator {
             }
         }
         self.init(
-            configuration: .default,
+            configuration: configuration,
             inspect: inspect,
             copyCapture: mappedCapture,
             menuPress: menuPress,
@@ -49,12 +65,14 @@ extension SelectionRetrievalCoordinator {
     }
 
     public init(
+        configuration: SelectionConfiguration = .openClipDefault,
         inspect: @escaping SimpleTargetProvider,
         copyCapture: (@Sendable (CopyTrigger) async -> Core.TextResult?)?,
         menuPress: @escaping MenuPress = SelectionRetrievalCoordinator.pressEditCopyMenu,
         scriptRunner: @escaping ScriptRunner = SelectionRetrievalCoordinator.defaultScriptRunner
     ) {
         self.init(
+            configuration: configuration,
             inspect: { _ in inspect() },
             copyCapture: copyCapture,
             menuPress: menuPress,

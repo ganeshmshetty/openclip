@@ -106,10 +106,11 @@ public enum Constants {
     public static let safariPasteboardCopyTimeout: TimeInterval = 0.4
 
     /// Poll interval (seconds) while waiting for the AX web-area text to settle after focus.
-    public static let webAreaSettleInterval: TimeInterval = 0.05
+    /// Tuned to 15ms (from 50ms) to eliminate quantization wait on Chromium browsers.
+    public static let webAreaSettleInterval: TimeInterval = 0.015
 
-    /// Max polls before giving up on the AX web-area text settling.
-    public static let webAreaSettleMaxRetries: Int = 6
+    /// Max polls before giving up on the AX web-area text settling (8 * 15ms = 120ms budget).
+    public static let webAreaSettleMaxRetries: Int = 8
 
     /// Throttle interval (seconds) for keyboard selection gestures (Cmd+A, Shift+arrow) to prevent rapid repeated retrievals while holding keys.
     public static let keyboardSelectionDebounceInterval: TimeInterval = 0.15

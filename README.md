@@ -86,6 +86,9 @@ xcodegen generate
 # Build and run
 ./scripts/dev_run.sh
 
+# Build Release and install to /Applications
+./scripts/build_release.sh --install
+
 # Run tests
 ./scripts/test.sh
 
