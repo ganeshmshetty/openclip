@@ -186,9 +186,15 @@ public struct ActionChrome: Codable, Sendable, Equatable {
     public let loadingMessage: String?
     /// Shows an inline result preview in the popup bar instead of performing on click.
     public let isInlineResult: Bool
+    /// Informational inline item: visible and searchable, but never executable or deliverable.
+    public let displayOnly: Bool
     public let outputKind: ActionOutputKind
     /// Author-recommended delivery for uncommitted results.
     public let recommendedResult: ActionResultDeliveryMode?
+    /// Author-declared card format for text results; nil keeps built-in detection (AI) or plain (extensions resolve a default).
+    public let presentation: ResultPresentation?
+    /// Explicit contextual-promotion override from the manifest; nil uses the uniform auto rule.
+    public let contextualOverride: Bool?
 
     public init(
         badge: Badge = .none,
@@ -200,8 +206,11 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         showsLoading: Bool = false,
         loadingMessage: String? = nil,
         isInlineResult: Bool = false,
+        displayOnly: Bool = false,
         outputKind: ActionOutputKind = .none,
-        recommendedResult: ActionResultDeliveryMode? = nil
+        recommendedResult: ActionResultDeliveryMode? = nil,
+        presentation: ResultPresentation? = nil,
+        contextualOverride: Bool? = nil
     ) {
         self.badge = badge
         self.rowStyle = rowStyle
@@ -212,8 +221,11 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.showsLoading = showsLoading
         self.loadingMessage = loadingMessage
         self.isInlineResult = isInlineResult
+        self.displayOnly = displayOnly && isInlineResult
         self.outputKind = (outputKind == .none && isInlineResult) ? .text : outputKind
         self.recommendedResult = recommendedResult
+        self.presentation = presentation
+        self.contextualOverride = contextualOverride
     }
 
     public init(from decoder: Decoder) throws {
@@ -228,11 +240,15 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         self.loadingMessage = try container.decodeIfPresent(String.self, forKey: .loadingMessage)
         let inline = try container.decodeIfPresent(Bool.self, forKey: .isInlineResult) ?? false
         self.isInlineResult = inline
+        self.displayOnly = (try container.decodeIfPresent(Bool.self, forKey: .displayOnly) ?? false) && inline
         let rawOutput = try? container.decodeIfPresent(String.self, forKey: .outputKind)
         let decodedOutput = rawOutput.flatMap(ActionOutputKind.init(rawValue:)) ?? .none
         self.outputKind = (decodedOutput == .none && inline) ? .text : decodedOutput
         let rawResult = try? container.decodeIfPresent(String.self, forKey: .recommendedResult)
         self.recommendedResult = rawResult.flatMap(ActionResultDeliveryMode.init(rawValue:))
+        let rawPresentation = try? container.decodeIfPresent(String.self, forKey: .presentation)
+        self.presentation = rawPresentation.flatMap(ResultPresentation.init(rawValue:))
+        self.contextualOverride = try container.decodeIfPresent(Bool.self, forKey: .contextualOverride)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -246,10 +262,13 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         try container.encode(showsLoading, forKey: .showsLoading)
         try container.encodeIfPresent(loadingMessage, forKey: .loadingMessage)
         try container.encode(isInlineResult, forKey: .isInlineResult)
+        try container.encode(displayOnly, forKey: .displayOnly)
         if outputKind != .none {
             try container.encode(outputKind.rawValue, forKey: .outputKind)
         }
         try container.encodeIfPresent(recommendedResult?.rawValue, forKey: .recommendedResult)
+        try container.encodeIfPresent(presentation?.rawValue, forKey: .presentation)
+        try container.encodeIfPresent(contextualOverride, forKey: .contextualOverride)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -262,7 +281,10 @@ public struct ActionChrome: Codable, Sendable, Equatable {
         case showsLoading
         case loadingMessage
         case isInlineResult
+        case displayOnly
         case outputKind
         case recommendedResult
+        case presentation
+        case contextualOverride
     }
 }

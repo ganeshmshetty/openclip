@@ -11,8 +11,8 @@ set -eo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
-# The test host is the app itself: while a UI test switches it to a regular app it gets a Dock icon, and a host left
-# behind by an interrupted run keeps that icon. Clear stale hosts before and after every run.
+# The test host is the app itself. Under XCTest the activation policy is recorded rather than applied, so a run
+# never claims a Dock icon; stale hosts from interrupted or older runs are still cleared before and after.
 kill_stale_test_hosts() {
     pkill -f 'Library/Developer/Xcode/DerivedData/OpenClip-[^/]*/Build/Products/Debug/OpenClip.app/Contents/MacOS/OpenClip' 2>/dev/null || true
 }
@@ -35,6 +35,7 @@ CORE_TEST_FLAGS=(
     -only-testing:OpenClipTests/CalculateActionTests
     -only-testing:OpenClipTests/ManifestValidationTests
     -only-testing:OpenClipTests/TextSanitizerTests
+    -only-testing:OpenClipTests/TextLanguageDetectorTests
     -only-testing:OpenClipTests/TextPlaceholderEngineTests
     -only-testing:OpenClipTests/SettingsStoreTests
     -only-testing:OpenClipTests/RuleEngineTests

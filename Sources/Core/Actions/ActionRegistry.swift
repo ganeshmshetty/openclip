@@ -278,9 +278,6 @@ public final class ActionRegistry: ObservableObject, Sendable {
     /// Context gating shared by the bar and palette; settings-disable state is applied separately (`isDisabledInSettings`).
     private func canPerform(_ action: any Action, in context: ActionContext) -> Bool {
         // Clipboard/OCR input is not an editable source selection; OCRInputAction is the explicit exception.
-        if context.selection.source == .ocr && action is any PasteRequiringAction {
-            return false
-        }
         if context.selection.source != .selection && action.chrome.requiresLiveSelection
             && !(context.selection.source == .ocr && action is any OCRInputAction) {
             return false
@@ -333,6 +330,19 @@ public final class ActionRegistry: ObservableObject, Sendable {
         return map
     }
 
+    /// Parent-container disable state, independent of the child's own saved switch.
+    public func isDisabledByParentGroup(
+        _ action: any Action,
+        disabledActionIDs: Set<String>,
+        disabledPackages: Set<String>
+    ) -> Bool {
+        let hiddenGroups = hiddenGroupIDs { parent in
+            !isDisabledInSettings(parent, disabledIDs: disabledActionIDs, disabledPackages: disabledPackages)
+        }
+        guard !hiddenGroups.isEmpty else { return false }
+        return belongsToHiddenGroup(action, hiddenGroupIDs: hiddenGroups, memberToGroupID: groupMembership())
+    }
+
     public func availableActions(for context: ActionContext) -> [any Action] {
         let disabledIDs = settingsStore.get(.disabledActionIDs)
         let disabledPackages = settingsStore.get(.disabledPackages)
@@ -355,8 +365,12 @@ public final class ActionRegistry: ObservableObject, Sendable {
             return !belongsToHiddenGroup(action, hiddenGroupIDs: hiddenGroups, memberToGroupID: memberToGroupID)
         }
 
+        return prioritizingContextualActions(available)
+    }
+
+    private func prioritizingContextualActions(_ actions: [any Action]) -> [any Action] {
         guard settingsStore.get(.contextualActionsEnabled) else {
-            return available
+            return actions
         }
 
         let disabledContextualIDs = settingsStore.get(.disabledContextualActionIDs)
@@ -364,7 +378,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         var contextualMatches: [any Action] = []
         var standardActions: [any Action] = []
 
-        for action in available {
+        for action in actions {
             if !disabledContextualIDs.contains(action.id) && action.isContextual {
                 contextualMatches.append(action)
             } else {
@@ -375,7 +389,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         return contextualMatches + standardActions
     }
 
-    /// Flat catalog for the search palette: actions the user can run now. Settings-disabled actions and
+    /// Flat catalog for the search palette, with contextual matches first. Settings-disabled actions and
     /// those that cannot perform in this context are dropped. Group rows stay; launchers and the completion
     /// pseudo-action never do.
     public func searchCatalog(for context: ActionContext) -> [any Action] {
@@ -387,7 +401,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
         }
         let memberToGroupID = groupMembership()
 
-        return actions.filter { action in
+        let available = actions.filter { action in
             if action.chrome.launchesAI || ActionIdentity.isCompletionPseudoAction(action) || action is GatedExtensionAction {
                 return false
             }
@@ -399,5 +413,7 @@ public final class ActionRegistry: ObservableObject, Sendable {
             }
             return canPerform(action, in: context)
         }
+
+        return prioritizingContextualActions(available)
     }
 }

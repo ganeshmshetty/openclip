@@ -346,5 +346,39 @@ final class ActionResultHandlerTests: XCTestCase {
 
         XCTAssertEqual(isolatedPasteboard.string(forType: .string), "OriginalBaseline")
     }
+
+    func testCutWritesTextWithSmartPasteMarkerAndDeletesSelection() async throws {
+        let board = NSPasteboard(name: .init("OpenClipCut-\(UUID().uuidString)"))
+        defer { board.releaseGlobally() }
+        let poster = RecordingPoster()
+        let handler = DefaultActionResultHandler(
+            settingsStore: MemorySettingsStore(), keyboardPoster: poster, pasteboard: board,
+            pasteboardRestoreDelay: 0.01, appActivator: { _ in }, targetActiveChecker: { _ in true },
+            frontmostPID: { 99999 }
+        )
+        try await handler.handle(.cut("word"), in: nil, targetApp: nil)
+        XCTAssertEqual(board.string(forType: .string), "word")
+        let smartType = NSPasteboard.PasteboardType(SmartCopyPaste.pasteboardTypeName)
+        XCTAssertTrue(board.types?.contains(smartType) ?? false)
+        XCTAssertEqual(poster.keys, [Constants.deleteVirtualKey])
+    }
+
+    func testCutDoesNothingWhenTargetCannotBeActivated() async throws {
+        let board = NSPasteboard(name: .init("OpenClipCut-\(UUID().uuidString)"))
+        defer { board.releaseGlobally() }
+        board.setString("Original", forType: .string)
+        let poster = RecordingPoster()
+        let handler = DefaultActionResultHandler(
+            settingsStore: MemorySettingsStore(), keyboardPoster: poster, pasteboard: board,
+            pasteboardRestoreDelay: 0.01, appActivator: { _ in }, targetActiveChecker: { _ in false },
+            frontmostPID: { 99999 }
+        )
+        do {
+            try await handler.handle(.cut("word"), in: nil, targetApp: SourceApp())
+            XCTFail("Cut must not delete when the target app is unavailable")
+        } catch {}
+        XCTAssertTrue(poster.keys.isEmpty)
+        XCTAssertEqual(board.string(forType: .string), "Original")
+    }
 }
 

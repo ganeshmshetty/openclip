@@ -175,6 +175,229 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
         probe.release() // unblock any leftover suspended bump
     }
 
+    @MainActor
+    func testIdleWatcherDoesNotKeepScanning() async throws {
+        let snapshots = SnapshotProbe()
+        let probe = ReloadProbe()
+        let watcher = ExtensionsDirectoryWatcher(snapshot: snapshots.build, reload: { probe.record() })
+        watcher.start(watching: tempDir, interval: 0.03)
+        defer { watcher.stop() }
+
+        try await waitForScans(1, probe: snapshots)
+        try await Task.sleep(for: .milliseconds(250))
+        let startupCount = snapshots.count
+        try await Task.sleep(for: .milliseconds(250))
+        XCTAssertEqual(snapshots.count, startupCount, "An idle watcher must not keep scanning")
+        XCTAssertEqual(probe.fireCount, 0)
+
+        try writeFile("nested/package.openclipext/scripts/tool.js")
+        let count = await probe.fire(expected: 1)
+        XCTAssertEqual(count, 1, "A real nested filesystem event must reload without manual polling")
+        try await Task.sleep(for: .milliseconds(300))
+        let settledCount = snapshots.count
+        try await Task.sleep(for: .milliseconds(250))
+        XCTAssertEqual(snapshots.count, settledCount, "Settling checks must stop after reloading")
+        XCTAssertEqual(probe.fireCount, 1)
+    }
+
+    @MainActor
+    func testFilesystemEventsDetectEditsRenamesAndDeletes() async throws {
+        try writeFile("package.openclipext/scripts/tool.js")
+        let probe = ReloadProbe()
+        let snapshots = SnapshotProbe()
+        let watcher = ExtensionsDirectoryWatcher(snapshot: snapshots.build, reload: { probe.record() })
+        watcher.start(watching: tempDir, interval: 0.03)
+        defer { watcher.stop() }
+        try await waitForScans(1, probe: snapshots)
+
+        try writeFile("package.openclipext/scripts/tool.js", content: "updated atomically")
+        var count = await probe.fire(expected: 1)
+        XCTAssertEqual(count, 1)
+
+        let original = tempDir.appendingPathComponent("package.openclipext/scripts/tool.js")
+        let renamed = original.deletingLastPathComponent().appendingPathComponent("renamed.js")
+        try FileManager.default.moveItem(at: original, to: renamed)
+        count = await probe.fire(expected: 2)
+        XCTAssertEqual(count, 2)
+
+        try FileManager.default.removeItem(at: renamed)
+        count = await probe.fire(expected: 3)
+        XCTAssertEqual(count, 3)
+    }
+
+    @MainActor
+    func testFilesystemEventsDetectStagedPackageReplacement() async throws {
+        try writeFile("package.openclipext/openclip.json", content: "original")
+        let probe = ReloadProbe()
+        let snapshots = SnapshotProbe()
+        let watcher = ExtensionsDirectoryWatcher(snapshot: snapshots.build, reload: { probe.record() })
+        watcher.start(watching: tempDir, interval: 0.03)
+        defer { watcher.stop() }
+        try await waitForScans(1, probe: snapshots)
+
+        try writeFile(".install_staging_123/package.openclipext/openclip.json", content: "replacement")
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(probe.fireCount, 0, "Staging files must not trigger a reload")
+
+        let package = tempDir.appendingPathComponent("package.openclipext")
+        try FileManager.default.removeItem(at: package)
+        try FileManager.default.moveItem(
+            at: tempDir.appendingPathComponent(".install_staging_123/package.openclipext"), to: package
+        )
+        let count = await probe.fire(expected: 1)
+        XCTAssertEqual(count, 1)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(probe.fireCount, 1)
+    }
+
+    @MainActor
+    func testFilesystemEventsDetectRootRecreationWithoutRetryPolling() async throws {
+        try writeFile("original.js")
+        let probe = ReloadProbe()
+        let snapshots = SnapshotProbe()
+        let watcher = ExtensionsDirectoryWatcher(snapshot: snapshots.build, reload: { probe.record() })
+        watcher.start(watching: tempDir, interval: 0.03)
+        defer { watcher.stop() }
+        try await waitForScans(1, probe: snapshots)
+
+        try FileManager.default.removeItem(at: tempDir)
+        try await waitForScans(2, probe: snapshots)
+        try await Task.sleep(for: .milliseconds(200))
+        let missingCount = snapshots.count
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(snapshots.count, missingCount, "A missing root must not start endless retries")
+        XCTAssertEqual(probe.fireCount, 0, "A transiently missing root must preserve the registry")
+
+        try writeFile("replacement.js")
+        let count = await probe.fire(expected: 1)
+        XCTAssertEqual(count, 1, "Recreating the root must be detected by its ancestor stream")
+    }
+
+    @MainActor
+    func testFilesystemEventsSurviveWatchedAncestorRemoval() async throws {
+        try writeFile("parent/extensions/original.js")
+        let probe = ReloadProbe()
+        let snapshots = SnapshotProbe()
+        let root = tempDir.appendingPathComponent("parent/extensions")
+        let watcher = ExtensionsDirectoryWatcher(snapshot: snapshots.build, reload: { probe.record() })
+        watcher.start(watching: root, interval: 0.03)
+        defer { watcher.stop() }
+        try await waitForScans(1, probe: snapshots)
+
+        try FileManager.default.removeItem(at: root.deletingLastPathComponent())
+        try await waitForScans(2, probe: snapshots)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(probe.fireCount, 0)
+
+        try writeFile("parent/extensions/recreated.js")
+        var count = await probe.fire(expected: 1)
+        XCTAssertEqual(count, 1, "Recreating the watched ancestor must restore hot reload")
+
+        try writeFile("parent/extensions/nested/tool.js")
+        count = await probe.fire(expected: 2)
+        XCTAssertEqual(count, 2, "Subsequent nested changes must still be observed")
+    }
+
+    @MainActor
+    func testFilesystemEventsSurviveWatchedAncestorRename() async throws {
+        try writeFile("parent/extensions/original.js")
+        let probe = ReloadProbe()
+        let snapshots = SnapshotProbe()
+        let root = tempDir.appendingPathComponent("parent/extensions")
+        let watcher = ExtensionsDirectoryWatcher(snapshot: snapshots.build, reload: { probe.record() })
+        watcher.start(watching: root, interval: 0.03)
+        defer { watcher.stop() }
+        try await waitForScans(1, probe: snapshots)
+
+        try FileManager.default.moveItem(
+            at: root.deletingLastPathComponent(), to: tempDir.appendingPathComponent("retired-parent")
+        )
+        try await waitForScans(2, probe: snapshots)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(probe.fireCount, 0)
+
+        try writeFile("parent/extensions/recreated.js")
+        var count = await probe.fire(expected: 1)
+        XCTAssertEqual(count, 1, "Replacing a renamed watched ancestor must preserve hot reload")
+
+        try writeFile("parent/extensions/nested/tool.js")
+        count = await probe.fire(expected: 2)
+        XCTAssertEqual(count, 2)
+    }
+
+    @MainActor
+    func testStopCancelsSettlingAndRestartUsesFreshBaseline() async throws {
+        let probe = ReloadProbe()
+        let snapshots = SnapshotProbe()
+        let watcher = ExtensionsDirectoryWatcher(snapshot: snapshots.build, reload: { probe.record() })
+        watcher.start(watching: tempDir, interval: 0.2)
+        defer { watcher.stop() }
+        try await waitForScans(1, probe: snapshots)
+
+        try writeFile("first.js")
+        try await waitForScans(2, probe: snapshots)
+        watcher.stop()
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(probe.fireCount, 0, "Stop must cancel the pending settle check")
+        let stoppedCount = snapshots.count
+        try writeFile("while-stopped.js")
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(snapshots.count, stoppedCount)
+
+        watcher.start(watching: tempDir, interval: 0.03)
+        try await waitForScans(stoppedCount + 1, probe: snapshots)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(probe.fireCount, 0, "Old events must not leak into the restarted session")
+        try writeFile("after-restart.js")
+        let count = await probe.fire(expected: 1)
+        XCTAssertEqual(count, 1)
+    }
+
+    @MainActor
+    func testStopDropsDeferredReload() async throws {
+        let probe = ReloadProbe()
+        let watcher = ExtensionsDirectoryWatcher(reload: { await probe.bump() })
+        watcher.start(watching: tempDir, interval: 3600)
+        defer { watcher.stop(); probe.release() }
+        watcher.pollOnce()
+        try writeFile("first.js")
+        watcher.pollOnce()
+        watcher.pollOnce()
+        let inFlight = await probe.waitForInFlight()
+        XCTAssertTrue(inFlight)
+
+        try writeFile("second.js")
+        watcher.pollOnce()
+        watcher.pollOnce()
+        watcher.stop()
+        watcher.pollOnce()
+        probe.release()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(probe.fireCount, 1, "Finishing an in-flight reload after stop must not reload again")
+    }
+
+    @MainActor
+    private func waitForScans(_ count: Int, probe: SnapshotProbe) async throws {
+        let deadline = Date().addingTimeInterval(3)
+        while probe.count < count && Date() < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertGreaterThanOrEqual(probe.count, count)
+    }
+
+    private final class SnapshotProbe: @unchecked Sendable {
+        private let lock = NSLock()
+        private var scans = 0
+
+        var count: Int { lock.withLock { scans } }
+
+        func build(from root: URL) -> ExtensionsSnapshot? {
+            let snapshot = ExtensionsSnapshot.build(from: root)
+            lock.withLock { scans += 1 }
+            return snapshot
+        }
+    }
+
     /// Counts reload invocations, with an optional suspend gate for testing the reload
     /// coalescing path. MainActor so tests read the count after a yield.
     @MainActor
@@ -182,6 +405,10 @@ final class ExtensionsDirectoryWatcherTests: XCTestCase {
         private(set) var fireCount = 0
         private var suspended: [CheckedContinuation<Void, Never>] = []
         private(set) var isInFlight = false
+
+        func record() {
+            fireCount += 1
+        }
 
         func bump() async {
             fireCount += 1

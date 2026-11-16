@@ -52,6 +52,20 @@ public enum ContextualPillPosition: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Where Word Completion shows its suggestions: in the bar, or behind one contextual button.
+public enum CompletionDisplayMode: String, Codable, CaseIterable, Sendable {
+    case inline
+    case contextual
+
+    public var opensWithSuggestionsVisible: Bool { self == .inline }
+
+    public var showsInlineChevron: Bool { self == .inline }
+
+    public func showsContextualButton(hasSuggestions: Bool, suggestionsExpanded: Bool) -> Bool {
+        self == .contextual && hasSuggestions && !suggestionsExpanded
+    }
+}
+
 /// Vertical placement mode of the popup bar relative to the cursor/selection ("auto" | "above" | "below").
 public enum PopupVerticalPosition: String, Codable, CaseIterable, Sendable {
     case auto
@@ -105,11 +119,16 @@ public extension SettingKey where Value == Bool {
     static var hasCompletedOnboarding: SettingKey<Bool> { SettingKey<Bool>("hasCompletedOnboarding", defaultValue: false) }
     /// Once dismissed by any path, the post-onboarding coach-mark never shows again.
     static var hasDismissedPostOnboardingCoachMark: SettingKey<Bool> { SettingKey<Bool>("hasDismissedPostOnboardingCoachMark", defaultValue: false) }
+    /// Once shown (or dismissed), the one-time support ask never returns. Keeps the historical
+    /// storage key so installs that dismissed the old in-Settings prompt stay suppressed.
+    static var hasSeenStarPrompt: SettingKey<Bool> { SettingKey<Bool>("hasDismissedStarPrompt", defaultValue: false) }
     static var startAtLogin: SettingKey<Bool> { SettingKey<Bool>("startAtLogin", defaultValue: false) }
     /// Plays a short system sound when an action copies to the clipboard.
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
     static var captureTextAutoCopy: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoCopy", defaultValue: true) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
+    /// When true, Word Completion appears only if the word is misspelled in every enabled keyboard input language.
+    static var completionOnlyMisspelled: SettingKey<Bool> { SettingKey<Bool>("completionOnlyMisspelled", defaultValue: true) }
     /// True once the one-time migration (auto-trust existing installs) has run.
     static var extensionTrustMigrated: SettingKey<Bool> { SettingKey<Bool>("extension.trustMigrated", defaultValue: false) }
     static var automaticallyChecksForUpdates: SettingKey<Bool> { SettingKey<Bool>("automaticallyChecksForUpdates", defaultValue: true) }
@@ -133,6 +152,9 @@ public extension SettingKey where Value == Double {
     static var mouseHoldDuration: SettingKey<Double> { SettingKey<Double>("mouseHoldDuration", defaultValue: 0.3) }
     /// Timestamp (seconds since 1970) until which OpenClip is temporarily paused (0.0 = not paused).
     static var pauseUntilTimestamp: SettingKey<Double> { SettingKey<Double>("pauseUntilTimestamp", defaultValue: 0.0) }
+    /// Timestamp (seconds since 1970) onboarding finished. Installs that predate the key get it stamped
+    /// on first check, so an update never surfaces the star ask on day one.
+    static var onboardingCompletedAt: SettingKey<Double> { SettingKey<Double>("onboardingCompletedAt", defaultValue: 0.0) }
 }
 
 public extension SettingKey where Value == Data? {
@@ -150,6 +172,8 @@ public extension SettingKey where Value == String {
     static var lastAnnouncedAppUpdateVersion: SettingKey<String> { SettingKey<String>("lastAnnouncedAppUpdateVersion", defaultValue: "") }
     /// Which side of the main bar the contextual actions island sits on; see `ContextualPillPosition`.
     static var contextualPillPosition: SettingKey<String> { SettingKey<String>("contextualPillPosition", defaultValue: ContextualPillPosition.auto.rawValue) }
+    /// `CompletionDisplayMode` raw value: inline suggestion row, or one contextual button.
+    static var completionDisplayMode: SettingKey<String> { SettingKey<String>("completionDisplayMode", defaultValue: CompletionDisplayMode.inline.rawValue) }
     static var calendarProvider: SettingKey<String> { SettingKey<String>("action.calendar.provider", defaultValue: "native") }
     static var searchURL: SettingKey<String> { SettingKey<String>("action.search.url", defaultValue: "https://www.google.com/search?q={query}") }
 

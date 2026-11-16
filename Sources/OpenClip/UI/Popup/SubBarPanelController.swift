@@ -266,7 +266,8 @@ public final class SubBarPanelController {
         dwellTask = nil
         cancelGrace()
 
-        // Fast-switching: if already showing, switch immediately
+        // Fast-switching: if already showing, switch immediately.
+        // Adjacent groups do not reach this; SubBarAim decides those.
         if isShowing {
             action()
             return

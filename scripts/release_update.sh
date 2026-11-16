@@ -104,6 +104,9 @@ xcodebuild \
     CODE_SIGN_IDENTITY="-" \
     CODE_SIGN_STYLE=Manual \
     DEVELOPMENT_TEAM="" \
+    DEPLOYMENT_POSTPROCESSING=YES \
+    STRIP_INSTALLED_PRODUCT=YES \
+    CLANG_ENABLE_CODE_COVERAGE=NO \
     build 2>&1 | tail -5
 
 APP_PATH="$DERIVED_DATA/Build/Products/Release/OpenClip.app"
@@ -285,11 +288,17 @@ if [ "$DMG_CHECKS_OK" -ne 1 ]; then
     exit 1
 fi
 
+# Symbols are stripped from the app, so keep the dSYMs for symbolicating crash reports. Zipped
+# only after the appcast is generated so Sparkle never mistakes it for an update archive.
+DSYM_NAME="OpenClip-v$VERSION-dSYMs.zip"
+(cd "$DERIVED_DATA/Build/Products/Release" && zip -qr "$BUILD_DIR/$DSYM_NAME" ./*.dSYM)
+
 echo ""
 echo "==> Done! Release artifacts created:"
 echo "    $BUILD_DIR/$ZIP_NAME"
 echo "    $BUILD_DIR/$DMG_NAME"
 echo "    $BUILD_DIR/appcast.xml"
+echo "    $BUILD_DIR/$DSYM_NAME"
 if [ "$ALLOW_UNSIGNED" = "1" ]; then
     echo ""
     echo "warning: ad-hoc, un-notarized artifacts — for pipeline testing only, do not publish." >&2

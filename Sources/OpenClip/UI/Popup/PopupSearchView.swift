@@ -11,8 +11,6 @@ import Core
 public struct PopupSearchView: View {
     public let catalog: [any Action]
     public let context: ActionContext
-    public let alternateContext: SelectionContext?
-    private let onContextChanged: (@MainActor (SelectionContext) -> Void)?
     public let resultsAbove: Bool
     public let onResult: @MainActor (ActionResult) -> Void
     public let onExit: @MainActor () -> Void
@@ -53,6 +51,8 @@ public struct PopupSearchView: View {
     @Environment(\.popupEffectiveTheme) private var environmentEffectiveTheme
     @Setting(SettingKey.popupTheme) private var selectedTheme
     @Setting(SettingKey.popupThemeColor) private var themeColor
+    @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
+    @Setting(SettingKey.disabledContextualActionIDs) private var disabledContextualIDs
     @Environment(\.colorScheme) private var colorScheme
 
     /// Hover uses the AX global-mouse location (instant), falling back to `.onHover`.
@@ -64,7 +64,6 @@ public struct PopupSearchView: View {
     @State private var hoveredTarget: SearchHoverTarget?
     @State private var hoveredFooterButton: FooterButton?
     @State private var isDraggingSearch = false
-    @State private var isContextHovered = false
     @State private var lastClickedRowIndex: Int?
     @State private var lastClickTimestamp: TimeInterval = 0
 
@@ -100,7 +99,9 @@ public struct PopupSearchView: View {
     static let searchHeaderHeight: CGFloat = 48.0
     static let footerHeight: CGFloat = 34.0
     private static let rowSpacing: CGFloat = 2.0
+    private static let contextualGroupSpacing: CGFloat = 8.0
     private static let listBottomPadding: CGFloat = 6.0
+    private static let dragHandleCrossFadeDuration: Double = 0.12
 
     /// The AI rows under the results for the current query: Ask + Save when nothing matched, none otherwise.
     private var promptRows: [PaletteAIPromptRow] {
@@ -115,6 +116,18 @@ public struct PopupSearchView: View {
     static func height(forRows rows: Int) -> CGFloat {
         searchHeaderHeight + CGFloat(rows) * PopupMetrics.searchResultRowHeight
             + CGFloat(max(0, rows - 1)) * rowSpacing + footerHeight + listBottomPadding
+    }
+
+    static func contextualBoundary(in results: [ActionSearchIndex], enabled: Bool, disabledIDs: Set<String>) -> Int? {
+        guard enabled else { return nil }
+        let firstRegular = results.firstIndex { !$0.action.isContextual || disabledIDs.contains($0.id) }
+        guard let firstRegular, firstRegular > 0 else { return nil }
+        return firstRegular
+    }
+
+    private var contextualBoundary: Int? {
+        guard scope == nil, query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return Self.contextualBoundary(in: results, enabled: contextualActionsEnabled, disabledIDs: disabledContextualIDs)
     }
 
     /// `searchMaxRows` rows behind the field.
@@ -165,8 +178,6 @@ public struct PopupSearchView: View {
     public init(
         catalog: [any Action],
         context: ActionContext,
-        alternateContext: SelectionContext? = nil,
-        onContextChanged: (@MainActor (SelectionContext) -> Void)? = nil,
         resultsAbove: Bool = false,
         presenter: any ActionPresenting = ActionCustomizationManager.shared,
         modeStore: PopupModeStore = PopupModeStore(),
@@ -187,8 +198,6 @@ public struct PopupSearchView: View {
     ) {
         self.catalog = catalog
         self.context = context
-        self.alternateContext = alternateContext
-        self.onContextChanged = onContextChanged
         self.resultsAbove = resultsAbove
         self.presenter = presenter
         self._modeStore = ObservedObject(wrappedValue: modeStore)
@@ -220,10 +229,15 @@ public struct PopupSearchView: View {
         _searchIndex = State(initialValue: initialIndex)
         _results = State(initialValue: initialIndex)
         _naturalRowWidth = State(initialValue: Self.naturalRowWidth(for: initialIndex))
+        let initialBoundary = scope == nil && Self.contextualBoundary(
+            in: initialIndex,
+            enabled: DefaultSettingsStore.shared.get(.contextualActionsEnabled),
+            disabledIDs: DefaultSettingsStore.shared.get(.disabledContextualActionIDs)
+        ) != nil
         _cardHeight = State(initialValue: Self.bounded(
-            Self.height(forRows: initialIndex.count),
+            Self.height(forRows: initialIndex.count) + (initialBoundary ? Self.contextualGroupSpacing : 0),
             min: PopupMetrics.searchPaletteMinHeight,
-            max: Self.defaultHeight
+            max: Self.defaultHeight + (initialBoundary ? Self.contextualGroupSpacing : 0)
         ))
     }
 
@@ -261,6 +275,10 @@ public struct PopupSearchView: View {
             }
         }
         .onDisappear {
+            if isDraggingSearch || hoveredTarget == .dragHandle {
+                hoverState.hoverCursor = .arrow
+                NSCursor.arrow.set()
+            }
             if let local = localFlagsMonitor {
                 NSEvent.removeMonitor(local)
                 localFlagsMonitor = nil
@@ -314,27 +332,6 @@ public struct PopupSearchView: View {
         )
     }
 
-    private var canSwitchContext: Bool {
-        alternateContext != nil
-    }
-
-    private var selectionSourceAvailable: Bool {
-        !context.selection.isClipboardFallback
-            && !context.selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var clipboardSourceAvailable: Bool {
-        let clipboardContext = activeSelectionContext.isClipboardFallback ? activeSelectionContext : alternateContext
-        guard let clipboardContext else { return false }
-        return !clipboardContext.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var selectionTitle: String {
-        context.selection.source == .ocr
-            ? String(localized: "OCR")
-            : String(localized: "Selection")
-    }
-
     private var activeContextTitle: String {
         if activeSelectionContext.source == .ocr {
             return String(localized: "OCR")
@@ -362,57 +359,13 @@ public struct PopupSearchView: View {
         }
     }
 
-    private func toggleContextSource() {
-        guard let alternateContext else { return }
-        let nextContext = activeSelectionContext.isClipboardFallback ? context.selection : alternateContext
-        setContextSource(nextContext)
-    }
-
-    private func setContextSource(_ nextContext: SelectionContext?) {
-        guard let nextContext else { return }
-        activeSelectionContext = nextContext
-        onContextChanged?(nextContext)
-        isFocused = true
-    }
-
-    private struct ContextIndicatorButtonStyle: ButtonStyle {
-        func makeBody(configuration: Configuration) -> some View {
-            configuration.label
-                .opacity(configuration.isPressed ? 0.65 : 1.0)
-                .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
-        }
-    }
-
-    private var customSourceSwitcher: some View {
-        Button {
-            toggleContextSource()
-        } label: {
-            activeSourceIcon
-                .foregroundColor(
-                    canSwitchContext
-                        ? (isContextHovered
-                            ? PopupThemeModel.restForeground(for: effectiveTheme)
-                            : PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.85))
-                        : PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.5)
-                )
-                .frame(width: 24, height: 24)
-                .background {
-                    if canSwitchContext && isContextHovered {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06))
-                    }
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(ContextIndicatorButtonStyle())
-        .disabled(!canSwitchContext)
-        .animation(.easeInOut(duration: 0.12), value: isContextHovered)
-        .onHover { hovering in
-            isContextHovered = hovering && canSwitchContext
-        }
-        .help(canSwitchContext ? String(localized: "Tab to switch text source") : activeContextTitle)
-        .accessibilityLabel(activeContextTitle)
-        .accessibilityHint(canSwitchContext ? String(localized: "Press Tab to switch between selection and clipboard") : "")
+    private var sourceIndicator: some View {
+        activeSourceIcon
+            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme).opacity(0.85))
+            .frame(width: 24, height: 24)
+            .help(activeContextTitle)
+            .accessibilityElement()
+            .accessibilityLabel(activeContextTitle)
     }
 
     private var searchFieldRow: some View {
@@ -421,6 +374,11 @@ public struct PopupSearchView: View {
                 .frame(width: 20, height: Self.searchHeaderHeight - 4, alignment: .center)
                 .contentShape(Rectangle())
                 .gesture(searchHeaderDragGesture)
+                .searchHoverTarget(.dragHandle)
+                .onHover { hovering in
+                    useLocalHoverFallback(for: .dragHandle, isHovering: hovering)
+                }
+                .help(String(localized: "Drag to move"))
 
             TextField(
                 scope == nil
@@ -432,11 +390,8 @@ public struct PopupSearchView: View {
             .font(.system(size: 14, weight: .regular))
             .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme))
             .focused($isFocused)
-            .onKeyPress(.tab) {
-                guard alternateContext != nil else { return .ignored }
-                toggleContextSource()
-                return .handled
-            }
+            // Tab is reserved for a future palette action; consume it so it cannot move focus.
+            .onKeyPress(.tab) { .handled }
             .onSubmit { runSelected(replace: NSEvent.modifierFlags.contains(.shift)) }
             .onKeyPress { press in
                 if press.key == .escape {
@@ -460,7 +415,7 @@ public struct PopupSearchView: View {
 
             Spacer(minLength: 4)
 
-            customSourceSwitcher
+            sourceIndicator
         }
         .padding(.horizontal, 18)
         .offset(y: 2)
@@ -490,6 +445,7 @@ public struct PopupSearchView: View {
             .onChanged { _ in
                 if !isDraggingSearch {
                     isDraggingSearch = true
+                    updateDragCursor()
                     onDrag(.began)
                 }
                 onDrag(.changed)
@@ -498,6 +454,7 @@ public struct PopupSearchView: View {
                 guard isDraggingSearch else { return }
                 isDraggingSearch = false
                 onDrag(.ended)
+                updateDragCursor()
             }
     }
 
@@ -505,7 +462,24 @@ public struct PopupSearchView: View {
         if scope != nil { onExitScope() } else { onExit() }
     }
 
+    /// True while the header reads as a grab handle: hovered, or actively being dragged.
+    private var isDragHandleActive: Bool {
+        isDraggingSearch || hoveredTarget == .dragHandle
+    }
+
+    /// The left icon doubles as the palette's drag handle: the magnifier (or scope icon) at rest,
+    /// a grip on hover or during a drag, paired with the open/closed hand cursor.
     private var searchIcon: some View {
+        ZStack {
+            restSearchIcon
+                .opacity(isDragHandleActive ? 0 : 1)
+            DragGripGlyph(tint: PopupThemeModel.restForeground(for: effectiveTheme))
+                .opacity(isDragHandleActive ? 1 : 0)
+        }
+        .animation(.easeInOut(duration: Self.dragHandleCrossFadeDuration), value: isDragHandleActive)
+    }
+
+    private var restSearchIcon: some View {
         if let parent = scope?.parent {
             return AnyView(actionIcon(parent).foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme)))
         } else {
@@ -544,6 +518,7 @@ public struct PopupSearchView: View {
                     LazyVStack(spacing: 2) {
                         ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
                             resultRow(item: item, index: index)
+                                .padding(.top, index == contextualBoundary ? Self.contextualGroupSpacing : 0)
                                 .id(item.id)
                         }
                         // AI rows follow the results (Ask + Save, or Save after recent-prompt matches).
@@ -605,19 +580,20 @@ public struct PopupSearchView: View {
                         )
                 }
 
-                if item.action.chrome.isInlineResult, let result = modeStore.inlineResults[item.action.id], !isCommandPressed {
-                    Text(result)
-                        .font(.system(size: 11, weight: .regular))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: PopupMetrics.inlineSearchAccessoryMaxWidth, alignment: .trailing)
-                        .foregroundColor(
-                            (isSelected || isHovered)
-                                ? PopupThemeModel.restForeground(for: effectiveTheme)
-                                : PopupThemeModel.restSecondary(for: effectiveTheme)
-                        )
-                        .transition(.opacity)
-                } else if let shortcut = Self.shortcutHint(forRow: index) {
+                if item.action.chrome.isInlineResult,
+                   let result = modeStore.inlineResults[item.action.id],
+                   (!isCommandPressed || item.action.chrome.displayOnly) {
+                    InlineResultLabel(
+                        value: result,
+                        surface: .search,
+                        scale: 1.0,
+                        foreground: (isSelected || isHovered)
+                            ? PopupThemeModel.restForeground(for: effectiveTheme)
+                            : PopupThemeModel.restSecondary(for: effectiveTheme)
+                    )
+                    .helpIfPresent(item.action.chrome.displayOnly ? result.rawValue : nil)
+                    .transition(.opacity)
+                } else if let shortcut = Self.shortcutHint(forRow: index, action: item.action) {
                     Text(shortcut)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .monospacedDigit()
@@ -663,6 +639,7 @@ public struct PopupSearchView: View {
             .contentShape(rowShape)
         }
         .buttonStyle(.plain)
+        .accessibilityValue(accessibilityValue(for: item.action))
         .searchHoverTarget(.row(index))
         .onHover { hovering in
             useLocalHoverFallback(for: .row(index), isHovering: hovering)
@@ -750,6 +727,26 @@ public struct PopupSearchView: View {
         return ActionIdentity.isAIPreset(results[selectedIndex].action)
     }
 
+    private var selectedAction: (any Action)? {
+        guard selectedIndex < results.count, results.indices.contains(selectedIndex) else { return nil }
+        return results[selectedIndex].action
+    }
+
+    private var selectedIsDisplayOnly: Bool {
+        selectedAction?.chrome.displayOnly == true
+    }
+
+    private var selectedIsColor: Bool {
+        guard let selectedAction else { return false }
+        if case .color = modeStore.inlineResults[selectedAction.id] { return true }
+        return selectedAction.chrome.outputKind == .color
+    }
+
+    private func accessibilityValue(for action: any Action) -> String {
+        guard let value = modeStore.inlineResults[action.id] else { return "" }
+        return InlineResultLayout.accessibilityValue(for: value)
+    }
+
     /// The plain, borderless bottom bar matching the top search field.
     private var bottomBarRow: some View {
         HStack(spacing: 8) {
@@ -769,28 +766,57 @@ public struct PopupSearchView: View {
     @ViewBuilder
     private var footerActionButtons: some View {
         if rowCount > 0 {
-            HStack(spacing: 4) {
-                footerButton(
-                    title: isSelectedAI
-                        ? PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste)
-                        : "",
-                    shortcut: "⇧⏎",
-                    id: .paste,
-                    isAccent: false
-                ) {
-                    runSelected(replace: true)
-                }
+            if selectedIsDisplayOnly {
+                informationalFooter
+            } else {
+                HStack(spacing: 4) {
+                    footerButton(
+                        title: isSelectedAI
+                            ? PaletteAIPrompt.secondaryActionTitle(canPaste: modeStore.canPaste)
+                            : "",
+                        shortcut: "⇧⏎",
+                        id: .paste,
+                        isAccent: false
+                    ) {
+                        runSelected(replace: true)
+                    }
 
-                footerButton(
-                    title: isSelectedAI ? PaletteAIPrompt.primaryActionTitle() : String(localized: "Run"),
-                    shortcut: "⏎",
-                    id: .run,
-                    isAccent: true
-                ) {
-                    runSelected(replace: false)
+                    footerButton(
+                        title: isSelectedAI
+                            ? PaletteAIPrompt.primaryActionTitle()
+                            : (selectedIsColor ? String(localized: "Show") : String(localized: "Run")),
+                        shortcut: "⏎",
+                        id: .run,
+                        isAccent: true
+                    ) {
+                        runSelected(replace: false)
+                    }
                 }
+                .animation(.easeInOut(duration: 0.15), value: isSelectedAI)
             }
-            .animation(.easeInOut(duration: 0.15), value: isSelectedAI)
+        }
+    }
+
+    /// Display-only rows replace execution controls with noninteractive full-value detail.
+    @ViewBuilder
+    private var informationalFooter: some View {
+        if let selectedAction, let value = modeStore.inlineResults[selectedAction.id] {
+            ScrollView(.vertical) {
+                Text(value.rawValue)
+                    .font(.system(size: 11, weight: .regular))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+                .frame(maxWidth: .infinity, maxHeight: Self.footerHeight)
+                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                .help(value.rawValue)
+                .accessibilityLabel(
+                    InlineResultLayout.accessibilityLabel(
+                        title: selectedAction.displayTitle(using: ActionCustomizationManager.shared),
+                        value: value,
+                        displayOnly: true
+                    )
+                )
         }
     }
 
@@ -858,6 +884,12 @@ public struct PopupSearchView: View {
         return "⌘\(index + 1)"
     }
 
+    /// Display-only rows keep their position in the digit map but advertise no execution shortcut.
+    static func shortcutHint(forRow index: Int, action: any Action) -> String? {
+        guard !action.chrome.displayOnly else { return nil }
+        return shortcutHint(forRow: index)
+    }
+
     /// Returns false when there is no such row, so the keystroke falls through to the field instead of being swallowed.
     private func runRow(at index: Int) -> Bool {
         guard index >= 0, index < Self.maxShortcutRows, index < rowCount else { return false }
@@ -883,6 +915,8 @@ public struct PopupSearchView: View {
         guard results.indices.contains(selectedIndex) else { return }
         let action = results[selectedIndex].action
         let activeContext = activeActionContext
+        // Display-only rows stay selectable for inspection, but activation does nothing at all.
+        guard !action.chrome.displayOnly else { return }
         guard action.isEnabled(for: activeContext) else { return }
         // Resolve the intent once so the perform context and delivery snapshot agree; ⇧⏎ never reaches the mouse monitor.
         let clickIntent: ActionResultDelivery.ClickIntent = replace ? .secondary : onClickIntent()
@@ -902,30 +936,19 @@ public struct PopupSearchView: View {
         onActionPerformed?(action.id)
         if action.chrome.isInlineResult {
             if let result = modeStore.inlineResults[action.id] {
-                onResult(.text(result))
-                return
-            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
-                Task { @MainActor in
-                    do {
-                        if let text = await inFlight.value, !text.isEmpty {
-                            onResult(.text(text))
-                            return
-                        }
-                        let match = action.matchInfo(for: activeContext)
-                        let performContext = ActionContext(
-                            selection: activeContext.selection,
-                            modifiers: activeContext.modifiers,
-                            isSecondaryClick: clickIntent == .secondary,
-                            match: match
-                        )
-                        let result = try await action.perform(performContext)
-                        onResult(result)
-                    } catch {
-                        onResult(.toast(StatusFeedback(error: error)))
-                    }
-                }
+                onResult(result.inlineActionResult)
                 return
             }
+            // Reuse/join the bounded evaluation, never the unrestricted perform path.
+            Task { @MainActor in
+                if let result = await InlineResultActivation.invoke(
+                    action: action,
+                    context: activeContext
+                ) {
+                    onResult(result)
+                }
+            }
+            return
         }
         Task { @MainActor in
             do {
@@ -1038,32 +1061,51 @@ public struct PopupSearchView: View {
 
     /// Hit-tests the shared mouse location against row frames. Hovering the search or bottom bar never changes selection.
     private func updateHoveredTarget(for location: CGPoint?) {
-        guard let point = location else {
-            hoveredTarget = nil
-            return
-        }
-
-        // Hit-test registered frames: the location includes the 28 pt shadow inset added before the named hover space.
-        if let header = hoverFrames[.searchBar], header.contains(point) {
-            hoveredTarget = .searchBar
-            return
-        }
-        if let dock = hoverFrames[.bottomDock], dock.contains(point) {
-            hoveredTarget = .bottomDock
-            return
-        }
-
-        let target = hoverFrames.first(where: { key, frame in
-            switch key {
-            case .row:
-                return frame.contains(point)
-            default:
-                return false
+        let target: SearchHoverTarget?
+        if let point = location {
+            // The grip sits inside the header frame, so it must win the hit-test.
+            if let handle = hoverFrames[.dragHandle], handle.contains(point) {
+                target = .dragHandle
+            } else if let header = hoverFrames[.searchBar], header.contains(point) {
+                target = .searchBar
+            } else if let dock = hoverFrames[.bottomDock], dock.contains(point) {
+                target = .bottomDock
+            } else {
+                target = hoverFrames.first(where: { key, frame in
+                    switch key {
+                    case .row:
+                        return frame.contains(point)
+                    default:
+                        return false
+                    }
+                })?.key
             }
-        })?.key
+        } else {
+            target = nil
+        }
 
         guard target != hoveredTarget else { return }
+        let leftDragHandle = hoveredTarget == .dragHandle
         hoveredTarget = target
+        // Only touch the cursor when the grip is involved: other surfaces (the resize grip) set their own.
+        if leftDragHandle || target == .dragHandle || isDraggingSearch {
+            updateDragCursor()
+        }
+    }
+
+    /// Published to the hover state, which `PopupWindowController.updatePopupHover` applies once per move.
+    /// Setting it directly too keeps the cursor correct on the transition event.
+    private func updateDragCursor() {
+        let cursor: NSCursor
+        if isDraggingSearch {
+            cursor = .closedHand
+        } else if hoveredTarget == .dragHandle {
+            cursor = .openHand
+        } else {
+            cursor = .arrow
+        }
+        hoverState.hoverCursor = cursor
+        cursor.set()
     }
 
     /// `.onHover` fallback, used only when the AX global mouse monitor is unavailable.
@@ -1075,9 +1117,46 @@ public struct PopupSearchView: View {
         } else if hoveredTarget == target {
             hoveredTarget = nil
         }
+        if target == .dragHandle {
+            updateDragCursor()
+        }
     }
 }
 
+
+// MARK: - Drag Handle Glyph
+
+/// Six-dot grip drawn by hand: SF Symbols has no grip glyph, and `line.3.horizontal` reads as a menu.
+private struct DragGripGlyph: View {
+    let tint: Color
+
+    private static let dotDiameter: CGFloat = 2
+    private static let columnSpacing: CGFloat = 5
+    private static let rowSpacing: CGFloat = 5
+    private static let columns = 2
+    private static let rows = 3
+
+    var body: some View {
+        Canvas { context, _ in
+            for row in 0..<Self.rows {
+                for column in 0..<Self.columns {
+                    let rect = CGRect(
+                        x: CGFloat(column) * Self.columnSpacing,
+                        y: CGFloat(row) * Self.rowSpacing,
+                        width: Self.dotDiameter,
+                        height: Self.dotDiameter
+                    )
+                    context.fill(Path(ellipseIn: rect), with: .color(tint))
+                }
+            }
+        }
+        .frame(
+            width: Self.dotDiameter + CGFloat(Self.columns - 1) * Self.columnSpacing,
+            height: Self.dotDiameter + CGFloat(Self.rows - 1) * Self.rowSpacing
+        )
+        .accessibilityHidden(true)
+    }
+}
 
 // MARK: - ⌘-digit Key Equivalents
 

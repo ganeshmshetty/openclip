@@ -17,8 +17,6 @@ public struct PopupView: View {
     public let actions: [any Action]
     public let allActions: [any Action]
     public let context: ActionContext
-    private let alternateSearchContext: SelectionContext?
-    private let onSearchContextChanged: (@MainActor (SelectionContext) -> Void)?
     public let onResult: @MainActor (ActionResult) -> Void
     public let onContentSizeChange: (@MainActor (CGSize) -> Void)?
     /// active=true while AI runs or shows a result; cardAboveBar=true when the card renders above the bar.
@@ -105,6 +103,7 @@ public struct PopupView: View {
     }
     
     @Setting(SettingKey.completionCopyToClipboard) private var completionCopyToClipboard
+    @Setting(SettingKey.completionDisplayMode) private var completionDisplayModeRaw
     
     @State private var currentPage = 0
     /// Deliberately not `@ObservedObject`: `location` publishes on every mouse move. Subscribing only to
@@ -124,7 +123,7 @@ public struct PopupView: View {
     @ObservedObject private var aiManager = AIServiceManager.shared
     @State private var hoveredTarget: PopupHoverTarget?
     @State private var hoverFrames: [PopupHoverTarget: CGRect] = [:]
-    @State private var isShowingCompletions: Bool = true
+    @State private var isShowingCompletions: Bool
     @State private var isProcessingAI: Bool = false
     @State private var aiTask: Task<Void, Never>? = nil
     /// Captured once per show, never re-read from the mouse, to avoid jitter.
@@ -149,8 +148,6 @@ public struct PopupView: View {
         actions: [any Action],
         allActions: [any Action]? = nil,
         context: ActionContext,
-        alternateSearchContext: SelectionContext? = nil,
-        onSearchContextChanged: (@MainActor (SelectionContext) -> Void)? = nil,
         screenWidth: CGFloat = NSScreen.main?.visibleFrame.width ?? 1440.0,
         initialAICardAboveBar: Bool = false,
         hoverState: PopupHoverState = .shared,
@@ -201,11 +198,10 @@ public struct PopupView: View {
         _contextualPillPosition = Setting(SettingKey.contextualPillPosition, store: settingsStore)
         _popupAlignment = Setting(SettingKey.popupAlignment, store: settingsStore)
         _completionCopyToClipboard = Setting(SettingKey.completionCopyToClipboard, store: settingsStore)
+        _completionDisplayModeRaw = Setting(SettingKey.completionDisplayMode, store: settingsStore)
         self.actions = actions
         self.allActions = allActions ?? actions
         self.context = context
-        self.alternateSearchContext = alternateSearchContext
-        self.onSearchContextChanged = onSearchContextChanged
         self.onResult = onResult
         self.onContentSizeChange = onContentSizeChange
         self.onAIStateChange = onAIStateChange
@@ -245,6 +241,8 @@ public struct PopupView: View {
         self.onEnterSearch = onEnterSearch
         self.onExitSearch = onExitSearch
         self._aiCardAboveBar = State(initialValue: initialAICardAboveBar)
+        let presentation = CompletionDisplayMode(rawValue: settingsStore.get(.completionDisplayMode)) ?? .inline
+        self._isShowingCompletions = State(initialValue: presentation.opensWithSuggestionsVisible)
         self._cachedCompletions = State(initialValue: Self.resolveCompletions(actions: actions, context: context))
     }
 
@@ -257,6 +255,18 @@ public struct PopupView: View {
 
     private var hasCompletions: Bool {
         return !cachedCompletions.isEmpty
+    }
+
+    private var completionPresentation: CompletionDisplayMode {
+        CompletionDisplayMode(rawValue: completionDisplayModeRaw) ?? .inline
+    }
+
+    private var showsInlineCompletionChevron: Bool {
+        hasCompletions && completionPresentation.showsInlineChevron
+    }
+
+    private var showsContextualCompletionButton: Bool {
+        completionPresentation.showsContextualButton(hasSuggestions: hasCompletions, suggestionsExpanded: isShowingCompletions)
     }
 
     private var inCompletionMode: Bool {
@@ -274,17 +284,11 @@ public struct PopupView: View {
         )
         return actions.filter { action in
             guard !ActionIdentity.isCompletionPseudoAction(action) else { return false }
-            if hiddenForPasteAvailability(action) { return false }
             if action.chrome.popupBehavior == .showSubActions || action.chrome.launchesAI {
                 return isStatic || !resolver.subActions(of: action, in: actions).isEmpty
             }
             return !subActionIDs.contains(action.id)
         }
-    }
-
-    /// Paste/Cut are hidden on a confirmed cannot-paste probe; nil keeps them visible.
-    private func hiddenForPasteAvailability(_ action: any Action) -> Bool {
-        modeStore.canPaste == false && action is any PasteRequiringAction
     }
 
     private var maxBarBudget: CGFloat {
@@ -299,6 +303,22 @@ public struct PopupView: View {
         }
     }
 
+    /// The contextual suggestion offer uses the normal group path so hover and click match every
+    /// other group.
+    private var contextualCompletionAction: (any Action)? {
+        guard showsContextualCompletionButton else { return nil }
+        return WordCompletionGroupAction(
+            words: cachedCompletions,
+            title: completionGroupTitle,
+            icon: completionGroupIcon
+        )
+    }
+
+    private var contextualIslandActions: [any Action] {
+        guard let contextualCompletionAction else { return contextualActions }
+        return [contextualCompletionAction] + contextualActions
+    }
+
     /// Remaining non-contextual actions shown in the standard actions island.
     private var standardActions: [any Action] {
         if contextualActions.isEmpty {
@@ -310,7 +330,7 @@ public struct PopupView: View {
     }
 
     private var pages: [[any Action]] {
-        let leadingWidth = hasCompletions ? (chevronWidth) : 0
+        let leadingWidth = showsInlineCompletionChevron ? (chevronWidth) : 0
         let trailingWidth = showSearchAllActions ? buttonWidth : 0
         // Reads `inlineResults` so a preview landing re-packs the page at the button's real width.
         return PopupPageLayout.computePages(
@@ -345,7 +365,7 @@ public struct PopupView: View {
 
     /// Bar actions in left-to-right order; `.action(index)` hover targets index into this list.
     private var visibleBarActions: [any Action] {
-        contextualIslandTrailing ? pagedStandardActions + contextualActions : contextualActions + pagedStandardActions
+        contextualIslandTrailing ? pagedStandardActions + contextualIslandActions : contextualIslandActions + pagedStandardActions
     }
 
     private var hasLeftChevron: Bool { currentPage > 0 }
@@ -380,6 +400,9 @@ public struct PopupView: View {
             }
             .onChange(of: hoveredTarget) { _, newTarget in
                 updateTooltip(for: newTarget)
+            }
+            .onChange(of: modeStore.inlineResults) { _, _ in
+                if hoveredTarget != nil { updateTooltip(for: hoveredTarget) }
             }
             .onChange(of: modeStore.mode) { _, newMode in
                 if newMode != .actions {
@@ -443,7 +466,10 @@ public struct PopupView: View {
                     }
                 },
                 onSave: {
-                    if let file = payload.file {
+                    if let color = payload.color {
+                        guard let url = InlineColorExport.writeText(color) else { return }
+                        onCardEffect(.saveFile(url))
+                    } else if let file = payload.file {
                         onCardEffect(.saveFile(file.url))
                     }
                 },
@@ -470,7 +496,7 @@ public struct PopupView: View {
                     colorScheme: effectiveColorScheme
                 )
                 .environment(\.colorScheme, effectiveColorScheme)
-        } else if contextualActions.isEmpty {
+        } else if contextualActions.isEmpty && !showsContextualCompletionButton {
             standardIsland
                 .overlay(processingGlowBorder)
                 .environment(\.colorScheme, effectiveColorScheme)
@@ -526,8 +552,6 @@ public struct PopupView: View {
         PopupSearchView(
             catalog: searchCatalog,
             context: context,
-            alternateContext: alternateSearchContext,
-            onContextChanged: onSearchContextChanged,
             resultsAbove: false,
             presenter: presenter,
             modeStore: modeStore,
@@ -582,10 +606,8 @@ public struct PopupView: View {
         .environment(\.popupEffectiveTheme, effectiveTheme)
     }
 
-    /// Palette catalog minus Paste-requiring actions when the target can't paste.
     private var searchCatalog: [any Action] {
         ActionCoordinator.shared.searchCatalog(for: context)
-            .filter { !hiddenForPasteAvailability($0) }
     }
 
     // MARK: - AI Helpers
@@ -702,11 +724,11 @@ public struct PopupView: View {
 
     private var contextualIsland: some View {
         HStack(spacing: 0) {
-            ForEach(Array(contextualActions.enumerated()), id: \.element.id) { offset, action in
+            ForEach(Array(contextualIslandActions.enumerated()), id: \.element.id) { offset, action in
                 let index = contextualIslandTrailing ? pagedStandardActions.count + offset : offset
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
-                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0, trailingEdge: offset == contextualActions.count - 1)
+                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0, trailingEdge: offset == contextualIslandActions.count - 1)
             }
         }
         .fixedSize()
@@ -721,7 +743,7 @@ public struct PopupView: View {
     private var standardIsland: some View {
         HStack(spacing: 0) {
             // Completion toggle on the far left; pagination chevrons together on the right.
-            if hasCompletions {
+            if showsInlineCompletionChevron {
                 chevronButton(systemImage: "chevron.down", label: "Show completions") {
                     onPaginationAnchor?(.left)
                     isShowingCompletions = true
@@ -729,10 +751,10 @@ public struct PopupView: View {
             }
 
             ForEach(Array(pagedStandardActions.enumerated()), id: \.element.id) { offset, action in
-                let index = contextualIslandTrailing ? offset : contextualActions.count + offset
+                let index = contextualIslandTrailing ? offset : contextualIslandActions.count + offset
                 let isDirectlyHovered = hoveredTarget == .action(index)
                 let isActiveParent = modeStore.activeSubGroupID == action.id && !isDirectlyHovered
-                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0 && !hasCompletions, trailingEdge: offset == pagedStandardActions.count - 1 && !hasLeftChevron && !hasRightChevron && !showSearchAllActions)
+                actionButton(action: action, index: index, isHovered: isDirectlyHovered, isActiveParent: isActiveParent, leadingEdge: offset == 0 && !showsInlineCompletionChevron, trailingEdge: offset == pagedStandardActions.count - 1 && !hasLeftChevron && !hasRightChevron && !showSearchAllActions)
             }
 
             // The AI launcher is a normal action row; its click opens AI mode via actionButton.
@@ -781,6 +803,20 @@ public struct PopupView: View {
         )
     }
 
+    private var completionGroupTitle: String {
+        guard let provider = actions.first(where: { $0 is any WordCompletionProviding }) else {
+            return String(localized: "Word Completion")
+        }
+        return provider.displayTitle(using: presenter)
+    }
+
+    private var completionGroupIcon: ActionIcon {
+        guard let provider = actions.first(where: { $0 is any WordCompletionProviding }) else {
+            return .symbol("text.badge.plus")
+        }
+        return provider.displayIcon(using: presenter)
+    }
+
     // MARK: - Completion Button
 
     @ViewBuilder
@@ -816,6 +852,9 @@ public struct PopupView: View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
 
         let backgroundColor: Color = {
+            if action.chrome.displayOnly {
+                return Color.clear
+            }
             if isHovered {
                 return PopupThemeModel.barHoverFill
             } else if isActiveParent {
@@ -825,19 +864,19 @@ public struct PopupView: View {
             }
         }()
 
-        let foregroundColor: Color = isHovered ? .white : restForeground
+        let foregroundColor: Color = (isHovered && !action.chrome.displayOnly) ? .white : restForeground
 
         let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
         let subBarAbove = modeStore.subBarAbove
 
         let labelView = Group {
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                Text(resolved)
-                    .font(.system(size: 15 * scale, weight: .regular))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundColor(foregroundColor)
-                    .frame(maxWidth: PopupMetrics.inlineResultMaxWidth * scale)
+                InlineResultLabel(
+                    value: resolved,
+                    surface: .bar,
+                    scale: scale,
+                    foreground: foregroundColor
+                )
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                     .popupBarHighlight(backgroundColor, scale: scale, isText: true, leadingEdge: leadingEdge, trailingEdge: trailingEdge, isHovered: isHovered, namespace: hoverHighlightNamespace)
@@ -880,7 +919,11 @@ public struct PopupView: View {
                     .accessibilityLabel({
                         let title = action.displayTitle(using: presenter)
                         if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                            return "\(title): \(resolved)"
+                            return InlineResultLayout.accessibilityLabel(
+                                title: title,
+                                value: resolved,
+                                displayOnly: action.chrome.displayOnly
+                            )
                         }
                         return title
                     }())
@@ -909,6 +952,8 @@ public struct PopupView: View {
                     // Leaf actions use their existing execution flow.
                     Button {
                         onCancelSubBarDwell?()
+                        // Informational items never execute, deliver, record usage, or dismiss.
+                        guard !action.chrome.displayOnly else { return }
                         if ActionIdentity.isAIPreset(action) {
                             runAIAction(action.id)
                             return
@@ -923,31 +968,20 @@ public struct PopupView: View {
                         onActionPerformed?(action.id)
                         if action.chrome.isInlineResult {
                             if let resolved = modeStore.inlineResults[action.id] {
-                                onResult(.text(resolved))
-                                return
-                            } else if let inFlight = InlineResultEvaluator.shared.runningTask(for: action.id) {
-                                Task {
-                                    do {
-                                        if let text = await inFlight.value, !text.isEmpty {
-                                            onResult(.text(text))
-                                            return
-                                        }
-                                        let match = action.matchInfo(for: context)
-                                        let performContext = ActionContext(
-                                            selection: context.selection,
-                                            modifiers: context.modifiers,
-                                            isSecondaryClick: clickIntent == .secondary,
-                                            match: match
-                                        )
-                                        let result = try await action.perform(performContext)
-                                        onResult(result)
-                                    } catch {
-                                        Log.presentation.error("Action failed (id \(action.id, privacy: .public)): \(error.localizedDescription)")
-                                        onResult(.toast(StatusFeedback(error: error)))
-                                    }
-                                }
+                                onResult(resolved.inlineActionResult)
                                 return
                             }
+                            // Reuse/join the bounded evaluation, never the unrestricted perform path.
+                            Task { @MainActor in
+                                if let result = await InlineResultActivation.invoke(
+                                    action: action,
+                                    context: context,
+                                    sessionID: sessionID
+                                ) {
+                                    onResult(result)
+                                }
+                            }
+                            return
                         }
                         Task {
                             do {
@@ -972,7 +1006,11 @@ public struct PopupView: View {
                     .accessibilityLabel({
                         let title = action.displayTitle(using: presenter)
                         if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
-                            return "\(title): \(resolved)"
+                            return InlineResultLayout.accessibilityLabel(
+                                title: title,
+                                value: resolved,
+                                displayOnly: action.chrome.displayOnly
+                            )
                         }
                         return title
                     }())
@@ -1064,7 +1102,11 @@ public struct PopupView: View {
         switch target {
         case .action(let index):
             guard index < visibleBarActions.count else { return nil }
-            return visibleBarActions[index].displayTitle(using: presenter)
+            let action = visibleBarActions[index]
+            if action.chrome.displayOnly, let value = modeStore.inlineResults[action.id] {
+                return value.rawValue
+            }
+            return action.displayTitle(using: presenter)
         case .subAction:
             return nil
         case .search:
@@ -1106,6 +1148,36 @@ public struct PopupView: View {
     @ViewBuilder
     private func iconView(for icon: ActionIcon) -> some View {
         ActionIconView(icon: icon, size: 15.5, scale: scale)
+    }
+}
+
+/// Synthetic group row for contextual Word Completion. Its children are the current suggestions,
+/// so hover and click use the same sub-bar and scoped-search paths as every other group.
+private struct WordCompletionGroupAction: Action, SubActionProviding {
+    let words: [String]
+    let title: String
+    let icon: ActionIcon
+
+    var id: String { "builtin.completionGroup" }
+    var chrome: ActionChrome {
+        ActionChrome(
+            badge: .none,
+            rowStyle: .standard,
+            popupBehavior: .showSubActions,
+            source: .builtin,
+            requiresLiveSelection: true
+        )
+    }
+
+    @MainActor
+    func isEnabled(for context: ActionContext) -> Bool { !words.isEmpty }
+
+    @MainActor
+    func perform(_ context: ActionContext) async throws -> ActionResult { .none }
+
+    @MainActor
+    func subActions(in catalog: [any Action]) -> [any Action] {
+        words.map { WordCompletionCandidateAction(word: $0) }
     }
 }
 

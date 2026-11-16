@@ -479,6 +479,19 @@ final class ScriptActionExecutionTests: XCTestCase {
         guard case .cut(let text) = cutRes else { return XCTFail("Expected .cut") }
         XCTAssertEqual(text, "clip")
 
+        let markdownRes = ShellResultMapper.actionResult(from: "{\"type\":\"text\",\"value\":\"**hi**\",\"presentation\":\"markdown\"}", actionID: "a")
+        guard case .presentedText(let markdownText, let markdownPresentation) = markdownRes else { return XCTFail("Expected .presentedText") }
+        XCTAssertEqual(markdownText, "**hi**")
+        XCTAssertEqual(markdownPresentation, .markdown)
+
+        let unknownPresentation = ShellResultMapper.actionResult(from: "{\"type\":\"text\",\"value\":\"hi\",\"presentation\":\"html\"}", actionID: "a")
+        guard case .presentedText(_, let fallbackPresentation) = unknownPresentation else { return XCTFail("Expected .presentedText fallback") }
+        XCTAssertEqual(fallbackPresentation, .plain)
+
+        let textWithoutPresentation = ShellResultMapper.actionResult(from: "{\"type\":\"text\",\"value\":\"hi\"}", actionID: "a")
+        guard case .text(let plainText) = textWithoutPresentation else { return XCTFail("Expected .text") }
+        XCTAssertEqual(plainText, "hi")
+
         let keyRes = ShellResultMapper.actionResult(from: "{\"type\":\"keyPress\",\"key\":\"c\",\"modifiers\":[\"command\"]}", actionID: "a")
         guard case .keyPress(let spec) = keyRes else { return XCTFail("Expected .keyPress") }
         XCTAssertEqual(spec.key, "c")

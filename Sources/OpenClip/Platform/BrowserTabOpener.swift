@@ -6,6 +6,7 @@
 // Every step is best-effort and falls back to LaunchServices.
 import Foundation
 import AppKit
+import ApplicationServices
 import Core
 
 @MainActor
@@ -31,6 +32,32 @@ public struct BrowserTabOpener {
             }
         }
     }
+    /// Whether the app's focused window is a Firefox private window. Firefox only marks this in the
+    /// title ("… Private Browsing"), and the suffix is localized, so this is best-effort: other
+    /// languages just keep the normal-window path.
+    var isPrivateWindow: @MainActor @Sendable (String) -> Bool = { bundleID in
+        guard let pid = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.processIdentifier else {
+            return false
+        }
+        let app = AXUIElementCreateApplication(pid)
+        var window: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &window) == .success,
+              let window, CFGetTypeID(window) == AXUIElementGetTypeID() else { return false }
+        var title: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window as! AXUIElement, kAXTitleAttribute as CFString, &title) == .success,
+              let title = title as? String else { return false }
+        return title.hasSuffix("Private Browsing")
+    }
+    /// Runs `firefox --private-window URL` against the running instance. No shell involved.
+    var launchPrivateWindow: @MainActor @Sendable (URL, String) -> Bool = { url, bundleID in
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+              let executable = Bundle(url: appURL)?.executableURL else { return false }
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = ["--private-window", url.absoluteString]
+        do { try process.run() } catch { return false }
+        return true
+    }
     /// Last resort: the system default handler.
     var openDefault: @MainActor @Sendable (URL) -> Void = { url in
         NSWorkspace.shared.open(url)
@@ -39,7 +66,16 @@ public struct BrowserTabOpener {
     /// Short on purpose so a busy browser never holds the action up.
     static let appleScriptTimeout: TimeInterval = 5
 
+    /// Mozilla's own channels; forks name their binary and private title differently.
+    static let firefoxPrivateCapable: Set<String> = [
+        "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly"
+    ]
+
     public func open(_ url: URL, inApp bundleID: String) async {
+        // Firefox has no tab scripting and sends external URLs to a normal window (#205).
+        if Self.firefoxPrivateCapable.contains(bundleID), isPrivateWindow(bundleID), launchPrivateWindow(url, bundleID) {
+            return
+        }
         if BrowserDetector.isBrowser(bundleIdentifier: bundleID) {
             do {
                 _ = try await runAppleScript(Self.appleScript(url: url, bundleID: bundleID), Self.appleScriptTimeout)

@@ -17,6 +17,8 @@ public enum ContextualActionClassifier {
                 current = decorated.base
             } else if let decorated = current as? DeliveryDecoratedAction {
                 current = decorated.base
+            } else if let decorated = current as? PredicateDecoratedAction {
+                current = decorated.base
             } else {
                 return current
             }
@@ -25,6 +27,33 @@ public enum ContextualActionClassifier {
 
     /// True when the action specifies specialized content/pattern detection.
     public static func isContextual(_ action: any Action) -> Bool {
+        ContextualPolicy.decision(for: action).isContextual
+    }
+
+    /// Built-in actions that are contextual by identity rather than manifest requirements.
+    static func builtInTriggerDescription(for actionID: String) -> String? {
+        switch actionID.lowercased() {
+        case "builtin.calculate":
+            return String(localized: "Math expressions")
+        case "builtin.openurl", "builtin.open_url":
+            return String(localized: "Web links and URLs")
+        case "builtin.calendar":
+            return String(localized: "Dates and calendar events")
+        case "builtin.reveal_in_finder", "builtin.revealinfinder":
+            return String(localized: "File and folder paths")
+        case "builtin.define":
+            return String(localized: "Dictionary definitions")
+        default:
+            return nil
+        }
+    }
+
+    static func isBuiltInContextual(_ actionID: String) -> Bool {
+        builtInTriggerDescription(for: actionID) != nil
+    }
+
+    /// Automatic triggers that are not built-in identities: content, regex, legacy regex, menu relevance.
+    static func hasAutomaticTrigger(_ action: any Action) -> Bool {
         triggerDescription(for: action) != nil
     }
 
@@ -37,19 +66,8 @@ public enum ContextualActionClassifier {
 
         let underlying = unwrap(action)
 
-        switch underlying.id.lowercased() {
-        case "builtin.calculate":
-            return String(localized: "Math expressions")
-        case "builtin.openurl", "builtin.open_url":
-            return String(localized: "Web links and URLs")
-        case "builtin.calendar":
-            return String(localized: "Dates and calendar events")
-        case "builtin.reveal_in_finder", "builtin.revealinfinder":
-            return String(localized: "File and folder paths")
-        case "builtin.define":
-            return String(localized: "Dictionary definitions")
-        default:
-            break
+        if let builtIn = builtInTriggerDescription(for: underlying.id) {
+            return builtIn
         }
 
         if let withRules = underlying as? any ActionWithRules,

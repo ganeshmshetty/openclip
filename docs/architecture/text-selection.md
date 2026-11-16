@@ -111,16 +111,19 @@ Both copy modes run through [`PasteboardCopyEngine`](../../Sources/OpenClip/Plat
 | `denyPasteApps` | Applications requiring paste suppression | `denyPaste: true` |
 | default | All other standard applications | `ax-text-control` |
 
-## Shortcut clipboard fallback and synchronous resolution
+## Shortcut presentation
 
-The retrieval path above applies to *passive selection monitoring*. The global toggle shortcut ([`HotkeyManager`](../../Sources/OpenClip/Platform/HotkeyManager.swift)) runs a synchronous resolution pipeline on `@MainActor` without incurring asynchronous AX query latency:
+The global toggle shortcut ([`HotkeyManager`](../../Sources/OpenClip/Platform/HotkeyManager.swift)) resolves input synchronously, before presenting the focused palette:
 
-1. **Monitored Selection Reuse**: The hotkey checks `selectionMonitor.synchronousSelection(for: frontmostBundleID)`. If the user recently selected text in the active application and that selection has not expired (`Constants.selectionMaxAge` = 30 s) or been cleared by caret navigation / typing, the monitored selection is reused immediately.
-2. **Clipboard Fallback**: If no valid monitored selection exists, OpenClip falls back to the current contents of `NSPasteboard.general` so the search palette still has input to act on.
-   - The context is flagged `SelectionContext.isClipboardFallback`; `PopupWindowController.show` filters available actions down to **Paste** (and AI Tools launcher).
-3. **Empty Context Fallback**: If the clipboard is also empty, an empty selection context is created with the frontmost app's identity, allowing standalone actions to run.
+1. **Warm selection:** reuse a valid `synchronousSelection(for: AppIdentity)` snapshot, including its rich input, generation and paste evidence. PID, app identity and the existing 30-second expiry apply.
+2. **Clipboard fallback:** otherwise use `NSPasteboard.general` as captured at invocation, explicitly marked `.clipboard` so it cannot impersonate a live selection.
+3. **Empty context:** otherwise open an empty palette for standalone actions.
 
-Passive selection monitoring continues even when "Appear Automatically" is disabled (`isAppEnabled == false` or `hotkeyOnly: true`), updating `latestSelection` and pre-warming the search index in the background so pressing the shortcut opens the palette with zero perceptual delay. Both passive mouse and keyboard paths withhold synthetic copy fallback under those settings; native AX reads still populate the cache. The explicit hold gesture delivers straight from `handleMouseDown` and stays unaffected by `isAppEnabled`.
+In-flight passive selection work is cancelled before the field takes focus, so a late copy cannot land in the palette's own text field. The focused palette never starts an AX read or synthetic copy: the system-wide focused application is now OpenClip, and AX-reading its own SwiftUI hierarchy from the inspect queue trips SwiftUI's main-actor isolation checks. A cold copy-only app therefore shows its clipboard text (or an empty palette) rather than waiting for a fresh AX read.
+
+Per-action hotkeys retain full retrieval/copy because they do not first focus a search field. The palette shows a read-only source indicator; it never switches inputs. Tab is reserved for future palette behavior and currently does nothing.
+
+Passive selection monitoring continues even when "Appear Automatically" is disabled (`isAppEnabled == false` or `hotkeyOnly: true`), updating `latestSelection` and pre-warming the search index. Both passive mouse and keyboard paths withhold synthetic copy fallback under those settings; native AX reads still populate the cache. Monitoring is suppressed while the search palette owns keyboard input. The explicit hold gesture delivers straight from `handleMouseDown` and stays unaffected by `isAppEnabled`.
 
 The hold's editable-field lookup runs off the main actor through `SelectionEditabilityProbe`,
 bound to the original source PID and one `axReadTimeout` deadline. If the lookup times out,

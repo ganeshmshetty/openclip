@@ -117,7 +117,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
         let captureController = CaptureTextController(popupController: controller)
         captureTextController = captureController
-        macMonitor.isSuppressed = { [weak captureController] in captureController?.isCapturing ?? false }
+        macMonitor.isSuppressed = { [weak self, weak captureController] in
+            captureController?.isCapturing == true || self?.popupController?.modeStore.mode == .search
+        }
         statusBarController?.onCaptureText = { [weak captureController] sourceApp in
             captureController?.toggleCapture(sourceApp: sourceApp)
         }
@@ -141,7 +143,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         ExtensionManager.shared.optionWriter = optionStore
         ExtensionManager.shared.optionReader = optionStore
         ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+        ExtensionManager.shared.onReloaded = { VisibilityPredicateRuntime.shared.invalidate() }
         CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+        TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
 
         Task {
             await ActionCoordinator.shared.loadInitialState(
@@ -208,6 +212,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             Task {
                 _ = try? await ExtensionsAPIClient.shared.fetchExtensions()
             }
+        }
+
+        // One-time support ask: eligibility comes from onboarding completion, so an established
+        // install is due on its first launch of this build. The environment override is the only
+        // way to see it before the week is up.
+        let forceSupportPrompt = ProcessInfo.processInfo.environment["OPENCLIP_SHOW_SUPPORT_PROMPT"] == "1"
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64((forceSupportPrompt ? 0.8 : 2.0) * 1_000_000_000))
+            StarPrompt.shared.presentIfDue(force: forceSupportPrompt)
         }
 
         NotificationCenter.default.addObserver(
@@ -389,7 +402,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.optionReader = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+            ExtensionManager.shared.onReloaded = { VisibilityPredicateRuntime.shared.invalidate() }
             CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+            TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )
@@ -418,7 +433,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             ExtensionManager.shared.optionWriter = optionStore
             ExtensionManager.shared.optionReader = optionStore
             ExtensionManager.shared.settingsStore = DefaultSettingsStore.shared
+            ExtensionManager.shared.onReloaded = { VisibilityPredicateRuntime.shared.invalidate() }
             CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+            TextSpellCheckerRegistry.checker = SystemTextSpellChecker.shared
             await ActionCoordinator.shared.loadInitialState(
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )

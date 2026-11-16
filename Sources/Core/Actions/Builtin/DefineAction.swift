@@ -149,7 +149,7 @@ public struct DefineAction: ConfigurableAction {
             return .showDefinition(text)
         case .card:
             guard let definition = lookup(text), !definition.isEmpty else { return .none }
-            return .text(definition)
+            return .text(DefinitionFormatter.format(definition))
         }
     }
 

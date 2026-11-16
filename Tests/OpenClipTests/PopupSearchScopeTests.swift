@@ -96,6 +96,58 @@ final class PopupSearchScopeTests: XCTestCase {
     }
 
     @MainActor
+    func testPaletteStartsWithContextualMatchesButTypedSearchStillWins() {
+        let store = MemorySettingsStore()
+        store.set(.actionOrder, value: ["builtin.copy", "builtin.calculate"])
+        let registry = ActionRegistry(settingsStore: store)
+        registry.register(builtIns: [CopyAction(), CalculateAction()])
+        let context = ActionContext(selection: SelectionContext(
+            text: "2 + 2", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
+        ))
+        let index = PopupSearchView.buildIndex(
+            catalog: registry.searchCatalog(for: context),
+            scope: nil,
+            usageRecency: ["builtin.copy": 100],
+            presenter: ActionCustomizationManager.shared,
+            aliases: ["builtin.copy": "calc"]
+        )
+
+        XCTAssertEqual(ActionSearch.search("", in: index).map(\.id), ["builtin.calculate", "builtin.copy"])
+        XCTAssertEqual(ActionSearch.search("copy", in: index).map(\.id), ["builtin.copy"])
+        XCTAssertEqual(ActionSearch.search("calc", in: index).map(\.id), ["builtin.copy", "builtin.calculate"])
+        XCTAssertEqual(ActionSearch.search("  ", in: index).map(\.id), ["builtin.calculate", "builtin.copy"])
+        XCTAssertEqual(PopupSearchView.contextualBoundary(in: index, enabled: true, disabledIDs: []), 1)
+        XCTAssertNil(PopupSearchView.contextualBoundary(in: index, enabled: false, disabledIDs: []))
+        XCTAssertNil(PopupSearchView.contextualBoundary(in: index, enabled: true, disabledIDs: ["builtin.calculate"]))
+        XCTAssertNil(PopupSearchView.contextualBoundary(in: Array(index.prefix(1)), enabled: true, disabledIDs: []))
+    }
+
+    @MainActor
+    func testScopedPaletteKeepsExplicitChildOrderDespiteContextualCatalogOrder() {
+        let store = MemorySettingsStore()
+        store.set(.actionOrder, value: ["builtin.copy", "builtin.calculate"])
+        let registry = ActionRegistry(settingsStore: store)
+        let children: [any Action] = [CopyAction(), CalculateAction()]
+        registry.register(builtIns: children)
+        let group = GroupAction(
+            id: "com.test.group", title: "Tools", icon: .symbol("folder"),
+            chrome: ActionChrome(popupBehavior: .showSubActions)
+        )
+        let context = ActionContext(selection: SelectionContext(
+            text: "2 + 2", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
+        ))
+        let index = PopupSearchView.buildIndex(
+            catalog: registry.searchCatalog(for: context),
+            scope: SearchScope(parent: group, children: children),
+            usageRecency: [:],
+            presenter: ActionCustomizationManager.shared,
+            aliases: [:]
+        )
+
+        XCTAssertEqual(ActionSearch.search("", in: index).map(\.id), ["builtin.copy", "builtin.calculate"])
+    }
+
+    @MainActor
     func testAIPresetTableIconUsesSparklesSymbol() {
         let aiAction = AIAction(presetID: "proofread", title: "Proofread")
         let presentation = ActionCustomizationManager.shared.presented(aiAction, surface: .table)
@@ -142,4 +194,5 @@ final class PopupSearchScopeTests: XCTestCase {
         )
         XCTAssertNotNil(viewAfterUsage)
     }
+
 }

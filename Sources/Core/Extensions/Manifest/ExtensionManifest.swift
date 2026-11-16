@@ -40,10 +40,16 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
     /// Sync JavaScript only: runs inline in the popup bar; return value is preview text.
     /// Mutates the selection on return.
     public let inline: Bool?
+    /// Informational inline item: displayed and searchable, never executable or deliverable.
+    public let displayOnly: Bool?
     /// Declares the uncommitted result kind produced by this action ("text", "file", "none", "dynamic").
     public let output: ExtensionOutputKind?
     /// Declares the recommended delivery for an uncommitted result ("preview", "paste", "copy", "paste-or-copy", "open", "save").
     public let result: ExtensionResultDelivery?
+    /// Declares the card format for text results ("plain", "markdown", "code", "diff"). Nil uses plain.
+    public let presentation: ResultPresentation?
+    /// Explicit contextual promotion override. Nil uses the uniform auto rule.
+    public let contextual: Bool?
 
     public var kind: ExtensionActionKind {
         ExtensionActionKind(rawType: type ?? "url")
@@ -73,12 +79,15 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         secondaryToast: ExtensionToastDeclaration? = nil,
         keywords: [String]? = nil,
         inline: Bool? = nil,
+        displayOnly: Bool? = nil,
         localizedTitle: LocalizedStringValue? = nil,
         localizedLoadingMessage: LocalizedStringValue? = nil,
         output: ExtensionOutputKind? = nil,
         result: ExtensionResultDelivery? = nil,
+        presentation: ResultPresentation? = nil,
         captureRtf: Bool? = nil,
-        captureHtml: Bool? = nil
+        captureHtml: Bool? = nil,
+        contextual: Bool? = nil
     ) {
         self.id = id
         self.title = title ?? localizedTitle?.resolve()
@@ -107,8 +116,11 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         self.secondaryToast = secondaryToast
         self.keywords = keywords
         self.inline = inline
+        self.displayOnly = displayOnly
         self.output = output
         self.result = result
+        self.presentation = presentation
+        self.contextual = contextual
     }
 
     public init(
@@ -179,6 +191,7 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
             self.keywords = nil
         }
         self.inline = try container.decodeIfPresent(Bool.self, forKey: .inline)
+        self.displayOnly = try container.decodeIfPresent(Bool.self, forKey: .displayOnly)
         if let raw = (try? container.decodeIfPresent(String.self, forKey: .output)) ?? (try? container.decodeIfPresent(String.self, forKey: .legacyOutput)) {
             self.output = ExtensionOutputKind(rawValue: raw)
         } else {
@@ -189,6 +202,14 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         } else {
             self.result = nil
         }
+        if let raw = try? container.decodeIfPresent(String.self, forKey: .presentation) {
+            // A supplied but unknown value is an explicit plain request, not an omitted key:
+            // at action level it must not inherit the package's presentation.
+            self.presentation = ResultPresentation(rawValue: raw) ?? .plain
+        } else {
+            self.presentation = nil
+        }
+        self.contextual = try container.decodeIfPresent(Bool.self, forKey: .contextual)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -226,8 +247,11 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         try container.encodeIfPresent(secondaryToast, forKey: .secondaryToast)
         try container.encodeIfPresent(keywords, forKey: .keywords)
         try container.encodeIfPresent(inline, forKey: .inline)
+        try container.encodeIfPresent(displayOnly, forKey: .displayOnly)
         try container.encodeIfPresent(output?.rawValue, forKey: .output)
         try container.encodeIfPresent(result?.rawValue, forKey: .result)
+        try container.encodeIfPresent(presentation?.rawValue, forKey: .presentation)
+        try container.encodeIfPresent(contextual, forKey: .contextual)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -267,10 +291,13 @@ public struct ExtensionActionMetadata: Codable, Sendable, Equatable {
         case secondaryToastDash = "secondary-toast"
         case keywords = "keywords"
         case inline = "inline"
+        case displayOnly = "displayOnly"
         case output = "output"
         case legacyOutput = "Output"
         case result = "result"
         case legacyResult = "Result"
+        case presentation = "presentation"
+        case contextual = "contextual"
     }
 }
 
@@ -428,6 +455,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
     public let output: ExtensionOutputKind?
     /// Package-level default for result delivery recommendation ("preview", "paste", "copy", "paste-or-copy", "open", "save").
     public let result: ExtensionResultDelivery?
+    /// Package-level default for text card format ("plain", "markdown", "code", "diff").
+    public let presentation: ResultPresentation?
     
     public init(
         identifier: String,
@@ -443,7 +472,8 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         localizedDescription: LocalizedStringValue? = nil,
         author: String? = nil,
         output: ExtensionOutputKind? = nil,
-        result: ExtensionResultDelivery? = nil
+        result: ExtensionResultDelivery? = nil,
+        presentation: ResultPresentation? = nil
     ) {
         self.identifier = identifier
         self.name = name
@@ -459,6 +489,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         self.keywords = keywords
         self.output = output
         self.result = result
+        self.presentation = presentation
     }
     
     public init(from decoder: Decoder) throws {
@@ -518,6 +549,12 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         } else {
             self.result = nil
         }
+        if let raw = try? container.decodeIfPresent(String.self, forKey: .presentation) {
+            // A supplied but unknown value is an explicit plain request, not an omitted key.
+            self.presentation = ResultPresentation(rawValue: raw) ?? .plain
+        } else {
+            self.presentation = nil
+        }
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -542,6 +579,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         try container.encodeIfPresent(keywords, forKey: .keywords)
         try container.encodeIfPresent(output?.rawValue, forKey: .output)
         try container.encodeIfPresent(result?.rawValue, forKey: .result)
+        try container.encodeIfPresent(presentation?.rawValue, forKey: .presentation)
     }
     
     enum CodingKeys: String, CodingKey {
@@ -570,6 +608,7 @@ public struct ExtensionMetadata: Sendable, Codable, Equatable {
         case legacyOutput = "Output"
         case result = "result"
         case legacyResult = "Result"
+        case presentation = "presentation"
     }
 }
 

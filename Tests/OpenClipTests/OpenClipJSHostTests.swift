@@ -82,6 +82,7 @@ final class OpenClipJSHostTests: XCTestCase {
         optionStore = MemoryOptionStore()
         MockURLProtocol.requestHandler = nil
         MockURLProtocol.capturedRequests.removeAll()
+        await MainActor.run { TextSpellCheckerRegistry.checker = nil }
     }
 
     private func makeContext(selectedText: String = "hello", match: ActionMatchInfo? = nil, isSecondaryClick: Bool = false) -> ActionContext {
@@ -138,6 +139,32 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected .copy, got \(result)")
         }
         XCTAssertEqual(text, "Copied")
+    }
+
+    func testTypedTextReturnCarriesPresentation() async throws {
+        let result = try await host.run(makeRequest(script: """
+            function action() {
+              return { type: 'text', value: '**hi**', presentation: 'markdown' };
+            }
+            """))
+        guard case .presentedText(let text, let presentation) = result else {
+            return XCTFail("Expected .presentedText, got \(result)")
+        }
+        XCTAssertEqual(text, "**hi**")
+        XCTAssertEqual(presentation, .markdown)
+    }
+
+    func testTypedTextReturnCarriesPresentationAsync() async throws {
+        let result = try await host.run(makeRequest(script: """
+            async function action() {
+              return { type: 'text', value: 'print(1)', presentation: 'code' };
+            }
+            """, isAsync: true))
+        guard case .presentedText(let text, let presentation) = result else {
+            return XCTFail("Expected .presentedText, got \(result)")
+        }
+        XCTAssertEqual(text, "print(1)")
+        XCTAssertEqual(presentation, .code)
     }
 
     // MARK: - Console shim
@@ -1554,6 +1581,41 @@ final class OpenClipJSHostTests: XCTestCase {
             return XCTFail("Expected .text, got \(result)")
         }
         XCTAssertEqual(text, "Bonjour")
+    }
+
+    func testTextLanguageIsSeparateFromTheUILanguage() async throws {
+        let script = "function action() { return (openclip.textLanguage || 'none') + '|' + (openclip.language || 'none'); }"
+        await MainActor.run {
+            TextSpellCheckerRegistry.checker = StubTextSpellChecker(
+                languages: ["sv"],
+                reports: [
+                    SpellLanguageAssessment(language: "sv", checked: true, misspelled: false, completions: [], guesses: [])
+                ]
+            )
+        }
+        let detected = try await host.run(makeRequest(script: script, context: makeContext(selectedText: "hej")))
+        guard case .text(let detectedText) = detected else {
+            return XCTFail("Expected .text, got \(detected)")
+        }
+        let parts = detectedText.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        XCTAssertEqual(parts.first, "sv")
+        XCTAssertNotEqual(parts.last, "none")
+
+        await MainActor.run {
+            TextSpellCheckerRegistry.checker = StubTextSpellChecker(
+                languages: ["en", "sv"],
+                reports: [
+                    SpellLanguageAssessment(language: "en", checked: true, misspelled: true, completions: [], guesses: []),
+                    SpellLanguageAssessment(language: "sv", checked: true, misspelled: true, completions: [], guesses: [])
+                ]
+            )
+        }
+        let unknown = try await host.run(makeRequest(script: script, context: makeContext(selectedText: "hej")))
+        guard case .text(let unknownText) = unknown else {
+            return XCTFail("Expected .text, got \(unknown)")
+        }
+        XCTAssertTrue(unknownText.hasPrefix("none|"))
+        await MainActor.run { TextSpellCheckerRegistry.checker = nil }
     }
 
     // MARK: - openclip.pasteboard API Tests

@@ -33,11 +33,19 @@ public enum TextDiff {
     /// Myers search budget; its cost grows with D², so unrelated texts must not run unbounded.
     public static let maxEditDistance = 300
 
+    /// True when the two texts differ only in whitespace (line breaks, spaces, tabs), so a diff
+    /// would only repaint the old line structure and add noise.
+    public static func differsOnlyInWhitespace(from old: String, to new: String) -> Bool {
+        guard old != new else { return false }
+        return old.filter { !$0.isWhitespace } == new.filter { !$0.isWhitespace }
+    }
+
     /// True for a revision (proofreading, tone, spelling) rather than a rewrite (translation, summary).
     public static func isMeaningfulEdit(from old: String, to new: String, minSimilarity: Double = 0.5) -> Bool {
         let trimmedOld = old.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNew = new.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedOld.isEmpty, !trimmedNew.isEmpty, trimmedOld != trimmedNew else { return false }
+        guard !differsOnlyInWhitespace(from: trimmedOld, to: trimmedNew) else { return false }
         guard trimmedOld.count <= maxComparableLength, trimmedNew.count <= maxComparableLength else { return false }
         let segs = segments(from: trimmedOld, to: trimmedNew)
         guard segs.contains(where: { $0.kind != .equal }), segs.contains(where: { $0.kind == .equal }) else {

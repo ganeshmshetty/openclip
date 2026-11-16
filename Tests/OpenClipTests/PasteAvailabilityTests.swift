@@ -30,8 +30,14 @@ final class PasteAvailabilityTests: XCTestCase {
     // MARK: - The unified value drives the delivery re-decision (Terminal escape hatch)
 
     func testDenyPastePolicyForcesCopyThroughUnifiedValue() {
-        let canPaste = PasteAvailability.effective(policy: AppPolicyContext(denyPaste: true), probe: true) ?? false
-        let (result, _) = ActionResultDelivery.resolve(raw: .paste("hello"), clickIntent: .primary, canPaste: canPaste, delivery: .none)
+        var capabilities = TargetCapabilities.stub()
+        capabilities.applyDenyPaste(AppPolicyContext(denyPaste: true))
+        let (result, _) = ActionResultDelivery.resolve(
+            raw: .paste("hello"),
+            clickIntent: .primary,
+            capabilities: capabilities,
+            delivery: .none
+        )
         guard case .copy(let text) = result else { return XCTFail("denyPaste must force a copy") }
         XCTAssertEqual(text, "hello")
     }

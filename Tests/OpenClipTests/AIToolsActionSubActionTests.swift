@@ -107,6 +107,27 @@ final class AIToolsActionSubActionTests: XCTestCase {
         XCTAssertEqual(tools.subActions(in: registry.availableActions(for: context)).map(\.id), ["ai.preset.1"])
     }
 
+    func testDisabledAIGroupBlocksGroupedButNotStandalonePresetSwitches() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        let coordinator = ActionCoordinator(registry: registry, settingsStore: store)
+        let tools = AIToolsAction(settingsStore: store)
+        let grouped = FakeAIAction(id: "ai.preset.grouped")
+        let standalone = FakeAIAction(id: "ai.preset.standalone")
+        store.set(.standaloneAIActionIDs, value: [standalone.id])
+        registry.register(builtIns: [tools, grouped, standalone])
+
+        XCTAssertTrue(coordinator.isDisabledByParentGroup(
+            grouped, disabledActionIDs: [tools.id], disabledPackages: []
+        ))
+        XCTAssertFalse(coordinator.isDisabledByParentGroup(
+            standalone, disabledActionIDs: [tools.id], disabledPackages: []
+        ))
+        XCTAssertFalse(coordinator.isDisabledByParentGroup(
+            tools, disabledActionIDs: [tools.id], disabledPackages: []
+        ), "The parent switch must remain available to turn its group back on")
+    }
+
     // MARK: - #175: sub-bar and scoped palette follow the Actions page arrangement
 
     private func makeAIGroup(_ presetIDs: [String]) -> (MemorySettingsStore, ActionRegistry, ActionCoordinator, AIToolsAction) {

@@ -85,6 +85,7 @@ public struct ScriptAction: ConfigurableAction, ActionWithRules {
         }
         env[Constants.envVarLocale] = Locale.current.identifier
         env[Constants.envVarLanguage] = Locale.current.language.languageCode?.identifier ?? "en"
+        TextLanguageDetector.assignTextLanguage(of: text, to: &env)
 
         for option in actionOptions {
             let key = "OPENCLIP_OPTION_" + option.identifier.uppercased().replacingOccurrences(of: "-", with: "_")

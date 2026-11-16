@@ -18,6 +18,13 @@ public struct ManifestValidationIssue: Sendable, Equatable {
         case secondaryOnJavaScriptAction
         case unsafeScriptPath(String)
         case invalidInlineAction
+        case invalidDisplayOnlyAction
+        case minimumVersionRequired(feature: String, version: String)
+        case unsafePredicatePath(String)
+        case missingPredicateFile(String)
+        case predicateTooLarge(String)
+        case missingVersionFloor(String)
+        case invalidVersionFloor(String)
     }
 
     public let kind: Kind
@@ -46,6 +53,20 @@ extension ManifestValidationIssue: CustomStringConvertible {
             return "\(path): script path escapes extension directory \"\(script)\""
         case .invalidInlineAction:
             return "\(path): `inline: true` is only supported on synchronous javascript actions (kind \"js\"/\"javascript\" without \"async: true\", captureRtf, or captureHtml)"
+        case .invalidDisplayOnlyAction:
+            return "\(path): `displayOnly: true` requires `inline: true` on a synchronous javascript action"
+        case .minimumVersionRequired(let feature, let version):
+            return "\(path): `\(feature)` requires `minOpenClipVersion` \(version) or newer"
+        case .unsafePredicatePath(let predicate):
+            return "\(path): predicate path must be a package-relative .js file inside the extension directory \"\(predicate)\""
+        case .missingPredicateFile(let predicate):
+            return "\(path): predicate file not found \"\(predicate)\""
+        case .predicateTooLarge(let predicate):
+            return "\(path): predicate file exceeds the 64 KiB limit \"\(predicate)\""
+        case .missingVersionFloor(let feature):
+            return "\(path): `\(feature)` requires a minOpenClipVersion that names the release which supports it"
+        case .invalidVersionFloor(let value):
+            return "\(path): minOpenClipVersion \"\(value)\" is not a valid semantic version"
         }
     }
 }
@@ -142,10 +163,48 @@ public struct ManifestValidator: Sendable {
         if let options = manifest.options {
             issues.append(contentsOf: validateOptions(options, path: "options"))
         }
+        let typedInlineVersionSatisfied = Self.satisfiesMinimumVersion(
+            manifest.minOpenClipVersion,
+            required: InlineResultValue.minimumOpenClipVersion
+        )
+        if !typedInlineVersionSatisfied, manifest.output == .color {
+            issues.append(ManifestValidationIssue(
+                kind: .minimumVersionRequired(feature: "output: \(manifest.output?.rawValue ?? "")", version: InlineResultValue.minimumOpenClipVersion),
+                path: "manifest"
+            ))
+        }
         for (index, action) in manifest.actions.enumerated() {
-            issues.append(contentsOf: validateAction(action, path: "actions[\(index)]"))
+            issues.append(contentsOf: validateAction(
+                action,
+                path: "actions[\(index)]",
+                inheritedOutput: manifest.output,
+                typedInlineVersionSatisfied: typedInlineVersionSatisfied
+            ))
+        }
+        if usesVersionedFeature(manifest.actions) {
+            if let raw = manifest.minOpenClipVersion?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+                if SemanticVersion.parse(raw) == nil {
+                    issues.append(ManifestValidationIssue(kind: .invalidVersionFloor(raw), path: "manifest"))
+                }
+            } else {
+                issues.append(ManifestValidationIssue(kind: .missingVersionFloor("predicate/contextual"), path: "manifest"))
+            }
         }
         return issues
+    }
+
+    private static func satisfiesMinimumVersion(_ declared: String?, required: String) -> Bool {
+        guard let minimum = SemanticVersion.parse(required) else { return false }
+        guard let declared, let version = SemanticVersion.parse(declared) else { return false }
+        return version >= minimum
+    }
+
+    private func usesVersionedFeature(_ actions: [ExtensionActionMetadata]) -> Bool {
+        actions.contains { action in
+            action.requirements?.predicate != nil
+                || action.contextual != nil
+                || usesVersionedFeature(action.subActions ?? [])
+        }
     }
 
     public func validateWarnings(_ manifest: ExtensionMetadata) -> [ManifestValidationWarning] {
@@ -163,7 +222,8 @@ public struct ManifestValidator: Sendable {
 
     private func validateActionWarnings(_ action: ExtensionActionMetadata, path: String, inheritedOutput: ExtensionOutputKind?) -> [ManifestValidationWarning] {
         var warnings: [ManifestValidationWarning] = []
-        let effectiveOutput = action.output ?? (action.inline == true ? .text : inheritedOutput)
+        // A package-level or group output applies to an inline leaf before the legacy text default.
+        let effectiveOutput = action.output ?? inheritedOutput ?? (action.inline == true ? .text : nil)
         if let output = effectiveOutput, let result = action.result {
             if !ExtensionOutputContract.isCompatible(output: output, result: result) {
                 warnings.append(ManifestValidationWarning(kind: .incompatibleOutputResult(output: output, result: result), path: path))
@@ -177,6 +237,7 @@ public struct ManifestValidator: Sendable {
         return warnings
     }
 
+    /// Package-aware validation lives in `ManifestPackageValidation`; this validator stays pure.
     public func validate(_ manifest: ExtensionMetadata, data: Data?) -> ManifestValidationRecord {
         let issues = validate(manifest)
         let warnings = validateWarnings(manifest)
@@ -189,19 +250,37 @@ public struct ManifestValidator: Sendable {
         )
     }
 
-    private func validateAction(_ action: ExtensionActionMetadata, path: String) -> [ManifestValidationIssue] {
+    private func validateAction(
+        _ action: ExtensionActionMetadata,
+        path: String,
+        inheritedOutput: ExtensionOutputKind? = nil,
+        typedInlineVersionSatisfied: Bool = true
+    ) -> [ManifestValidationIssue] {
         guard ExtensionActionKind.isRecognized(rawType: action.type) else {
             return [ManifestValidationIssue(kind: .unknownActionKind(action.type ?? ""), path: path)]
         }
 
         var issues: [ManifestValidationIssue] = []
+        // Typed inline output is a new contract; older apps must not treat it as text.
+        let effectiveOutput = action.output ?? inheritedOutput ?? (action.inline == true ? .text : nil)
+        if !typedInlineVersionSatisfied, effectiveOutput == .color {
+            issues.append(ManifestValidationIssue(
+                kind: .minimumVersionRequired(feature: "output: \(effectiveOutput?.rawValue ?? "")", version: InlineResultValue.minimumOpenClipVersion),
+                path: path
+            ))
+        }
         switch action.kind {
         case .group:
             if action.subActions?.isEmpty != false {
                 issues.append(ManifestValidationIssue(kind: .missingRequiredField("subActions"), path: path))
             }
             for (index, sub) in (action.subActions ?? []).enumerated() {
-                issues.append(contentsOf: validateAction(sub, path: "\(path).subActions[\(index)]"))
+                issues.append(contentsOf: validateAction(
+                    sub,
+                    path: "\(path).subActions[\(index)]",
+                    inheritedOutput: effectiveOutput,
+                    typedInlineVersionSatisfied: typedInlineVersionSatisfied
+                ))
             }
         case .keyPress:
             if isBlank(action.keyPress) {
@@ -231,27 +310,35 @@ public struct ManifestValidator: Sendable {
                 ))
             }
         }
+        if action.displayOnly == true {
+            if action.inline != true || action.kind != .js || action.isAsync == true || action.captureRtf == true || action.captureHtml == true {
+                issues.append(ManifestValidationIssue(kind: .invalidDisplayOnlyAction, path: path))
+            }
+            if !typedInlineVersionSatisfied {
+                issues.append(ManifestValidationIssue(
+                    kind: .minimumVersionRequired(feature: "displayOnly", version: InlineResultValue.minimumOpenClipVersion),
+                    path: path
+                ))
+            }
+        }
         if let options = action.options {
             issues.append(contentsOf: validateOptions(options, path: path))
         }
         if let script = action.script, !isSafeScriptPath(script) {
             issues.append(ManifestValidationIssue(kind: .unsafeScriptPath(script), path: path))
         }
+        if let predicate = action.requirements?.predicate {
+            let trimmed = predicate.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isJS = trimmed.lowercased().hasSuffix(".js")
+            if trimmed.isEmpty || !isJS || !isSafeScriptPath(trimmed) {
+                issues.append(ManifestValidationIssue(kind: .unsafePredicatePath(predicate), path: path))
+            }
+        }
         return issues
     }
 
     private func isSafeScriptPath(_ script: String) -> Bool {
-        let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        guard !trimmed.hasPrefix("/"), !trimmed.hasPrefix("~"), !trimmed.contains(":") else {
-            return false
-        }
-        let dummyBase = URL(fileURLWithPath: "/extension_root")
-        let destination = dummyBase.appendingPathComponent(trimmed)
-        guard Constants.isPathSafe(destinationURL: destination, baseDirectory: dummyBase) else {
-            return false
-        }
-        return destination.standardized.path != dummyBase.standardized.path
+        ExtensionManifestPath.isSafeRelativePath(script)
     }
 
     private func validateOptions(_ options: [ExtensionOptionMetadata], path: String) -> [ManifestValidationIssue] {

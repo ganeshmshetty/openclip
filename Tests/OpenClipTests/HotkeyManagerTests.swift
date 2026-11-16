@@ -8,8 +8,13 @@ import KeyboardShortcuts
 /// length contract. "Appear Automatically" does not gate it.
 @MainActor
 final class HotkeyManagerTests: XCTestCase {
+    /// Rules saved by these tests go here, never to the user's real `~/.openclip/rules.json` (#139).
+    private var tempRulesURL: URL!
+
     override func setUp() async throws {
         try await super.setUp()
+        tempRulesURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rules-\(UUID().uuidString).json")
         await MainActor.run {
             TestIsolation.reset()
             HotkeyManager.shared.selectionMonitor = nil
@@ -21,6 +26,7 @@ final class HotkeyManagerTests: XCTestCase {
     override func tearDown() async throws {
         HotkeyManager.shared.frontmostPIDProvider = { NSWorkspace.shared.frontmostApplication?.processIdentifier }
         HotkeyManager.shared.retriever = nil
+        try? FileManager.default.removeItem(at: tempRulesURL)
         try await super.tearDown()
     }
 
@@ -118,6 +124,78 @@ final class HotkeyManagerTests: XCTestCase {
         XCTAssertEqual(response.context?.selectionGeneration, monitor.selectionGeneration)
     }
 
+    func testPaletteOpensSynchronouslyFromCachedSelection() {
+        let manager = HotkeyManager.shared
+        let controller = PopupWindowController(pasteProbe: ImmediateSearchPasteProbe())
+        manager.setup(popupController: controller)
+        let monitor = MockSelectionMonitor()
+        let app = MockFrontmostApp(bundleID: "com.apple.TextEdit")
+        monitor.latestSelection = (SelectionContext(text: "cached selection", sourceApp: AppIdentity(app)), true)
+        manager.selectionMonitor = monitor
+        manager.retriever = SelectionRetrievalCoordinator(inspect: { _ in
+            XCTFail("A valid cached selection must not trigger a new read")
+            return AXElementInspector.Target()
+        })
+        defer { controller.hide() }
+
+        manager.handleTogglePopup(frontmostApp: app)
+
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertEqual(controller.modeStore.mode, .search)
+        XCTAssertEqual(controller.currentActionContext?.selection.text, "cached selection")
+    }
+
+    func testColdPaletteUsesClipboardWithoutInspection() {
+        let manager = HotkeyManager.shared
+        let controller = PopupWindowController(pasteProbe: ImmediateSearchPasteProbe())
+        manager.setup(popupController: controller)
+        manager.selectionMonitor = MockSelectionMonitor()
+        manager.retriever = SelectionRetrievalCoordinator(inspect: { _ in
+            XCTFail("A focused palette must not inspect itself or wait for AX")
+            return AXElementInspector.Target()
+        }, copyCapture: { _ in XCTFail("A focused palette must not post copy"); return nil })
+        let board = NSPasteboard.general
+        let snapshot = PasteboardSnapshot.capture(board)
+        defer { controller.hide(); snapshot.restore(to: board) }
+        board.clearContents()
+        board.setString("clipboard at invocation", forType: .string)
+
+        manager.handleTogglePopup(frontmostApp: MockFrontmostApp(bundleID: "com.apple.TextEdit"))
+        board.clearContents()
+        board.setString("new clipboard while searching", forType: .string)
+
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertEqual(controller.modeStore.mode, .search)
+        XCTAssertEqual(controller.currentActionContext?.selection.text, "clipboard at invocation")
+        XCTAssertEqual(controller.currentActionContext?.selection.source, .clipboard)
+        XCTAssertEqual(board.string(forType: .string), "new clipboard while searching")
+    }
+
+    func testOpeningPaletteCancelsPendingPassiveSelectionBeforeTakingFocus() {
+        let manager = HotkeyManager.shared
+        let controller = PopupWindowController(pasteProbe: ImmediateSearchPasteProbe())
+        manager.setup(popupController: controller)
+        let monitor = MacSelectionMonitor(settingsStore: MemorySettingsStore())
+        let pending = Task<Void, Never> { @MainActor in try? await Task.sleep(for: .seconds(10)) }
+        monitor.debounceTask = pending
+        let generation = monitor.selectionGeneration
+        manager.selectionMonitor = monitor
+        manager.retriever = SelectionRetrievalCoordinator(inspect: { _ in AXElementInspector.Target() })
+        // Clipboard text so the palette opens instead of the empty-clipboard toast (CI starts empty).
+        let board = NSPasteboard.general
+        let snapshot = PasteboardSnapshot.capture(board)
+        defer { controller.hide(); snapshot.restore(to: board) }
+        board.clearContents()
+        board.setString("clipboard at invocation", forType: .string)
+
+        manager.handleTogglePopup(frontmostApp: MockFrontmostApp(bundleID: "com.apple.TextEdit"))
+
+        XCTAssertTrue(pending.isCancelled)
+        XCTAssertNil(monitor.debounceTask)
+        XCTAssertNotEqual(monitor.selectionGeneration, generation)
+        XCTAssertTrue(controller.isVisible)
+    }
+
     /// "Appear Automatically" off stops the popup following selections; the explicit hotkey must still work.
     func testAutomaticAppearanceOffStillAllowsTheHotkey() {
         let store = MemorySettingsStore()
@@ -139,13 +217,13 @@ final class HotkeyManagerTests: XCTestCase {
     }
 
     func testAppWithDisabledRuleNeverTriggers() {
-        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.disabled"], disabled: true))
+        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.disabled"], disabled: true), saveURL: tempRulesURL)
         let app = MockFrontmostApp(bundleID: "com.test.disabled")
         XCTAssertFalse(HotkeyManager.triggerAllowed(frontmost: app))
     }
 
     func testAppWithHotkeyOnlyRuleTriggers() {
-        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.hotkeyonly"], hotkeyOnly: true))
+        RuleEngine.shared.addOrUpdateRule(AppRule(bundleIdentifiers: ["com.test.hotkeyonly"], hotkeyOnly: true), saveURL: tempRulesURL)
         let app = MockFrontmostApp(bundleID: "com.test.hotkeyonly")
         XCTAssertTrue(HotkeyManager.triggerAllowed(frontmost: app))
     }
@@ -365,28 +443,7 @@ final class HotkeyManagerTests: XCTestCase {
 
         let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit", pid: 99999)
         // With a requestedPID that does not match the actual frontmost app, trigger is refused
-        let trigger = await manager.collectTrigger(frontmostApp: frontmost, requestID: nil, requestedPID: 99999)
-        XCTAssertNil(trigger)
-    }
-
-    func testCollectTriggerRejectsMismatchedRequestID() async throws {
-        let manager = HotkeyManager.shared
-        let monitor = MockSelectionMonitor()
-        let app = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")
-        let selection = SelectionContext(
-            text: "monitored text",
-            sourceApp: app,
-            cursorPosition: CGPoint(x: 50, y: 50),
-            selectionBounds: CGRect(x: 10, y: 10, width: 100, height: 20),
-            timestamp: Date(),
-            appPolicy: .default
-        )
-        monitor.latestSelection = (context: selection, canPaste: true)
-        manager.selectionMonitor = monitor
-
-        let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit")
-        // Random request ID never matches popupTriggerRequestID.
-        let trigger = await manager.collectTrigger(frontmostApp: frontmost, requestID: UUID())
+        let trigger = await manager.collectTrigger(frontmostApp: frontmost, requestedPID: 99999)
         XCTAssertNil(trigger)
     }
 
@@ -518,6 +575,37 @@ final class HotkeyManagerTests: XCTestCase {
         XCTAssertFalse(performed)
     }
 
+    func testHandleActionHotkeyRespectsProviderDeclaredParentMembership() async throws {
+        let manager = HotkeyManager.shared
+        let controller = PopupWindowController()
+        manager.setup(popupController: controller)
+        let performed = expectation(description: "Enabled child executes")
+        var executions = 0
+        let child = BoundTestAction(id: "test.canonical.child") {
+            executions += 1
+            performed.fulfill()
+        }
+        let parent = CustomGroupAction(
+            id: "test.provider.group", title: "Tools", iconName: "folder", memberActionIDs: [child.id]
+        )
+        ActionCoordinator.shared.register(action: parent)
+        ActionCoordinator.shared.register(action: child)
+        controller.startTestSession(for: SelectionContext(
+            text: "sample text", sourceApp: AppIdentity(NSRunningApplication.current)
+        ))
+        let store = MemorySettingsStore()
+        store.set(.disabledActionIDs, value: [parent.id])
+
+        manager.handleActionHotkey(child.id, settingsStore: store)
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(executions, 0)
+
+        store.set(.disabledActionIDs, value: [])
+        manager.handleActionHotkey(child.id, settingsStore: store)
+        await fulfillment(of: [performed], timeout: 2)
+        XCTAssertEqual(executions, 1)
+    }
+
     func testCollectTriggerPreservesCompletePayloadInCachedPath() async throws {
         let manager = HotkeyManager.shared
         let mockMonitor = MockSelectionMonitor()
@@ -641,6 +729,10 @@ private final class MockSelectionMonitor: SelectionMonitoring {
 
     func start() {}
     func stop() {}
+}
+
+private struct ImmediateSearchPasteProbe: PasteAvailabilityProbing {
+    func canPaste(in app: NSRunningApplication?, policy: AppPolicyContext) async -> Bool? { true }
 }
 
 private struct BoundTestAction: Action {

@@ -38,6 +38,13 @@ public enum ResultCardDragPhase: Sendable {
 
 // MARK: - Result Card
 
+private struct ResultMarkdownHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 public struct ResultCardView: View {
     public let payload: ResultCardPayload
     /// Paste availability of the target app (from the AX probe); `false` hides the Paste button.
@@ -106,6 +113,8 @@ public struct ResultCardView: View {
     /// Diff of `payload.original` → `payload.text`, recomputed when the payload settles, not mid-stream.
     @State private var diffSegments: [TextDiffSegment] = []
     @State private var showsDiff = false
+    /// Measured height of the rendered Markdown body; nil until the first layout pass reports it.
+    @State private var renderedBodyHeight: CGFloat?
     /// Set once the user works the toggle, so a later payload update can't override their choice.
     @State private var didChooseDiffMode = false
     /// Makes `.began` fire once per drag.
@@ -163,7 +172,66 @@ public struct ResultCardView: View {
         }
     }
 
-    private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError && payload.canFollowUp && payload.file == nil }
+    private func handleReturn(shift: Bool) {
+        if payload.color != nil {
+            onCopy()
+        } else if payload.file != nil {
+            (onSave ?? onPaste)()
+        } else if showsFollowUp {
+            handleFollowUpReturn(shift: shift)
+        } else if canPaste == false || shift {
+            onCopy()
+        } else {
+            onPaste()
+        }
+    }
+
+    /// AppKit route for cards that have no follow-up field to focus. SwiftUI's `@FocusState`
+    /// request from `onAppear` can be dropped before the panel finishes becoming key, so the
+    /// controller focuses this catcher instead and the same decisions still run.
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let key = event.charactersIgnoringModifiers?.lowercased()
+
+        if flags.contains(.command) {
+            switch key {
+            case "c":
+                guard showsResultButtons else { return true }
+                onCopy()
+                return true
+            case "d":
+                guard hasDiff, payload.file == nil else { return false }
+                toggleDiff()
+                return true
+            case "s":
+                guard payload.file != nil || payload.color != nil else { return false }
+                if payload.color != nil { onSave?() } else { (onSave ?? onPaste)() }
+                return true
+            case "z":
+                guard showsVersionSwitcher else { return false }
+                onStepVersion?(flags.contains(.shift) ? 1 : -1)
+                return true
+            default:
+                return false
+            }
+        }
+
+        switch event.keyCode {
+        case 53: // Escape
+            handleEscape()
+            return true
+        case 36, 76: // Return, keypad Enter
+            handleReturn(shift: flags.contains(.shift))
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var showsFollowUp: Bool { onFollowUp != nil && !payload.isError && payload.canFollowUp && payload.file == nil && !isTypedVisualResult }
+
+    /// Typed color cards have their own body; diff, follow-up, and text metrics do not apply.
+    private var isTypedVisualResult: Bool { payload.color != nil }
 
     /// Diff and pin rest hidden until hover, but stay visible while active so a set state is never hidden.
     private var revealsSecondaryChrome: Bool {
@@ -184,6 +252,12 @@ public struct ResultCardView: View {
         }
         .frame(width: dynamicCardWidth, height: dynamicCardHeight)
         .onHover { isCardHovered = $0 }
+        .background(
+            ResultCardKeyCatcher(
+                handlesCommandShortcuts: !showsFollowUp,
+                onKeyDown: handleKeyEvent
+            )
+        )
         .focusable()
         .focusEffectDisabled()
         .focused($isCardFocused)
@@ -193,13 +267,15 @@ public struct ResultCardView: View {
         }
         .onChange(of: payload) { _, _ in
             refreshDiff()
+            // A new answer invalidates the previous Markdown measurement.
+            renderedBodyHeight = nil
         }
         .onKeyPress(.escape) {
             handleEscape()
             return .handled
         }
         .onKeyPress(keys: ["d"], phases: .down) { press in
-            guard press.modifiers.contains(.command), hasDiff, payload.file == nil else { return .ignored }
+            guard press.modifiers.contains(.command), hasDiff, payload.file == nil, !isTypedVisualResult else { return .ignored }
             toggleDiff()
             return .handled
         }
@@ -209,8 +285,9 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(keys: ["s"], phases: .down) { press in
-            guard press.modifiers.contains(.command), payload.file != nil else { return .ignored }
-            (onSave ?? onPaste)()
+            guard press.modifiers.contains(.command) else { return .ignored }
+            guard payload.file != nil || payload.color != nil else { return .ignored }
+            onSave?()
             return .handled
         }
         .onKeyPress(keys: ["c"], phases: .down) { press in
@@ -221,18 +298,8 @@ public struct ResultCardView: View {
             return .handled
         }
         .onKeyPress(.return, phases: .down) { press in
-            if payload.file != nil {
-                (onSave ?? onPaste)()
-                return .handled
-            }
             // SwiftUI sees Return even while the follow-up field is first responder, so apply its rules here too.
-            if showsFollowUp {
-                handleFollowUpReturn(shift: press.modifiers.contains(.shift))
-            } else if canPaste == false || press.modifiers.contains(.shift) {
-                onCopy()
-            } else {
-                onPaste()
-            }
+            handleReturn(shift: press.modifiers.contains(.shift))
             return .handled
         }
         .onDisappear {
@@ -247,7 +314,7 @@ public struct ResultCardView: View {
     /// Picks the default view: light edits open on the diff, wholesale rewrites on the plain result.
     /// A streaming response is never diffed.
     private func refreshDiff() {
-        guard !payload.isError, !payload.isStreaming,
+        guard !isTypedVisualResult, !payload.isError, !payload.isStreaming,
               let original = payload.original else {
             diffSegments = []
             showsDiff = false
@@ -263,7 +330,8 @@ public struct ResultCardView: View {
         let segments = TextDiff.segments(from: source, to: result)
         diffSegments = segments
         if !didChooseDiffMode {
-            showsDiff = true
+            // AI keeps its existing default; an explicit format owns the initial view.
+            showsDiff = payload.presentation == nil || payload.presentation == .diff
         }
     }
 
@@ -359,7 +427,7 @@ public struct ResultCardView: View {
 
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
-                    if hasDiff && payload.file == nil {
+                    if hasDiff && payload.file == nil && !isTypedVisualResult {
                         diffToggle
                     }
 
@@ -472,6 +540,7 @@ public struct ResultCardView: View {
 
     private static let horizontalTextInset: CGFloat = 16.0
     private static let bodyFont = NSFont.systemFont(ofSize: 13.5, weight: .regular)
+    private static let codeFont = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
     private static let bodyParagraphStyle: NSParagraphStyle = {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3.5
@@ -504,10 +573,11 @@ public struct ResultCardView: View {
     private var naturalTextWidth: CGFloat {
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return 0 }
+        let isCode = payload.presentation == .code && !showsDiff
         let rect = (textToMeasure as NSString).boundingRect(
             with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
+            attributes: [.font: isCode ? Self.codeFont : Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
         )
         // A point of slack so SwiftUI's own line breaking never wraps the measured line.
         return ceil(rect.width) + 2 * Self.horizontalTextInset + 1
@@ -526,7 +596,7 @@ public struct ResultCardView: View {
         // Padding, back button, icon, gaps, and min spacer.
         let baseChrome: CGFloat = 28 + 22 + 8 + 13 + 7 + 8
         // Right controls: 74 with diff, 48 without.
-        let controlsWidth: CGFloat = (hasDiff && payload.file == nil) ? 74 : 48
+        let controlsWidth: CGFloat = (hasDiff && payload.file == nil && !isTypedVisualResult) ? 74 : 48
         return ceil(rect.width) + baseChrome + controlsWidth
     }
 
@@ -664,13 +734,22 @@ public struct ResultCardView: View {
 
     /// The height the body needs when wrapped at the card's actual width.
     private var naturalContentHeight: CGFloat {
+        if isTypedVisualResult {
+            return PopupMetrics.typedCardNaturalHeight
+        }
+        // Rendered Markdown is shorter than its source (markers vanish, lists compact); use the
+        // measured layout height once reported, falling back to the source estimate before that.
+        if rendersMarkdown, !showsDiff, let measured = renderedBodyHeight, measured > 0 {
+            return ceil(measured) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
+        }
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return PopupMetrics.aiCardMinHeight }
         let availableWidth = dynamicCardWidth - 2 * Self.horizontalTextInset
+        let isCode = payload.presentation == .code && !showsDiff
         let rect = (textToMeasure as NSString).boundingRect(
             with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
+            attributes: [.font: isCode ? Self.codeFont : Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
         )
         return ceil(rect.height) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
     }
@@ -729,6 +808,9 @@ public struct ResultCardView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
+            } else if let color = payload.color {
+                colorPreviewContent(color)
+                    .frame(maxWidth: .infinity)
             } else {
                 ScrollView {
                     bodyText
@@ -757,10 +839,70 @@ public struct ResultCardView: View {
     private var bodyText: some View {
         if showsDiff, hasDiff {
             Text(diffAttributedText)
+        } else if payload.presentation == .code {
+            ResultCodeBody(text: payload.text)
+                .foregroundColor(payload.isError ? Color.red : Color.primary)
+        } else if rendersMarkdown {
+            ResultMarkdownBody(text: payload.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: ResultMarkdownHeightKey.self, value: proxy.size.height)
+                    }
+                )
+                .onPreferenceChange(ResultMarkdownHeightKey.self) { height in
+                    if abs((renderedBodyHeight ?? 0) - height) > 0.5 {
+                        renderedBodyHeight = height
+                    }
+                }
         } else {
             Text(payload.text)
                 .foregroundColor(payload.isError ? Color.red : (payload.isRefining ? Color.primary.opacity(0.55) : Color.primary))
         }
+    }
+
+    /// AI answers render as Markdown once settled; an explicit presentation overrides detection.
+    /// Streaming stays plain so half-written markers don't flicker.
+    private var rendersMarkdown: Bool {
+        guard !payload.isError, !payload.isStreaming, !payload.isRefining else { return false }
+        switch payload.presentation {
+        case .markdown:
+            return true
+        case .plain, .code, .diff:
+            return false
+        case nil:
+            return payload.canFollowUp && MarkdownPresence.isMarkdown(payload.text)
+        }
+    }
+
+    /// A typed color: one bounded swatch plus its canonical hex. Copy/Save are explicit card actions;
+    /// the swatch grows with the card while the hex keeps its fixed type size.
+    private func colorPreviewContent(_ color: InlineColor) -> some View {
+        GeometryReader { proxy in
+            let swatch = Self.colorSwatchSize(for: proxy.size)
+            VStack(spacing: PopupMetrics.colorPreviewSpacing) {
+                Spacer(minLength: 0)
+                InlineColorSwatch(color: color, size: swatch)
+                Text(color.hex)
+                    .font(.system(size: 15, weight: .medium, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .textSelection(.enabled)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Self.horizontalTextInset)
+            .padding(.vertical, PopupMetrics.colorPreviewPadding)
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .clipped()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(color.hex)
+    }
+
+    /// Largest swatch that still leaves the fixed-size hex room inside the body.
+    static func colorSwatchSize(for available: CGSize) -> CGFloat {
+        let height = available.height - PopupMetrics.colorHexLineHeight - PopupMetrics.colorPreviewSpacing - 2 * PopupMetrics.colorPreviewPadding
+        let width = available.width - 2 * horizontalTextInset
+        return max(PopupMetrics.colorSwatchMinSize, min(width, height))
     }
 
     // MARK: - Footer
@@ -944,29 +1086,35 @@ public struct ResultCardView: View {
         HStack(spacing: 6) {
             if payload.file != nil {
                 fileButtons
+            } else if payload.color != nil {
+                colorButtons
             } else if !payload.isError {
                 resultButtons
             } else {
-                Button {
-                    onDismiss()
-                } label: {
-                    Text(String(localized: "Dismiss"))
-                        .font(.system(size: 11.5, weight: .medium))
-                        .lineLimit(1)
-                        .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .popupFooterButtonChrome(
-                            effectiveTheme: effectiveTheme,
-                            colorScheme: colorScheme,
-                            isHovered: isDismissHovered
-                        )
-                }
-                .buttonStyle(.plain)
-                .help(String(localized: "Dismiss the error (⎋)"))
-                .onHover { isDismissHovered = $0 }
+                dismissButton
             }
         }
+    }
+
+    private var dismissButton: some View {
+        Button {
+            onDismiss()
+        } label: {
+            Text(String(localized: "Dismiss"))
+                .font(.system(size: 11.5, weight: .medium))
+                .lineLimit(1)
+                .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .popupFooterButtonChrome(
+                    effectiveTheme: effectiveTheme,
+                    colorScheme: colorScheme,
+                    isHovered: isDismissHovered
+                )
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "Dismiss the error (⎋)"))
+        .onHover { isDismissHovered = $0 }
     }
 
     @ViewBuilder
@@ -1334,6 +1482,66 @@ public struct ResultCardView: View {
         canPaste == false
     }
 
+    /// Color card actions are explicit requests: Copy the canonical hex, or save it as a text file.
+    private var colorButtons: some View {
+        HStack(spacing: 4) {
+            Button {
+                onCopy()
+            } label: {
+                HStack(spacing: 4) {
+                    Text(String(localized: "Copy"))
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Image(systemName: "return")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .opacity(0.9)
+                }
+                .lineLimit(1)
+                .fixedSize()
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .popupFooterButtonChrome(
+                    effectiveTheme: effectiveTheme,
+                    colorScheme: colorScheme,
+                    isHovered: isCopyHovered,
+                    tint: .accentColor
+                )
+            }
+            .buttonStyle(.plain)
+            .help(String(localized: "Copy"))
+            .accessibilityLabel(String(localized: "Copy"))
+            .onHover { isCopyHovered = $0 }
+
+            if let onSave {
+                Button {
+                    onSave()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(String(localized: "Save"))
+                            .font(.system(size: 11.5, weight: .medium))
+                        Text("⌘S")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                    }
+                    .lineLimit(1)
+                    .fixedSize()
+                    .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .popupFooterButtonChrome(
+                        effectiveTheme: effectiveTheme,
+                        colorScheme: colorScheme,
+                        isHovered: isSaveHovered
+                    )
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "Save"))
+                .accessibilityLabel(String(localized: "Save"))
+                .onHover { isSaveHovered = $0 }
+            }
+        }
+    }
+
     /// Copy / Paste — the answers that consume the result. Absent on an error card, which only
     /// offers Close.
     @ViewBuilder
@@ -1400,6 +1608,49 @@ public struct ResultCardView: View {
                 .accessibilityLabel("Paste response over selection")
                 .onHover { isPasteHovered = $0 }
             }
+        }
+    }
+}
+
+/// AppKit first responder for result cards without a follow-up field. SwiftUI's focus request
+/// can be dropped while the panel becomes key, so the controller focuses this view instead.
+struct ResultCardKeyCatcher: NSViewRepresentable {
+    let handlesCommandShortcuts: Bool
+    let onKeyDown: (NSEvent) -> Bool
+
+    func makeNSView(context: Context) -> CatcherView {
+        let view = CatcherView()
+        view.handlesCommandShortcuts = handlesCommandShortcuts
+        view.onKeyDown = onKeyDown
+        return view
+    }
+
+    func updateNSView(_ nsView: CatcherView, context: Context) {
+        nsView.handlesCommandShortcuts = handlesCommandShortcuts
+        nsView.onKeyDown = onKeyDown
+    }
+
+    final class CatcherView: NSView {
+        var handlesCommandShortcuts = false
+        var onKeyDown: ((NSEvent) -> Bool)?
+
+        override var acceptsFirstResponder: Bool { true }
+
+        /// The catcher sits behind the card's content; it must never swallow a click.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func keyDown(with event: NSEvent) {
+            guard window?.firstResponder === self, onKeyDown?(event) == true else {
+                super.keyDown(with: event)
+                return
+            }
+        }
+
+        override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            guard handlesCommandShortcuts, onKeyDown?(event) == true else {
+                return super.performKeyEquivalent(with: event)
+            }
+            return true
         }
     }
 }

@@ -29,8 +29,6 @@ public final class HotkeyManager {
     internal var frontmostPIDProvider: @MainActor @Sendable () -> pid_t? = { NSWorkspace.shared.frontmostApplication?.processIdentifier }
     private var cancellables = Set<AnyCancellable>()
     private var registeredHotkeyIDs: Set<String> = []
-    private var popupTriggerTask: Task<Void, Never>?
-    private var popupTriggerRequestID: UUID?
     
     /// Does not consult `isAppEnabled` ("Appear Automatically" only gates the automatic popup).
     /// Pause, app exclusions, and per-app `disabled` rules still apply.
@@ -99,58 +97,21 @@ public final class HotkeyManager {
     func disableCaptureCancellation() { KeyboardShortcuts.disable(.cancelCaptureText) }
 
     public func handleTogglePopup(frontmostApp: NSRunningApplication? = NSWorkspace.shared.frontmostApplication) {
-        // A second press cancels a selection read that has not presented yet.
-        if popupTriggerRequestID != nil {
-            popupTriggerTask?.cancel()
-            popupTriggerTask = nil
-            popupTriggerRequestID = nil
-            return
-        }
         guard KeyboardShortcuts.isEnabled else { return }
         // Visible popup: search mode toggles off; actions bar switches into search.
         if let popupController = self.popupController, popupController.isVisible {
             if popupController.modeStore.mode == .search {
-                popupController.toggleMode()
+                popupController.hide()
             } else {
                 popupController.enterSearch()
             }
             return
         }
 
-        let requestID = UUID()
-        let requestedPID = frontmostApp?.processIdentifier
-        popupTriggerRequestID = requestID
-        popupTriggerTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            defer {
-                if self.popupTriggerRequestID == requestID {
-                    self.popupTriggerRequestID = nil
-                    self.popupTriggerTask = nil
-                }
-            }
-
-            let trigger: (context: SelectionContext, canPaste: Bool?)?
-            if let frontmostApp {
-                trigger = await self.collectTrigger(
-                    frontmostApp: frontmostApp,
-                    allowsEmptyText: true,
-                    requestID: requestID,
-                    requestedPID: requestedPID
-                )
-            } else {
-                trigger = self.resolveSynchronousTrigger(frontmostApp: nil)
-            }
-            guard !Task.isCancelled,
-                  KeyboardShortcuts.isEnabled,
-                  self.popupTriggerRequestID == requestID,
-                  DefaultSettingsStore.shared.get(.pauseUntilTimestamp) <= Date().timeIntervalSince1970,
-                  let trigger else { return }
-            if let requestedPID, let currentPID = NSWorkspace.shared.frontmostApplication?.processIdentifier, currentPID != requestedPID {
-                return
-            }
-            if let frontmostApp, !Self.triggerAllowed(frontmost: frontmostApp) { return }
-            self.showSearch(for: trigger)
-        }
+        guard let trigger = resolveSynchronousTrigger(frontmostApp: frontmostApp) else { return }
+        // A focused palette must never receive a synthetic copy from an in-flight passive read.
+        selectionMonitor?.cancelPendingSelection()
+        showSearch(for: trigger)
     }
 
     private func showSearch(for trigger: (context: SelectionContext, canPaste: Bool?)) {
@@ -239,7 +200,7 @@ public final class HotkeyManager {
                 isClipboardFallback: isClipboardFallback,
                 html: pasteboard.string(forType: .html),
                 rtf: pasteboard.string(forType: .rtf),
-                isEditable: false
+                isEditable: nil
             )
             return (context, nil)
         }
@@ -253,14 +214,19 @@ public final class HotkeyManager {
             timestamp: Date(),
             appPolicy: policy,
             isClipboardFallback: false,
-            isEditable: false
+            isEditable: nil
         )
         return (emptyContext, nil)
     }
 
     private func registerActionHotkeys(_ actions: [any Action]) {
+        let bindableIDs = Set(actions.filter { ActionIdentity.isBindable($0) }.map { $0.id })
+        for actionID in registeredHotkeyIDs.subtracting(bindableIDs) {
+            KeyboardShortcuts.disable(.actionHotkey(actionID))
+        }
         for action in actions where ActionIdentity.isBindable(action) {
             let actionID = action.id
+            KeyboardShortcuts.enable(.actionHotkey(actionID))
             guard registeredHotkeyIDs.insert(actionID).inserted else { continue }
             KeyboardShortcuts.onKeyUp(for: .actionHotkey(actionID)) { [weak self] in
                 Task { @MainActor in
@@ -291,16 +257,9 @@ public final class HotkeyManager {
                 return
             }
         }
-        let groupDefs = ActionCoordinator.shared.actionGroupDefs
-        if let parentGroup = groupDefs.first(where: { $0.memberActionIDs.contains(action.id) }),
-           disabledIDs.contains(parentGroup.id) {
-            return
-        }
-        if let parentExtensionGroup = ActionCoordinator.shared.actions.first(where: {
-            $0.chrome.popupBehavior == .showSubActions && action.id != $0.id && action.id.hasPrefix($0.id + ".")
-        }), disabledIDs.contains(parentExtensionGroup.id) {
-            return
-        }
+        guard !ActionCoordinator.shared.isDisabledByParentGroup(
+            action, disabledActionIDs: disabledIDs, disabledPackages: disabledPackages
+        ) else { return }
 
         if popupController.isVisible, let context = popupController.currentActionContext {
             popupController.runBoundAction(action, with: context)
@@ -314,16 +273,16 @@ public final class HotkeyManager {
         }
     }
 
-    /// Shared retrieve path for ⌥⌘C and per-action hotkeys.
+    /// Async retrieve path for per-action hotkeys and other explicit reads. ⌥⌘C resolves synchronously so it never waits for AX.
     internal private(set) var lastTriggerResponse: SelectionTriggerResponse?
     internal var onTriggerOutcome: ((SelectionTriggerResponse) -> Void)?
 
     internal func collectTrigger(
         frontmostApp: NSRunningApplication? = NSWorkspace.shared.frontmostApplication,
-        allowsEmptyText: Bool = false, requestID: UUID? = nil, requestedPID: pid_t? = nil
+        allowsEmptyText: Bool = false, requestedPID: pid_t? = nil
     ) async -> (context: SelectionContext, canPaste: Bool?)? {
         let response = await collectTriggerResponse(frontmostApp: frontmostApp,
-            allowsEmptyText: allowsEmptyText, requestID: requestID, requestedPID: requestedPID)
+            allowsEmptyText: allowsEmptyText, requestedPID: requestedPID)
         guard let context = response.context else { return nil }
         return (context, response.canPaste)
     }
@@ -331,7 +290,6 @@ public final class HotkeyManager {
     internal func collectTriggerResponse(
         frontmostApp: NSRunningApplication? = NSWorkspace.shared.frontmostApplication,
         allowsEmptyText: Bool = false,
-        requestID: UUID? = nil,
         requestedPID: pid_t? = nil
     ) async -> SelectionTriggerResponse {
         func finish(_ response: SelectionTriggerResponse) -> SelectionTriggerResponse {
@@ -351,7 +309,6 @@ public final class HotkeyManager {
         let isTriggerAuthorized: PasteboardCopyEngine.CopyAuthorization = { [weak self] in
             guard !Task.isCancelled,
                   Self.triggerAllowed(frontmost: frontApp) else { return false }
-            if let requestID, self?.popupTriggerRequestID != requestID { return false }
             guard self?.frontmostPIDProvider() == requiredPID else { return false }
             guard self?.selectionMonitor?.selectionGeneration == generation else { return false }
             return true
@@ -359,7 +316,7 @@ public final class HotkeyManager {
 
         var retrievalTraceID: UInt64?
         func denied() -> SelectionTriggerResponse {
-            let status: SelectionReadStatus = Task.isCancelled || (requestID != nil && popupTriggerRequestID != requestID)
+            let status: SelectionReadStatus = Task.isCancelled
                 ? .cancelled : (!Self.triggerAllowed(frontmost: frontApp) ? .policyBlocked : .targetChanged)
             return finish(.init(status: status, traceID: retrievalTraceID))
         }
@@ -457,7 +414,7 @@ public final class HotkeyManager {
             rtf: selectionRTF,
             flavors: selectionFlavors,
             selectionGeneration: generation,
-            isEditable: isClipboardFallback ? false : read.isEditable,
+            isEditable: read.isEditable,
             traceID: read.traceID
         )
         let canPaste = await probeTask?.value

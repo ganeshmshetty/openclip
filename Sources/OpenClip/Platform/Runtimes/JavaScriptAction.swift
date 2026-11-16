@@ -90,7 +90,8 @@ public struct JavaScriptAction: ConfigurableAction, ActionWithRules {
     }
 
     /// Inline evaluation passes its shorter UI budget so JavaScriptCore interrupts sync scripts at the same deadline.
-    func perform(_ context: ActionContext, timeout: TimeInterval?) async throws -> ActionResult {
+    /// `restrictedToPreview` strips effect and clipboard capabilities before the script runs.
+    func perform(_ context: ActionContext, timeout: TimeInterval?, restrictedToPreview: Bool = false) async throws -> ActionResult {
         // Manifest `requiredOptions` check, run before any JS. Distinct from the runtime
         // `openclip.requireConfiguration` call, so keep it out of OpenClipJSHost.
         let missing = ActionVisibility.missingRequiredOptions(
@@ -118,7 +119,8 @@ public struct JavaScriptAction: ConfigurableAction, ActionWithRules {
             timeout: timeout,
             packageDirectory: packageDirectory,
             entryDirectory: entryDirectory,
-            pasteboardContent: OpenClipJSHost.PasteboardContent.read()
+            pasteboardContent: restrictedToPreview ? nil : OpenClipJSHost.PasteboardContent.read(),
+            restrictedToPreview: restrictedToPreview
         )
         return try await OpenClipJSHost().run(request)
     }

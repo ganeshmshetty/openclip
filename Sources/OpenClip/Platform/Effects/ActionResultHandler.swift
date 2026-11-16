@@ -245,8 +245,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 }
             }
             let pasteboard = self.pasteboard
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
+            writeSmartClipboard(text, marker: true)
+            if targetApp != nil { Self.widenFocusedSelectionForSmartCut() }
             postKey(keyCode: Constants.deleteVirtualKey, flags: [])
 
         case .paste(let text):
@@ -352,6 +352,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             pasteboard.writeObjects(objects)
 
         case .saveFile(let url):
+            defer { InlineColorExport.removeStagedFile(url) }
             guard FileManager.default.fileExists(atPath: url.path) else {
                 throw NSError(domain: Constants.actionErrorDomain,
                               code: Constants.actionErrorCode,
@@ -372,12 +373,17 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             let clipboardSession = try await OpenSelection.ClipboardCoordinator.shared.acquireSession(priority: .userAction, pasteboard: self.pasteboard)
             defer { clipboardSession.commitPermanent() }
             try await activateTarget(targetApp)
+            // HTML inputs ignore the smart-paste marker, so pad a smart-cut word with spaces ourselves,
+            // then put the original word (and marker) back.
+            let padding = targetApp != nil ? smartPastePadding() : nil
+            if let padding { writeSmartClipboard(padding.padded, marker: false) }
             postKey(keyCode: Constants.vVirtualKey, flags: .maskCommand)
             let deliveryWindow = Task { try? await Task.sleep(nanoseconds: UInt64(self.pasteboardRestoreDelay * 1_000_000_000)) }
             _ = await deliveryWindow.value
+            if let padding { writeSmartClipboard(padding.original, marker: true) }
 
         // Presenter-owned results: no-ops here, which keeps the switch exhaustive.
-        case .toast, .openConfiguration, .sequence, .text, .file:
+        case .toast, .openConfiguration, .sequence, .text, .presentedText, .file, .color, .inlineValue:
             break
 
         // keyPress posts a synthetic keystroke; runShortcut runs under the subprocess watchdog.
@@ -565,6 +571,58 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         postKey(keyCode: keyCode, flags: flags)
     }
 
+    /// Best effort: widen the focused text selection to include the adjacent space a native ⌘X
+    /// would delete. Leaves the selection alone if AX can't read or set it.
+    /// Focused text element with its value and selected range, or nil if AX can't read them.
+    private static func focusedTextState() -> (element: AXUIElement, value: String, selection: NSRange)? {
+        guard AXIsProcessTrusted() else { return nil }
+        let system = AXUIElementCreateSystemWide()
+        var focusedRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+              let focusedRef, CFGetTypeID(focusedRef) == AXUIElementGetTypeID() else { return nil }
+        let focused = focusedRef as! AXUIElement
+        var valueRef: CFTypeRef?
+        var rangeRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(focused, kAXValueAttribute as CFString, &valueRef) == .success,
+              let value = valueRef as? String,
+              AXUIElementCopyAttributeValue(focused, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
+              let rangeRef, CFGetTypeID(rangeRef) == AXValueGetTypeID() else { return nil }
+        var cfRange = CFRange()
+        guard AXValueGetValue(rangeRef as! AXValue, .cfRange, &cfRange) else { return nil }
+        return (focused, value, NSRange(location: cfRange.location, length: cfRange.length))
+    }
+
+    /// Best effort: widen the focused selection to include the adjacent space a smart cut removes
+    /// (PopClip/NSTextView style). Leaves the selection alone if AX can't read or set it.
+    private static func widenFocusedSelectionForSmartCut() {
+        guard let state = focusedTextState(),
+              let target = SmartCopyPaste.smartDeleteRange(in: state.value, selection: state.selection),
+              target != state.selection else { return }
+        var newRange = CFRange(location: target.location, length: target.length)
+        guard let axRange = AXValueCreate(.cfRange, &newRange) else { return }
+        _ = AXUIElementSetAttributeValue(state.element, kAXSelectedTextRangeAttribute as CFString, axRange)
+    }
+
+    /// For a clipboard written by smart cut/copy (plain text + smart-paste marker), the padded text
+    /// to paste at the focused caret, or nil when no padding is needed or AX can't tell.
+    private func smartPastePadding() -> (padded: String, original: String)? {
+        let smartType = NSPasteboard.PasteboardType(SmartCopyPaste.pasteboardTypeName)
+        guard let types = pasteboard.types, types.contains(smartType),
+              let text = pasteboard.string(forType: .string),
+              let state = Self.focusedTextState(),
+              let padded = SmartCopyPaste.smartInsertText(text, into: state.value, selection: state.selection),
+              padded != text else { return nil }
+        return (padded, text)
+    }
+
+    private func writeSmartClipboard(_ text: String, marker: Bool) {
+        // declareTypes (not NSPasteboardItem) so the empty marker survives, as AppKit/WebKit write it.
+        let smartType = NSPasteboard.PasteboardType(SmartCopyPaste.pasteboardTypeName)
+        pasteboard.declareTypes(marker ? [.string, smartType] : [.string], owner: nil)
+        pasteboard.setString(text, forType: .string)
+        if marker { pasteboard.setData(Data(), forType: smartType) }
+    }
+
     private func postKey(keyCode: CGKeyCode, flags: CGEventFlags) {
         keyboardPoster.postKey(keyCode: keyCode, flags: flags)
     }
@@ -596,8 +654,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         ))
     }
 
-    /// QWERTY ANSI virtual key codes; other layouts may remap letters and digits.
-    private static func keyCode(for keyName: String) -> CGKeyCode? {
+    /// QWERTY ANSI virtual key codes; other layouts may remap letters, digits and punctuation.
+    static func keyCode(for keyName: String) -> CGKeyCode? {
         let lower = keyName.lowercased()
         let named: [String: CGKeyCode] = [
             "return": 0x24, "enter": 0x24,
@@ -608,7 +666,8 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
             "forwarddelete": 0x75,
             "up": 0x7E, "down": 0x7D, "left": 0x7B, "right": 0x7C,
             "home": 0x73, "end": 0x77,
-            "pageup": 0x74, "pagedown": 0x79
+            "pageup": 0x74, "pagedown": 0x79,
+            "minus": 0x1B, "equal": 0x18
         ]
         if let code = named[lower] { return code }
 
@@ -625,6 +684,11 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
                 let digits: [CGKeyCode] = [0x1D, 0x12, 0x13, 0x14, 0x15, 0x17, 0x16, 0x1A, 0x1C, 0x19]
                 return digits[value - 0x30]
             }
+            let punctuation: [Character: CGKeyCode] = [ // kVK_ANSI_* punctuation
+                "-": 0x1B, "=": 0x18, "[": 0x21, "]": 0x1E, ";": 0x29, "'": 0x27,
+                ",": 0x2B, ".": 0x2F, "/": 0x2C, "\\": 0x2A, "`": 0x32
+            ]
+            if let code = punctuation[Character(lower)] { return code }
         }
         return nil
     }

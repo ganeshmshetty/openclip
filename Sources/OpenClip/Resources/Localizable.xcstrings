@@ -421,6 +421,34 @@
         }
       }
     },
+    "A star on GitHub helps more people find it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上加星能让更多人发现它。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上加星能讓更多人發現它。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une étoile sur GitHub aide plus de personnes à le trouver."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubでのスターがより多くの人に見つけてもらう助けになります。"
+          }
+        }
+      }
+    },
     "AI": {
       "localizations": {
         "zh-Hans": {
@@ -2521,6 +2549,34 @@
         }
       }
     },
+    "As contextual action": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作为上下文操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作為情境操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comme action contextuelle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンテキストアクションとして"
+          }
+        }
+      }
+    },
     "Ask AI: “%@”": {
       "localizations": {
         "zh-Hans": {
@@ -2573,6 +2629,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "質問する"
+          }
+        }
+      }
+    },
+    "Auth check failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身份验证检查未通过"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "驗證檢查未通過"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la vérification de l’authentification"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "認証チェックに失敗しました"
           }
         }
       }
@@ -3641,6 +3725,34 @@
         }
       }
     },
+    "Cerebras": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerebras"
+          }
+        }
+      }
+    },
     "ChatGPT (OpenAI)": {
       "localizations": {
         "zh-Hans": {
@@ -3861,6 +3973,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アップデートを確認中…"
+          }
+        }
+      }
+    },
+    "Checking…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在檢查…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認中…"
           }
         }
       }
@@ -4565,6 +4705,34 @@
         }
       }
     },
+    "Color": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "颜色"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顏色"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couleur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラー"
+          }
+        }
+      }
+    },
     "Color Mode": {
       "localizations": {
         "zh-Hans": {
@@ -4617,6 +4785,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "コマンドパレット"
+          }
+        }
+      }
+    },
+    "Command “%@” not found": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到命令“%@”"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到指令「%@」"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commande « %@ » introuvable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コマンド「%@」が見つかりません"
           }
         }
       }
@@ -5825,30 +6021,30 @@
         }
       }
     },
-    "Custom OpenAI-Compatible Endpoint": {
+    "Custom Endpoint": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "自定义 OpenAI 兼容接口"
+            "value": "自定义端点"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "自訂 OpenAI 相容端點"
+            "value": "自訂端點"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Point de terminaison personnalisé compatible OpenAI"
+            "value": "Point de terminaison personnalisé"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "カスタムOpenAI互換エンドポイント"
+            "value": "カスタムエンドポイント"
           }
         }
       }
@@ -8905,6 +9101,34 @@
         }
       }
     },
+    "Finding OpenClip useful?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 好用吗？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 好用嗎？"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip vous est utile ?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip はお役に立っていますか？"
+          }
+        }
+      }
+    },
     "Finish setting up OpenClip": {
       "localizations": {
         "zh-Hans": {
@@ -8957,6 +9181,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "画面キャプチャを終了してからコピーしてください。"
+          }
+        }
+      }
+    },
+    "Fireworks": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fireworks"
           }
         }
       }
@@ -9801,6 +10053,34 @@
         }
       }
     },
+    "Hide suggestions when the word is spelled correctly in any enabled keyboard input language.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果该单词在任一已启用的键盘输入语言中拼写正确，则不显示建议。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果該單字在任一已啟用的鍵盤輸入語言中拼寫正確，則不顯示建議。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masque les suggestions lorsque le mot est correctement orthographié dans l’une des langues de clavier activées."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効なキーボード入力言語のいずれかで単語が正しく綴られている場合、候補を表示しません。"
+          }
+        }
+      }
+    },
     "Highlight any part of the text below to see the real action bar appear.": {
       "localizations": {
         "zh-Hans": {
@@ -10109,6 +10389,90 @@
         }
       }
     },
+    "Information": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "信息"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "資訊"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informations"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "情報"
+          }
+        }
+      }
+    },
+    "Inline": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内联"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內嵌"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans la barre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インライン"
+          }
+        }
+      }
+    },
+    "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内联会在操作栏中显示建议。上下文操作会显示“单词补全”组，可悬停查看或搜索。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。"
+          }
+        }
+      }
+    },
     "Install": {
       "localizations": {
         "zh-Hans": {
@@ -10273,6 +10637,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ファイルをインストール…"
+          }
+        }
+      }
+    },
+    "Install failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安裝失敗"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de l’installation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストールに失敗しました"
           }
         }
       }
@@ -10525,6 +10917,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "問題の報告"
+          }
+        }
+      }
+    },
+    "It's free and open source. A star on GitHub helps more people find it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "它免费且开源。在 GitHub 上点一颗星，能让更多人发现它。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "它免費且開源。在 GitHub 上打一顆星，能讓更多人發現它。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C’est gratuit et open source. Une étoile sur GitHub aide plus de gens à le découvrir."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無料のオープンソースです。GitHub でスターを付けると、より多くの人に見つけてもらえます。"
           }
         }
       }
@@ -11337,6 +11757,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "しまう"
+          }
+        }
+      }
+    },
+    "Mistral": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral"
           }
         }
       }
@@ -12433,6 +12881,34 @@
         }
       }
     },
+    "No matching models": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有相符的模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun modèle correspondant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致するモデルがありません"
+          }
+        }
+      }
+    },
     "No response generated": {
       "localizations": {
         "zh-Hans": {
@@ -12597,6 +13073,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "なし（常に表示）"
+          }
+        }
+      }
+    },
+    "Not Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不用了"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不用了"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non merci"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結構です"
+          }
+        }
+      }
+    },
+    "Not installed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未安装"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未安裝"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non installé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未インストール"
           }
         }
       }
@@ -12989,6 +13521,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shift (⇧) キーを押しながらテキストを選択したときのみポップアップを表示します。"
+          }
+        }
+      }
+    },
+    "Only suggest for misspelled words": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅为拼错的单词提供建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅為拼錯的單字提供建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggérer seulement les mots mal orthographiés"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "誤字のときだけ提案する"
           }
         }
       }
@@ -13749,6 +14309,34 @@
         }
       }
     },
+    "OpenClip is free and open source.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 免费且开源。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 免費且開源。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip est gratuit et open source."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipは無料のオープンソースです。"
+          }
+        }
+      }
+    },
     "OpenClip is paused": {
       "localizations": {
         "zh-Hans": {
@@ -13861,6 +14449,62 @@
         }
       }
     },
+    "OpenCode": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        }
+      }
+    },
+    "OpenCode Go": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode Go"
+          }
+        }
+      }
+    },
     "OpenRouter": {
       "localizations": {
         "zh-Hans": {
@@ -13913,6 +14557,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@を開いています…"
+          }
+        }
+      }
+    },
+    "Opens the OpenClip repository on GitHub": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上打开 OpenClip 仓库"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上開啟 OpenClip 儲存庫"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre le dépôt OpenClip sur GitHub"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubでOpenClipのリポジトリを開きます"
+          }
+        }
+      }
+    },
+    "Opens the OpenClip support page": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 OpenClip 支持页面"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟 OpenClip 支援頁面"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre la page de soutien d’OpenClip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipのサポートページを開きます"
           }
         }
       }
@@ -14897,34 +15597,6 @@
         }
       }
     },
-    "Press Tab to switch between selection and clipboard": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "按 Tab 键在选中文本和剪贴板之间切换"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "按 Tab 鍵在選取文字和剪貼簿之間切換"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Appuyez sur Tab pour basculer entre la sélection et le presse-papiers"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tab キーで選択範囲とクリップボードを切り替え"
-          }
-        }
-      }
-    },
     "Press and hold without moving the mouse to summon the popup.": {
       "localizations": {
         "zh-Hans": {
@@ -15453,6 +16125,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "選択したテキストを読み取る"
+          }
+        }
+      }
+    },
+    "Ready": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "就绪"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "就緒"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prêt"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備完了"
           }
         }
       }
@@ -17837,6 +18537,34 @@
         }
       }
     },
+    "Search models": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher des modèles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを検索"
+          }
+        }
+      }
+    },
     "Search settings": {
       "localizations": {
         "zh-Hans": {
@@ -18197,6 +18925,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "より広い範囲を選択してください"
+          }
+        }
+      }
+    },
+    "Select a model": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇模型"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionner un modèle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを選択"
           }
         }
       }
@@ -19657,6 +20413,62 @@
         }
       }
     },
+    "Sign In": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登入"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se connecter"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインイン"
+          }
+        }
+      }
+    },
+    "Sign in needed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要登录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要登入"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion requise"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインが必要"
+          }
+        }
+      }
+    },
     "Simplified Chinese (简体中文)": {
       "localizations": {
         "zh-Hans": {
@@ -19881,6 +20693,62 @@
         }
       }
     },
+    "Star on GitHub": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上加星"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上加星"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter une étoile sur GitHub"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubでスターを付ける"
+          }
+        }
+      }
+    },
+    "Star the repo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "给项目标星"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為專案標星"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre une étoile au dépôt"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリにスターを付ける"
+          }
+        }
+      }
+    },
     "Start at Login": {
       "localizations": {
         "zh-Hans": {
@@ -19965,6 +20833,34 @@
         }
       }
     },
+    "Suggestions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggestions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補"
+          }
+        }
+      }
+    },
     "Summarize": {
       "localizations": {
         "zh-Hans": {
@@ -20045,6 +20941,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "サポート"
+          }
+        }
+      }
+    },
+    "Support OpenClip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 OpenClip"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持 OpenClip"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soutenir OpenClip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipを支援"
           }
         }
       }
@@ -20185,34 +21109,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "システムプロンプト"
-          }
-        }
-      }
-    },
-    "Tab to switch text source": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "按 Tab 键切换文本来源"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "按 Tab 鍵切換文字來源"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tab pour changer la source du texte"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tab キーでテキストソースを切り替え"
           }
         }
       }
@@ -20437,6 +21333,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "クラウドAIを使わない限り、テキストはMacから出ません。"
+          }
+        }
+      }
+    },
+    "Thank you for using OpenClip!": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "感谢使用 OpenClip！"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "感謝使用 OpenClip！"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merci d’utiliser OpenClip !"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipをご利用いただきありがとうございます！"
           }
         }
       }
@@ -21137,6 +22061,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "タイトル"
+          }
+        }
+      }
+    },
+    "Together AI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Together AI"
           }
         }
       }
@@ -23353,6 +24305,34 @@
         }
       }
     },
+    "You can support development with a tip.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你也可以通过打赏支持开发。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你也可以透過打賞支持開發。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous pouvez soutenir le développement avec un don."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チップで開発を支援することもできます。"
+          }
+        }
+      }
+    },
     "Zoom": {
       "localizations": {
         "zh-Hans": {
@@ -23657,6 +24637,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "snake_case を camelCase に変換"
+          }
+        }
+      }
+    },
+    "xAI": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI"
           }
         }
       }

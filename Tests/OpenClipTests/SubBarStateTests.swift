@@ -13,15 +13,6 @@ private struct DummySubAction: Action, Sendable {
     @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .none }
 }
 
-private struct DummyPasteAction: Action, PasteRequiringAction, Sendable {
-    let id: String
-    let title: String
-    var icon: ActionIcon { .symbol("doc.on.clipboard") }
-    var chrome: ActionChrome { ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin) }
-    @MainActor func isEnabled(for context: ActionContext) -> Bool { true }
-    @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .none }
-}
-
 final class SubBarStateTests: XCTestCase {
 
     @MainActor
@@ -103,53 +94,6 @@ final class SubBarStateTests: XCTestCase {
         XCTAssertFalse(store.isSubBarActive)
         store.isSubBarActive = true
         XCTAssertTrue(store.isSubBarActive)
-    }
-
-    @MainActor
-    func testSubBarExcludesPasteRequiringActionsWhenPasteUnavailable() {
-        let group = GroupAction(
-            id: "group.edit",
-            title: "Edit",
-            icon: .symbol("pencil"),
-            chrome: ActionChrome(popupBehavior: .showSubActions)
-        )
-        let copySub = DummySubAction(id: "group.edit.copy", title: "Copy")
-        let pasteSub = DummyPasteAction(id: "group.edit.paste", title: "Paste")
-        let allGroupActions: [any Action] = [group, copySub, pasteSub]
-
-        let availableActions: [any Action] = allGroupActions
-        let pasteAvailable = false
-        let subActions = pasteAvailable == false
-            ? availableActions.filter { !($0 is any PasteRequiringAction) }
-            : availableActions
-
-        let resolver = SubActionResolver()
-        let children = resolver.subActions(of: group, in: subActions)
-        XCTAssertEqual(children.map(\.id), ["group.edit.copy"])
-        XCTAssertFalse(children.contains(where: { $0 is any PasteRequiringAction }))
-    }
-
-    @MainActor
-    func testSubBarIncludesPasteRequiringActionsWhenPasteAvailable() {
-        let group = GroupAction(
-            id: "group.edit",
-            title: "Edit",
-            icon: .symbol("pencil"),
-            chrome: ActionChrome(popupBehavior: .showSubActions)
-        )
-        let copySub = DummySubAction(id: "group.edit.copy", title: "Copy")
-        let pasteSub = DummyPasteAction(id: "group.edit.paste", title: "Paste")
-        let allGroupActions: [any Action] = [group, copySub, pasteSub]
-
-        let availableActions: [any Action] = allGroupActions
-        let pasteAvailable: Bool? = true
-        let subActions = pasteAvailable == false
-            ? availableActions.filter { !($0 is any PasteRequiringAction) }
-            : availableActions
-
-        let resolver = SubActionResolver()
-        let children = resolver.subActions(of: group, in: subActions)
-        XCTAssertEqual(children.map(\.id), ["group.edit.copy", "group.edit.paste"])
     }
 
     @MainActor

@@ -33,6 +33,9 @@ flowchart TD
 | `OPENCLIP_CAPTURE_N` | Regex capture group `N` (1-based), one per group. |
 | `OPENCLIP_BUNDLE_ID` | Bundle identifier of the frontmost/source app. |
 | `OPENCLIP_ACTION_ID` | The action's identifier. |
+| `OPENCLIP_LOCALE` | macOS locale identifier (for example `en_US`, `zh_CN`). |
+| `OPENCLIP_LANGUAGE` | macOS UI language code (for example `en`, `zh-Hans`). This is not the language of the selection. |
+| `OPENCLIP_TEXT_LANGUAGE` | Language of the selected text (for example `en`, `sv`, `zh-Hans`). Absent when OpenClip cannot tell. A sentence is recognized by the system language identifier; a word or two is set only when one of the languages of the enabled keyboard input sources accepts it. |
 | `OPENCLIP_OPTION_<IDENTIFIER>` | Resolved configuration option value; uppercase the identifier and replace hyphens with underscores. |
 
 The selected text is also written to the subprocess's `stdin`. File-backed shell/script actions

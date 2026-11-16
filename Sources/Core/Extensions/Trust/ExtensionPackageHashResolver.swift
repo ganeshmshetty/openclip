@@ -147,6 +147,9 @@ public enum ExtensionPackageHashResolver {
         func visit(_ actions: [ExtensionActionMetadata]) {
             for action in actions {
                 if let script = action.script, !script.isEmpty { names.append(script) }
+                if let predicate = action.requirements?.predicate, !predicate.isEmpty {
+                    names.append(predicate)
+                }
                 visit(action.subActions ?? [])
             }
         }

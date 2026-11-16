@@ -10,6 +10,7 @@ Sources/
 │   ├── Log.swift                             # Single logging surface: Log enum, LogChannel, LogSink protocol, LogLevel, LogMessage (see docs/logging.md)
 │   ├── Actions/
 │   │   ├── Action.swift                      # Action protocol
+│   │   ├── ActionCapabilities.swift          # Target capability facts and the single eligibility/degradation policy
 │   │   ├── ActionChrome.swift                # UI metadata policy enum
 │   │   ├── ActionContext.swift               # Action resolution context
 │   │   ├── ActionCoordinator.swift           # Action execution coordinator & composition root (wires managers to registry)
@@ -22,7 +23,11 @@ Sources/
 │   │   ├── ActionResult.swift                # Action result value types
 │   │   ├── ActionResultDelivery.swift        # Select → Probe → Toast: paste-vs-copy delivery decision (resolves (result, toast))
 │   │   ├── ActionSearch.swift                # Popup mode enum + pure substring matcher for the action-search palette
-│   │   ├── ActionVisibility.swift            # Pure visibility & requirement evaluation logic
+│   │   ├── ActionVisibility.swift            # Pure visibility & requirement evaluation logic (cached regexes)
+│   │   ├── ContextualPolicy.swift             # Uniform contextual-promotion resolution (explicit > narrowing > standard)
+│   │   ├── VisibilityMemo.swift               # Presentation-scoped cache shared by bar, palette, and prewarm
+│   │   ├── VisibilityPredicate.swift          # Predicate decorator + host evaluator seam
+│   │   ├── InlineResultValue.swift           # Typed inline values (text/sRGB color), validation bounds, delivery capability
 │   │   ├── Builtin/                          # Core builtin actions (Copy, Cut, Paste, Calculate, Calendar, Define, Search)
 │   │   │   ├── CalculateAction.swift
 │   │   │   ├── CalendarAction.swift
@@ -45,7 +50,6 @@ Sources/
 │   │   ├── MathEvaluator.swift               # Deterministic exception-free arithmetic parser (replaces NSExpression; used by CalculateAction)
 │   │   ├── MenuDecoratedAction.swift         # Sub-menu relevance decorator
 │   │   ├── ModifierFlags.swift               # Keyboard modifier flags
-│   │   ├── PasteRequiringAction.swift        # Protocol for actions requiring paste capability (Paste, Cut)
 │   │   ├── RelevanceProviding.swift          # Sub-menu relevance protocol
 │   │   ├── RichPasteboardPayload.swift       # Multi-format pasteboard payload (text, HTML, RTF)
 │   │   ├── StatusFeedback.swift              # Toast notification model
@@ -88,7 +92,7 @@ Sources/
 │   │   ├── SelectionGatePolicy.swift         # Pre-retrieval role & cursor gate policy
 │   │   └── SelectionRetrievalMode.swift      # Selection retrieval strategy selector
 │   ├── Selection/                            # Text selection & monitoring models
-│   │   ├── AppFilter.swift                   # App bundle filtering helpers
+│   │   ├── AppFilter.swift                   # Never-target identities (self, system chrome, input methods, conflicting clipboard managers)
 │   │   ├── AppIdentifying.swift              # Application identity protocol
 │   │   ├── BrowserDetector.swift             # Browser bundle ID classifier
 │   │   ├── Constants.swift                   # Domain/runtime constants (timeouts, key codes, env vars, manifest keys), no UI sizing
@@ -117,8 +121,9 @@ Sources/
     │   ├── AIConversation.swift              # A card session (selection + instructions + results) rendered as labelled context for follow-ups
     │   └── Providers/                        # Apple Intelligence, Local LLMs, CLI Subscriptions, Cloud API
     │       ├── AppleIntelligenceProvider.swift # On-device Apple Intelligence runner
-    │       ├── CLIProvider.swift             # Subprocess CLI runner (Claude Code, Codex CLI, GitHub Copilot)
-    │       ├── CloudAPIProvider.swift        # OpenAI-compatible / Anthropic / Gemini / DeepSeek / Groq cloud chat
+    │       ├── CLIToolCatalog.swift           # One entry per CLI: binaries, args, version, auth, models
+    │       ├── CLIProvider.swift             # Subprocess runner; resolves binaries with the login-shell PATH (Claude, Codex, Copilot, Antigravity, Cursor, OpenCode)
+    │       ├── CloudAPIProvider.swift        # OpenAI-compatible presets (DeepSeek, Groq, OpenRouter, OpenCode, OpenCode Go, Mistral, xAI, Cerebras, Together, Fireworks), Anthropic, and Gemini
     │       ├── CloudAPIProviderDTOs.swift    # Codable chat request/response payloads for cloud APIs
     │       └── LocalLLMProvider.swift        # Universal local LLM runner (LM Studio, Ollama, Jan, llama.cpp, oMLX)
     ├── Notifications/
@@ -150,7 +155,9 @@ Sources/
     │   │   ├── ExtensionUpdateManager.swift  # Extension store update checker
     │   │   ├── OpenClipSnippetParser+DefaultFactory.swift # Snippet parser factory integration
     │   │   ├── RemoteExtensionInstaller.swift # Zip download and extraction installer
-    │   │   └── SecretActionOptionStore.swift # Composite option store; .secret options → SecretStore (~/.openclip/secrets.json)
+    │   │   ├── SecretActionOptionStore.swift # Composite option store; .secret options → SecretStore (~/.openclip/secrets.json)
+    │   │   ├── VisibilityPredicateRuntime.swift # Persistent JS predicate environments; read-only input, package-confined require, 5 ms budget
+    │   ├── EditabilityProbe.swift            # Focused-element editability read for sessions with no selected range
     │   ├── HotkeyManager.swift               # Global shortcut manager (⌥⌘C toggles popup actions → search → dismiss when visible)
     │   ├── InstalledAppsScanner.swift        # Running and installed app scanner
     │   ├── LaunchAtLoginManager.swift        # Login item manager (SMAppService; persisted state via SettingKey.startAtLogin)
@@ -160,6 +167,10 @@ Sources/
     │   ├── PasteboardCopyEngine.swift        # Transient pasteboard archive-and-restore copy engine
     │   ├── PasteboardSnapshot.swift          # Pasteboard item state capture
     │   ├── PermissionManager.swift           # Accessibility permission manager
+    │   ├── Inline/                           # Typed inline result evaluation and explicit invocation
+    │   │   ├── InlineColorExport.swift       # Color card Save: canonical hex as a temporary .txt file
+    │   │   ├── InlineResultActivation.swift  # Shared invocation seam: no unrestricted fallback, display-only guard
+    │   │   └── InlineResultEvaluator.swift   # Restricted JS preview, typed outcomes, bounded session cache
     │   ├── Runtimes/                         # Runtime action executors requiring AppKit / JavaScriptCore
     │   │   ├── AppleScriptAction.swift       # AppleScript action runtime
     │   │   ├── JavaScriptAction.swift        # Manifests JS actions; short-circuits to .openConfiguration when required option unresolved, else delegates to OpenClipJSHost
@@ -168,6 +179,7 @@ Sources/
     │   │   ├── NamedServiceAction.swift      # type: "service" runtime → .showServices(text)
     │   │   ├── OpenClipJSHost.swift          # JS bridge (openclip.*) + effect resolver + .openConfiguration short-circuit support
     │   │   ├── OpenClipJSHostSupport.swift   # Threading/support boxes for the JS host (TimeoutFlag, gate, JS context/value/runloop boxes, promise state)
+    │   │   ├── OpenClipCommonJS.swift        # Shared CommonJS prelude for action scripts and visibility predicates
     │   │   ├── OpenClipModuleLoader.swift    # CommonJS require() module loader and containment validator
     │   │   └── ShortcutAction.swift          # type: "shortcut" runtime → .runShortcut(name:input:)
     │   ├── SecretStore.swift                 # File-backed secrets storage (~/.openclip/secrets.json, POSIX 0600)
@@ -197,6 +209,7 @@ Sources/
         │   └── PermissionRecoveryWindowController.swift # Permission recovery window controller
         ├── Popup/                            # Floating popup panel
         │   ├── GroupSubActionBarView.swift   # Sub-bar action items view
+        │   ├── InlineResultPresentation.swift # Shared typed inline renderer/swatch + width metrics (bar, sub-bar, search)
         │   ├── PopupGesturePolicy.swift      # Derived popup interaction policy from chrome + conformance (App target, UI-only)
         │   ├── PopupHoverSupport.swift       # Shared popup hover-state singleton + hover-target/frame preference keys (bar)
         │   ├── PopupMetrics.swift            # UI-only popup/search/AI-card sizing + placement/dismissal constants (App target, not Core)

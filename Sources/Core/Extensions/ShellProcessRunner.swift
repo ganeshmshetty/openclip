@@ -186,6 +186,7 @@ struct ScriptJSONOutput: Decodable {
     let filename: String?
     let mimeType: String?
     let action: String?
+    let presentation: String?
 }
 
 /// Returns nil when stdout is not JSON; an unknown `type` maps to `.success`.
@@ -349,6 +350,10 @@ public enum ShellResultMapper {
 
     private static func map(_ output: ScriptJSONOutput, actionID: String) -> ActionResult {
         switch output.type {
+        case "text":
+            guard let value = output.value else { return .success }
+            guard let rawPresentation = output.presentation else { return .text(value) }
+            return .presentedText(value, ResultPresentation(rawValue: rawPresentation) ?? .plain)
         case Constants.actionTypePaste:
             guard let value = output.value else { return .success }
             return .paste(value)

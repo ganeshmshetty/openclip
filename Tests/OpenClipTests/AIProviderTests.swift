@@ -128,11 +128,14 @@ final class AIProviderTests: XCTestCase {
 
     func testCLIPresetLoginCommandsAndModels() {
         XCTAssertEqual(CLIPreset.claude.loginCommand, "claude auth login")
-        XCTAssertEqual(CLIPreset.codex.loginCommand, "codex")
-        XCTAssertEqual(CLIPreset.copilot.loginCommand, "gh auth login")
+        XCTAssertEqual(CLIPreset.codex.loginCommand, "codex login")
+        XCTAssertEqual(CLIPreset.copilot.loginCommand, "copilot login")
+        XCTAssertEqual(CLIPreset.copilot.binaryName, "copilot")
         XCTAssertFalse(CLIPreset.claude.authHelpText.isEmpty)
         XCTAssertTrue(CLIPreset.claude.defaultModels.contains("sonnet"))
-        XCTAssertTrue(CLIPreset.codex.defaultModels.contains("o3-mini"))
+        XCTAssertFalse(CLIPreset.claude.defaultModels.contains("claude-3-7-sonnet-latest"))
+        XCTAssertFalse(CLIPreset.copilot.defaultModels.contains("gpt-4o"))
+        XCTAssertEqual(CLITool.tool(for: .codex)?.documentedAliases, [])
     }
 
     func testCLIPresetsDisableThinkingWhereSupported() {

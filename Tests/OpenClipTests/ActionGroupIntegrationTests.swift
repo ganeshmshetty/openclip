@@ -1064,7 +1064,7 @@ final class ActionsOutlineDropTests: XCTestCase {
         XCTAssertFalse(pkgBinding.wrappedValue)
     }
 
-    func testActionEnablementToggleChildOfExtensionGroupEnablesParentGroup() {
+    func testActionEnablementCannotEnableChildOfDisabledExtensionGroup() {
         let group1 = DummyAction(
             id: "com.pkg.leafy.g1",
             title: "Group 1",
@@ -1097,12 +1097,155 @@ final class ActionsOutlineDropTests: XCTestCase {
         XCTAssertFalse(childBinding.wrappedValue)
         childBinding.wrappedValue = true
 
-        // Child's specific parent group (g2) must be un-disabled
-        XCTAssertFalse(disabledActionIDs.contains("com.pkg.leafy.g2"))
-        XCTAssertFalse(disabledActionIDs.contains("com.pkg.leafy.g2.child"))
-        // Other group (g1) remains disabled
-        XCTAssertTrue(disabledActionIDs.contains("com.pkg.leafy.g1"))
+        XCTAssertEqual(disabledActionIDs, ["com.pkg.leafy.g1", "com.pkg.leafy.g2", "com.pkg.leafy.g2.child"])
+        XCTAssertFalse(childBinding.wrappedValue)
+    }
+
+    func testDisabledCustomGroupMakesChildrenOffWithoutChangingTheirPreferences() {
+        coordinator.createGroup(title: "Tools", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
+        let groupID = coordinator.actionGroupDefs[0].id
+        var disabledIDs: Set<String> = [groupID, "action.2"]
+        let disabledBinding = Binding(get: { disabledIDs }, set: { disabledIDs = $0 })
+        let child = ActionEnablement.binding(
+            for: action("action.1"), disabledActionIDs: disabledBinding,
+            disabledPackages: .constant([]), coordinator: coordinator
+        )
+        let optedOutChild = ActionEnablement.binding(
+            for: action("action.2"), disabledActionIDs: disabledBinding,
+            disabledPackages: .constant([]), coordinator: coordinator
+        )
+        let group = ActionEnablement.binding(
+            for: action(groupID), disabledActionIDs: disabledBinding,
+            disabledPackages: .constant([]), coordinator: coordinator
+        )
+
+        XCTAssertFalse(child.wrappedValue)
+        child.wrappedValue = true
+        optedOutChild.wrappedValue = false
+        XCTAssertEqual(disabledIDs, [groupID, "action.2"])
+
+        group.wrappedValue = true
+        XCTAssertTrue(child.wrappedValue)
+        XCTAssertFalse(optedOutChild.wrappedValue)
+        XCTAssertEqual(disabledIDs, ["action.2"])
+    }
+
+    func testExtensionGroupRoundTripPreservesIndividualChildChoices() {
+        let package = "com.pkg.leafy"
+        let group = DummyAction(
+            id: package + ".group", title: "Tools",
+            chrome: ActionChrome(popupBehavior: .showSubActions, source: .extensionPkg(packageID: package))
+        )
+        let child = DummyAction(id: group.id + ".enabled", title: "Enabled")
+        let optedOut = DummyAction(id: group.id + ".disabled", title: "Disabled")
+        coordinator.register(action: group)
+        coordinator.register(action: child)
+        coordinator.register(action: optedOut)
+        var disabledIDs: Set<String> = [group.id, optedOut.id]
+        let disabledBinding = Binding(get: { disabledIDs }, set: { disabledIDs = $0 })
+        let parent = ActionEnablement.binding(
+            for: group, disabledActionIDs: disabledBinding,
+            disabledPackages: .constant([]), coordinator: coordinator
+        )
+        let childBinding = ActionEnablement.binding(
+            for: child, disabledActionIDs: disabledBinding,
+            disabledPackages: .constant([]), coordinator: coordinator
+        )
+
+        XCTAssertFalse(childBinding.wrappedValue)
+        childBinding.wrappedValue = true
+        XCTAssertEqual(disabledIDs, [group.id, optedOut.id])
+        parent.wrappedValue = true
         XCTAssertTrue(childBinding.wrappedValue)
+        XCTAssertEqual(disabledIDs, [optedOut.id])
+        parent.wrappedValue = false
+        XCTAssertFalse(childBinding.wrappedValue)
+        parent.wrappedValue = true
+        XCTAssertEqual(disabledIDs, [optedOut.id])
+    }
+
+    func testDisabledGroupPackageBlocksChildButLeavesParentSwitchAvailable() {
+        let group = DummyAction(
+            id: "com.pkg.leafy.group", title: "Tools",
+            chrome: ActionChrome(popupBehavior: .showSubActions, source: .extensionPkg(packageID: "com.pkg.leafy"))
+        )
+        let child = DummyAction(id: group.id + ".child", title: "Child")
+        coordinator.register(action: group)
+        coordinator.register(action: child)
+        var disabledPackages: Set<String> = ["com.pkg.leafy"]
+        var disabledIDs: Set<String> = []
+        let packageBinding = Binding(get: { disabledPackages }, set: { disabledPackages = $0 })
+        let disabledBinding = Binding(get: { disabledIDs }, set: { disabledIDs = $0 })
+        let childBinding = ActionEnablement.binding(
+            for: child, disabledActionIDs: disabledBinding,
+            disabledPackages: packageBinding, coordinator: coordinator
+        )
+        let parentBinding = ActionEnablement.binding(
+            for: group, disabledActionIDs: disabledBinding,
+            disabledPackages: packageBinding, coordinator: coordinator
+        )
+
+        childBinding.wrappedValue = true
+        XCTAssertEqual(disabledPackages, ["com.pkg.leafy"])
+        XCTAssertFalse(childBinding.wrappedValue)
+        parentBinding.wrappedValue = true
+        XCTAssertTrue(disabledPackages.isEmpty)
+        XCTAssertTrue(childBinding.wrappedValue)
+    }
+
+    func testChildOutlineSignatureChangesWhenParentGroupIsDisabled() {
+        let child = action("action.1")
+        let customization = ActionCustomizationManager(settingsStore: settingsStore)
+        for kind in [
+            OutlineNode.Kind.groupMember(action: child, parentGroupID: "group.tools"),
+            OutlineNode.Kind.extensionSubAction(action: child, parentGroupID: "group.tools")
+        ] {
+            let enabled = OutlineNode(id: child.id, kind: kind, customization: customization)
+            let disabled = OutlineNode(
+                id: child.id, kind: kind, customization: customization,
+                disabledActionIDs: ["group.tools"]
+            )
+            XCTAssertNotEqual(enabled.signature, disabled.signature)
+        }
+    }
+
+    func testChildSwitchReflectsParentStateAcrossSettingsRows() throws {
+        coordinator.createGroup(title: "Tools", iconName: "folder", memberActionIDs: ["action.1", "action.2"])
+        let groupID = coordinator.actionGroupDefs[0].id
+        let child = action("action.1")
+        let customization = ActionCustomizationManager(settingsStore: settingsStore)
+        func findSwitch(in view: NSView) -> NSSwitch? {
+            if let control = view as? NSSwitch { return control }
+            return view.subviews.lazy.compactMap { findSwitch(in: $0) }.first
+        }
+
+        let states: [(disabledIDs: Set<String>, isOn: Bool, canToggle: Bool)] = [
+            ([groupID], false, false), ([], true, true), ([child.id], false, true)
+        ]
+        for state in states {
+            let views = [
+                AnyView(ActionRowView(
+                    action: child,
+                    presentationModel: customization.presented(child, surface: .table),
+                    disabledActionIDs: .constant(state.disabledIDs),
+                    disabledPackages: .constant([]), coordinator: coordinator
+                )),
+                AnyView(ActionSettingsRow(
+                    action: child, disabledActionIDs: .constant(state.disabledIDs),
+                    disabledPackages: .constant([]), coordinator: coordinator
+                ))
+            ]
+            for view in views {
+                for scheme in [ColorScheme.light, .dark] {
+                    let host = NSHostingView(rootView: view.environment(\.colorScheme, scheme).frame(width: 600, height: 40))
+                    host.frame = NSRect(x: 0, y: 0, width: 600, height: 40)
+                    host.layoutSubtreeIfNeeded()
+                    let control = try XCTUnwrap(findSwitch(in: host))
+                    XCTAssertEqual(control.state, state.isOn ? .on : .off)
+                    XCTAssertEqual(control.isEnabled, state.canToggle)
+                }
+            }
+        }
     }
 
     func testActionEnablementToggleGroupContainerKeepsChildCommandsEnabled() {

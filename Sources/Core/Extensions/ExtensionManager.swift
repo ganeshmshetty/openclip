@@ -32,6 +32,8 @@ public final class ExtensionManager: Sendable {
     
     /// Trust events for the app target to surface as user notifications.
     public var onTrustChange: ((ExtensionTrustChange) -> Void)?
+    /// Called after a reload swaps the registered action set; the app target clears compiled predicates here.
+    public var onReloaded: (@MainActor () -> Void)?
     
     private init() {}
 
@@ -45,6 +47,7 @@ public final class ExtensionManager: Sendable {
         optionReader = nil
         settingsStore = nil
         onTrustChange = nil
+        onReloaded = nil
     }
     
     public func loadExtensions(from url: URL = Constants.extensionsDirectory) async {
@@ -87,6 +90,7 @@ public final class ExtensionManager: Sendable {
             onUnregister?(oldAction.id)
         }
         self.loadedActions = finalActions
+        onReloaded?()
     }
     
     /// Installs a package (.openclipext folder, .zip, or script file) into ~/.openclip/extensions.
@@ -288,21 +292,9 @@ public final class ExtensionManager: Sendable {
                         if matchesIdentifier || matchesAction {
                             matched = true
                             removedPackageID = meta.identifier
-                            if let optionWriter {
-                                for (index, actionMeta) in meta.actions.enumerated() {
-                                    let id = ExtensionManager.uniformActionID(metadata: actionMeta, manifest: meta, index: index)
-                                    let options = (meta.options ?? []) + (actionMeta.options ?? [])
-                                    for optMeta in options {
-                                        let opt = ExtensionOption(
-                                            identifier: optMeta.identifier,
-                                            label: optMeta.label,
-                                            type: ExtensionOptionType(rawValue: optMeta.type) ?? .string,
-                                            defaultValue: optMeta.defaultValue,
-                                            options: optMeta.values
-                                        )
-                                        optionWriter.clearValue(actionID: id, option: opt)
-                                    }
-                                }
+                            for (index, actionMeta) in meta.actions.enumerated() {
+                                let id = ExtensionManager.uniformActionID(metadata: actionMeta, manifest: meta, index: index)
+                                clearOptions(for: actionMeta, manifest: meta, actionID: id)
                             }
                         }
                         break
@@ -355,6 +347,24 @@ public final class ExtensionManager: Sendable {
             loadedActions.removeAll(where: { $0.id == actionID })
         }
         await loadExtensions(from: targetDir)
+    }
+
+    private func clearOptions(for metadata: ExtensionActionMetadata, manifest: ExtensionMetadata, actionID: String) {
+        guard let optionWriter else { return }
+        for option in (manifest.options ?? []) + (metadata.options ?? []) {
+            optionWriter.clearValue(actionID: actionID, option: ExtensionOption(
+                identifier: option.identifier,
+                label: option.label,
+                type: ExtensionOptionType(rawValue: option.type.lowercased()) ?? .string,
+                defaultValue: option.defaultValue,
+                options: option.values
+            ))
+        }
+        guard metadata.kind == .group else { return }
+        // Match the factory's group-relative IDs and its exclusion of nested groups.
+        for (index, subAction) in (metadata.subActions ?? []).enumerated() where subAction.kind != .group {
+            clearOptions(for: subAction, manifest: manifest, actionID: "\(actionID).\(subAction.id ?? String(index))")
+        }
     }
 
     /// Clones an installed package under a unique copy id, copies its options, marks it trusted, and returns the new action ID.
@@ -442,7 +452,8 @@ public final class ExtensionManager: Sendable {
                                 localizedTitle: nil,
                                 localizedLoadingMessage: oldMeta.localizedLoadingMessage,
                                 output: oldMeta.output,
-                                result: oldMeta.result
+                                result: oldMeta.result,
+                                presentation: oldMeta.presentation
                             )
                         }
 
@@ -460,7 +471,8 @@ public final class ExtensionManager: Sendable {
                             localizedDescription: manifest.localizedDescription,
                             author: manifest.author,
                             output: manifest.output,
-                            result: manifest.result
+                            result: manifest.result,
+                            presentation: manifest.presentation
                         )
 
                         try ExtensionManifestStore.writeManifest(updatedManifest, to: destManifestURL)
@@ -621,18 +633,21 @@ public final class ExtensionManager: Sendable {
             return []
         }
 
-        // Unknown kinds, missing required fields, or unknown capabilities reject the whole package.
+        // Unknown kinds, missing required fields, unknown capabilities, or unsafe predicate files reject the whole package.
         let validator = ManifestValidator.shared
-        let record = validator.validate(manifest, data: data)
-        guard record.isValid else {
-            let details = record.issues.map(\.description).joined(separator: "; ")
+        var issues = validator.validate(manifest)
+        issues.append(contentsOf: ManifestPackageValidation.validate(manifest, directory: directoryURL))
+        guard issues.isEmpty else {
+            let details = issues.map(\.description).joined(separator: "; ")
             Log.extensions.error("Extension manifest rejected at \(manifestURL.path, privacy: .public): \(details, privacy: .public)")
             return []
         }
-        for warning in record.warnings {
+        let warnings = validator.validateWarnings(manifest)
+        for warning in warnings {
             Log.extensions.warning("Extension manifest warning at \(manifestURL.path, privacy: .public): \(warning.description, privacy: .public)")
         }
-        Log.extensions.notice("Loaded extension manifest \(manifest.identifier, privacy: .public) (v\(record.declaredVersion ?? "-", privacy: .public), schema \(record.schemaVersion, privacy: .public), \(manifest.actions.count) action(s), sha256 \(record.fingerprint, privacy: .public))")
+        let fingerprint = ContentFingerprint.sha256Hex(data)
+        Log.extensions.notice("Loaded extension manifest \(manifest.identifier, privacy: .public) (v\(manifest.version ?? "-", privacy: .public), schema \(validator.schemaVersion, privacy: .public), \(manifest.actions.count) action(s), sha256 \(fingerprint, privacy: .public))")
 
         var actions: [any Action] = []
         for (index, actionMeta) in manifest.actions.enumerated() {

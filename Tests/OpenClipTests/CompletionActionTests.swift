@@ -33,6 +33,18 @@ final class CompletionActionTests: XCTestCase {
     }
     
     @MainActor
+    func testFetchCompletionsUsesTheBestFittingLanguage() async throws {
+        let action = CompletionAction(spellChecker: StubTextSpellChecker(
+            languages: ["en", "sv"],
+            reports: [
+                SpellLanguageAssessment(language: "en", checked: true, misspelled: true, completions: [], guesses: ["hey"]),
+                SpellLanguageAssessment(language: "sv", checked: true, misspelled: false, completions: ["hejda"], guesses: [])
+            ]
+        ))
+        XCTAssertEqual(action.fetchCompletions(for: "hej"), ["hejda"])
+    }
+
+    @MainActor
     func testFetchCompletions() async throws {
         let action = CompletionAction()
         let completions = action.fetchCompletions(for: "comple")

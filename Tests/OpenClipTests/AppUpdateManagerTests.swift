@@ -11,7 +11,6 @@ final class AppUpdateManagerTests: XCTestCase {
     override func setUp() {
         super.setUp()
         TestIsolation.reset()
-        AppActivationPolicy.isSuppressed = false
         cancellables.removeAll()
         AppUpdateManager.shared.setAvailableUpdateVersionForTesting(nil)
     }
@@ -19,19 +18,16 @@ final class AppUpdateManagerTests: XCTestCase {
     override func tearDown() {
         AppUpdateManager.shared.setAvailableUpdateVersionForTesting(nil)
         cancellables.removeAll()
-        AppActivationPolicy.isSuppressed = true
+        AppActivationPolicy.resetForTesting()
         super.tearDown()
     }
 
     func testInteractiveUpdateCleanupRestoresAccessoryAfterRepeatedChecks() async {
         let manager = AppUpdateManager.shared
-        let original = NSApp.activationPolicy()
-        defer { NSApp.setActivationPolicy(original) }
-        NSApp.setActivationPolicy(.accessory)
 
         manager.beginInteractiveUpdatePresentation()
         manager.beginInteractiveUpdatePresentation()
-        XCTAssertEqual(NSApp.activationPolicy(), .regular)
+        XCTAssertEqual(AppActivationPolicy.recordedPolicy, .regular)
         manager.finishInteractiveUpdatePresentation()
         manager.finishInteractiveUpdatePresentation()
         await waitForActivationPolicy(.accessory)
@@ -39,15 +35,12 @@ final class AppUpdateManagerTests: XCTestCase {
 
     func testInteractiveUpdateCleanupKeepsOverlappingSettingsActive() async {
         let manager = AppUpdateManager.shared
-        let original = NSApp.activationPolicy()
-        defer { NSApp.setActivationPolicy(original) }
-        NSApp.setActivationPolicy(.accessory)
 
         manager.beginInteractiveUpdatePresentation()
         AppActivationPolicy.enter() // Settings opens while the update dialog is visible.
         manager.finishInteractiveUpdatePresentation()
         try? await Task.sleep(nanoseconds: 5_000_000)
-        XCTAssertEqual(NSApp.activationPolicy(), .regular)
+        XCTAssertEqual(AppActivationPolicy.recordedPolicy, .regular)
 
         AppActivationPolicy.leave() // Settings then closes.
         await waitForActivationPolicy(.accessory)
@@ -55,22 +48,31 @@ final class AppUpdateManagerTests: XCTestCase {
 
     func testInteractiveUpdateCleanupPreservesExistingRegularPolicy() async {
         let manager = AppUpdateManager.shared
-        let original = NSApp.activationPolicy()
-        defer { NSApp.setActivationPolicy(original) }
-        NSApp.setActivationPolicy(.regular)
+        AppActivationPolicy.seedPolicyForTesting(.regular)
 
         manager.beginInteractiveUpdatePresentation()
         manager.finishInteractiveUpdatePresentation()
         try? await Task.sleep(nanoseconds: 5_000_000)
-        XCTAssertEqual(NSApp.activationPolicy(), .regular)
+        XCTAssertEqual(AppActivationPolicy.recordedPolicy, .regular)
+    }
+
+    /// The test host is the app itself. The lease must record the requested policy instead of
+    /// applying it, or every run leaves OpenClip icons in the Dock.
+    func testLeaseRecordsPolicyWithoutChangingTheRealOne() {
+        let original = NSApp.activationPolicy()
+
+        AppActivationPolicy.enter()
+        XCTAssertEqual(AppActivationPolicy.recordedPolicy, .regular)
+        XCTAssertEqual(NSApp.activationPolicy(), original, "a test run must never take a Dock icon")
+        AppActivationPolicy.leave()
     }
 
     private func waitForActivationPolicy(_ expected: NSApplication.ActivationPolicy) async {
         for _ in 0..<20 {
-            if NSApp.activationPolicy() == expected { break }
+            if AppActivationPolicy.recordedPolicy == expected { break }
             try? await Task.sleep(nanoseconds: 5_000_000)
         }
-        XCTAssertEqual(NSApp.activationPolicy(), expected)
+        XCTAssertEqual(AppActivationPolicy.recordedPolicy, expected)
     }
 
     func testAvailableUpdateVersionPublishing() {
@@ -267,13 +269,10 @@ final class AppUpdateManagerTests: XCTestCase {
 
     func testScheduledWindowUsesSharedActivationLease() async {
         let manager = AppUpdateManager(settingsStore: MemorySettingsStore(), bundleIdentifier: "test")
-        let original = NSApp.activationPolicy()
-        defer { NSApp.setActivationPolicy(original) }
-        NSApp.setActivationPolicy(.accessory)
         manager.handleUpdatePresentation(showsWindow: true, userInitiated: false, version: "2.0.0")
         AppActivationPolicy.enter()
         manager.standardUserDriverWillFinishUpdateSession()
-        XCTAssertEqual(NSApp.activationPolicy(), .regular)
+        XCTAssertEqual(AppActivationPolicy.recordedPolicy, .regular)
         AppActivationPolicy.leave()
         await waitForActivationPolicy(.accessory)
     }

@@ -224,6 +224,77 @@ final class ActionRegistryTests: XCTestCase {
     }
 
     @MainActor
+    func testSearchCatalogPrioritizesContextualMatchesWithoutChangingSavedOrder() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        let savedOrder = ["mock.first", "builtin.calendar", "mock.second", "builtin.calculate"]
+        store.set(.actionOrder, value: savedOrder)
+        registry.register(builtIns: savedOrder.map { MockAction(id: $0, shouldBeEnabled: true) })
+        let context = ActionContext(selection: SelectionContext(
+            text: "2 + 2", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
+        ))
+
+        let catalog = registry.searchCatalog(for: context)
+
+        XCTAssertEqual(catalog.map(\.id), ["builtin.calendar", "builtin.calculate", "mock.first", "mock.second"])
+        XCTAssertEqual(catalog.map(\.id), registry.availableActions(for: context).map(\.id))
+        XCTAssertEqual(registry.actions.map(\.id), savedOrder)
+        XCTAssertEqual(store.get(.actionOrder), savedOrder)
+    }
+
+    @MainActor
+    func testSearchCatalogKeepsContextualOptOutsInStandardOrder() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        let savedOrder = ["mock.first", "builtin.calendar", "mock.second", "builtin.calculate"]
+        store.set(.actionOrder, value: savedOrder)
+        store.set(.disabledContextualActionIDs, value: ["builtin.calendar"])
+        registry.register(builtIns: savedOrder.map { MockAction(id: $0, shouldBeEnabled: true) })
+        let context = ActionContext(selection: SelectionContext(
+            text: "2 + 2", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
+        ))
+
+        XCTAssertEqual(registry.searchCatalog(for: context).map(\.id), [
+            "builtin.calculate", "mock.first", "builtin.calendar", "mock.second"
+        ])
+    }
+
+    @MainActor
+    func testSearchCatalogPreservesSavedOrderWhenContextualActionsAreOff() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        let savedOrder = ["mock.first", "builtin.calendar", "mock.second", "builtin.calculate"]
+        store.set(.actionOrder, value: savedOrder)
+        store.set(.contextualActionsEnabled, value: false)
+        registry.register(builtIns: savedOrder.map { MockAction(id: $0, shouldBeEnabled: true) })
+        let context = ActionContext(selection: SelectionContext(
+            text: "2 + 2", sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
+        ))
+
+        XCTAssertEqual(registry.searchCatalog(for: context).map(\.id), savedOrder)
+    }
+
+    @MainActor
+    func testSearchCatalogOnlyPromotesRunnableEnabledContextualActions() {
+        let store = MemorySettingsStore()
+        let registry = ActionRegistry(settingsStore: store)
+        store.set(.actionOrder, value: ["builtin.copy", "builtin.calendar", "builtin.define", "builtin.calculate"])
+        store.set(.disabledActionIDs, value: ["builtin.define"])
+        registry.register(builtIns: [
+            CopyAction(),
+            MockAction(id: "builtin.calendar", shouldBeEnabled: false),
+            MockAction(id: "builtin.define", shouldBeEnabled: true),
+            CalculateAction()
+        ])
+        let source = AppIdentity(bundleIdentifier: "com.test", localizedName: "Test")
+        let math = ActionContext(selection: SelectionContext(text: "2 + 2", sourceApp: source))
+        let prose = ActionContext(selection: SelectionContext(text: "hello world", sourceApp: source))
+
+        XCTAssertEqual(registry.searchCatalog(for: math).map(\.id), ["builtin.calculate", "builtin.copy"])
+        XCTAssertEqual(registry.searchCatalog(for: prose).map(\.id), ["builtin.copy"])
+    }
+
+    @MainActor
     func testAIPresetsRemainInAvailableCatalogForGroupResolution() {
         // Own store: the default one reads the real prefs domain, so local settings could fail this test.
         let registry = ActionRegistry(settingsStore: MemorySettingsStore())

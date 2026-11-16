@@ -7,15 +7,18 @@ import XCTest
 @MainActor
 enum TestIsolation {
     static func reset() {
+        AppActivationPolicy.resetForTesting()
         ActionRegistry.shared.reset()
         ActionCustomizationManager.shared.reset()
         ActionBindingStore.shared.reset()
         RuleEngine.shared.reset()
         ExtensionManager.shared.reset()
+        VisibilityPredicateRuntime.shared.invalidate()
         // Warm cache persists across popup sessions; start clean so a prior preview can't leak.
         InlineResultEvaluator.shared.clearPrewarmed()
         AIServiceManager.shared.providerOverride = nil
         CustomActionJSRunnerRegistry.runner = DefaultCustomActionJSRunner()
+        TextSpellCheckerRegistry.checker = nil
     }
 
     /// Serializes tests accessing shared process-wide gates/locks (e.g. `OpenClipJSHost.syncEvaluationGate`).

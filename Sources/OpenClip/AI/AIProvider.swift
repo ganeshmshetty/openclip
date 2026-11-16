@@ -128,15 +128,24 @@ enum AIRequestSupport {
         "When answering or analyzing, prioritize accuracy and relevance. Do not invent facts missing from the input. If essential information is missing, briefly state what is needed."
     ]
 
+    /// Fixed formatting contract for the result card: replacement tasks stay plain so Paste inserts
+    /// clean text, while explanatory tasks may use Markdown. Kept out of the editable guidelines so a
+    /// custom prompt cannot disable it.
+    private static let formattingRules = [
+        "If the task asks you to edit, rewrite, proofread, translate, fix code, or otherwise produce text or code meant to replace the user's selection in place, output only the replacement with no conversational filler, quotes, Markdown formatting, or code fences. If the original input already uses Markdown, preserve its formatting.",
+        "If the task asks you to explain, summarize, analyze, brainstorm, or answer a question, format the answer with clean, concise Markdown (bullets, bold, inline code, fenced code blocks) so it scans well in a compact floating card. Never output Markdown image tags (`![...](...)`)."
+    ]
+
     /// The user-replaceable part of the prompt (Settings → AI → System Prompt): role plus behavior rules.
-    /// The task, the `<text>` rule and the output contract stay fixed because parsing depends on them.
+    /// The formatting rules, task, `<text>` rule and output contract stay fixed because behavior and
+    /// parsing depend on them.
     static var defaultGuidelines: String {
         "\(defaultRole)\n\n" + numbered(defaultBehaviorRules)
     }
 
     /// Builds the system instruction for the task. Input text is source material in `<text>`; without it,
     /// the task is answered standalone. `structuredResult` selects typed-field output over tags.
-    /// Non-blank `customGuidelines` replace the role and behavior rules.
+    /// Non-blank `customGuidelines` replace the role and behavior rules; the formatting rules stay fixed.
     static func systemPrompt(for instruction: String, hasInputText: Bool = true, structuredResult: Bool = false, customGuidelines: String? = nil) -> String {
         let task = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
         let taskSection = task.isEmpty ? "" : "\n\nTask:\n\(task)"
@@ -148,9 +157,9 @@ enum AIRequestSupport {
 
         let custom = customGuidelines?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !custom.isEmpty {
-            return "\(custom)\(taskSection)\n\nRules:\n" + numbered([inputRule] + outputRules)
+            return "\(custom)\(taskSection)\n\nRules:\n" + numbered(formattingRules + [inputRule] + outputRules)
         }
-        return "\(defaultRole)\(taskSection)\n\nRules:\n" + numbered(defaultBehaviorRules + [inputRule] + outputRules)
+        return "\(defaultRole)\(taskSection)\n\nRules:\n" + numbered(defaultBehaviorRules + formattingRules + [inputRule] + outputRules)
     }
 
     /// System text for follow-ups sent as chat turns: the action's task plus the rules for continuing a session.

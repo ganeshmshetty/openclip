@@ -45,6 +45,24 @@ public class PopupWindowController {
 
     private var hoveredAction: (any Action)?
 
+    /// Last two pointer samples for sub-bar menu-aim. `previous` is the sample before `latest`.
+    private var latestPointerLocation: CGPoint?
+    private var previousPointerLocation: CGPoint?
+    private var lastPointerMoveTime: TimeInterval?
+    private var pendingGroupAim: PendingGroupAim?
+    private var groupAimRestTask: Task<Void, Never>?
+
+    private struct PendingGroupAim {
+        let groupID: String
+        let commit: @MainActor () -> Void
+    }
+
+    private struct AimSegment {
+        var previous: CGPoint?
+        var current: CGPoint
+        var isNewMovement: Bool
+    }
+
     private var isMenuTracking = false
 
     /// Tracks whether a right-click mouse-down originated within the popup bar.
@@ -71,6 +89,9 @@ public class PopupWindowController {
     /// Latest action's output kind. Same lifecycle as `pendingActionTitle`.
     var pendingActionOutputKind: ActionOutputKind? = nil
 
+    /// Latest action's card format. Same lifecycle as `pendingActionTitle`.
+    var pendingActionPresentation: ResultPresentation? = nil
+
     /// Delivery context snapshotted before an action performs. Kept across hide() so async actions deliver with it.
     var inFlightDeliveryContext: DeliveryContext? = nil
 
@@ -81,6 +102,15 @@ public class PopupWindowController {
 
     /// Paste-support probe; injectable for tests.
     private let pasteProbe: PasteAvailabilityProbing
+
+    /// Focused-element editability probe for sessions that start without a selection; injectable for tests.
+    private let editabilityProbe: @MainActor () async -> Bool?
+
+    /// Capabilities from the last shown session. A completion paste delivered after `hide()` still
+    /// knows where the session pointed; liveness is rechecked at delivery. The session ID keeps a
+    /// late editability probe from leaking into a later session.
+    private var lastCapabilities: TargetCapabilities = .unknown
+    private var lastCapabilitiesSession: UUID?
 
     /// Toast surface for statuses and the paste→copy notice. Independent of the panel, so it shows after hide().
     let toastController: ToastPanelController
@@ -128,18 +158,23 @@ public class PopupWindowController {
 
     public init(resultHandler: ActionResultHandler = DefaultActionResultHandler(),
                  pasteProbe: PasteAvailabilityProbing = PasteAvailabilityProbe(),
+                 editabilityProbe: @escaping @MainActor () async -> Bool? = {
+                     await EditabilityProbe().probe()
+                 },
                  toastController: ToastPanelController = ToastPanelController(),
                  subBarController: SubBarPanelController = SubBarPanelController(),
                  tooltipController: TooltipPanelController = .shared,
                  settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.resultHandler = resultHandler
         self.pasteProbe = pasteProbe
+        self.editabilityProbe = editabilityProbe
         self.toastController = toastController
         self.subBarController = subBarController
         self.tooltipController = tooltipController
         self.settingsStore = settingsStore
 
         self.subBarController.onDismiss = { [weak self] in
+            self?.clearPendingGroupAim()
             self?.modeStore.isSubBarActive = false
             self?.modeStore.activeSubGroupID = nil
             self?.updateToastPlacement()
@@ -154,6 +189,33 @@ public class PopupWindowController {
                 panel.pinBottomEdgeOnResize = self.modeStore.searchResultsAbove
             }
         }.store(in: &cancellables)
+    }
+
+    /// Sessions that open without a selected range have no selection read to source editability
+    /// from. Ask the focused element once, without delaying the popup; delivery reads the updated
+    /// context, so a paste result still lands only where text can be inserted.
+    private func refreshTargetEditability(attemptID: UUID) {
+        Task { [weak self] in
+            guard let self, let editable = await self.editabilityProbe() else { return }
+            guard self.presentationAttemptID == attemptID else { return }
+            // Record the answer even if the popup already hid: a loading action may deliver after
+            // the probe finishes.
+            self.lastCapabilities.textInsertion = editable ? .available : .unavailable
+            guard let context = self.currentContext, context.isEditable == nil else { return }
+            let updated = context.with(isEditable: editable)
+            self.currentContext = updated
+            self.lastCapabilities = updated.targetCapabilities()
+            if let existing = self.currentActionContext {
+                self.currentActionContext = ActionContext(
+                    selection: updated,
+                    modifiers: existing.modifiers,
+                    isSecondaryClick: existing.isSecondaryClick,
+                    match: existing.match,
+                    pasteTargetAvailable: existing.pasteTargetAvailable,
+                    visibilityMemo: existing.visibilityMemo
+                )
+            }
+        }
     }
 
     /// Starts the paste-availability probe (rules first, then AX), run in parallel with selection retrieval. Not cached,
@@ -207,6 +269,11 @@ public class PopupWindowController {
 
         let actionContext = ActionContext(selection: selectionContext, modifiers: [])
         currentActionContext = actionContext
+        lastCapabilities = actionContext.capabilities
+        lastCapabilitiesSession = attemptID
+        if selectionContext.isEditable == nil {
+            refreshTargetEditability(attemptID: attemptID)
+        }
         let availableActions = ActionCoordinator.shared.resolveActions(for: actionContext)
 
         let panel = self.panel ?? PopupPanel()
@@ -247,9 +314,7 @@ public class PopupWindowController {
         // Probed before this frame so Paste/Cut are gated on the first render; nil keeps them visible.
         modeStore.canPaste = pasteAvailable
 
-        let activeActions = pasteAvailable == false
-            ? availableActions.filter { !($0 is any PasteRequiringAction) }
-            : availableActions
+        let activeActions = availableActions
         self.currentActions = activeActions
 
         modeStore.inlineResults.removeAll()
@@ -259,16 +324,14 @@ public class PopupWindowController {
             combinedActions.append(item)
         }
         let inlineActions = combinedActions.filter { $0.chrome.isInlineResult }
-        let textHash = context.text.hashValue
-
         for action in inlineActions {
-            if let prewarmed = evaluator.prewarmedResult(for: action, textHash: textHash) {
+            if let prewarmed = evaluator.prewarmedResult(for: action, context: actionContext) {
                 modeStore.inlineResults[action.id] = prewarmed
             } else if let syncResult = evaluator.evaluateSynchronous(action: action, context: actionContext) {
                 modeStore.inlineResults[action.id] = syncResult
             } else {
                 evaluator.startEvaluation(action: action, context: actionContext, sessionID: aiSession) { [weak self] result in
-                    guard let self, let result, !result.isEmpty else { return }
+                    guard let self, let result else { return }
                     guard self.aiSessionID == aiSession else { return }
                     self.modeStore.inlineResults[action.id] = result
                 }
@@ -280,10 +343,6 @@ public class PopupWindowController {
             actions: activeActions,
             allActions: activeActions,
             context: actionContext,
-            alternateSearchContext: alternateClipboardSearchContext(for: context),
-            onSearchContextChanged: { [weak self] selection in
-                self?.updateSearchContext(selection)
-            },
             screenWidth: screenBounds.width,
             initialAICardAboveBar: cardAbove,
             modeStore: modeStore,
@@ -345,6 +404,7 @@ public class PopupWindowController {
                 self.pendingActionID = action.id
                 self.pendingActionRecommendedResult = action.chrome.recommendedResult
                 self.pendingActionOutputKind = action.chrome.outputKind
+                self.pendingActionPresentation = action.chrome.presentation
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
                 return true
             },
@@ -510,6 +570,8 @@ public class PopupWindowController {
         captureFrontmostAppIfNeeded()
         let actionContext = ActionContext(selection: selectionContext, modifiers: [])
         currentActionContext = actionContext
+        lastCapabilities = actionContext.capabilities
+        lastCapabilitiesSession = presentationAttemptID
         modeStore.mode = initialMode
         modeStore.canPaste = pasteAvailable
         openedDirectlyInSearch = (initialMode == .search)
@@ -606,40 +668,6 @@ public class PopupWindowController {
         PopupMetrics.searchPanelWidth
     }
 
-    private func alternateClipboardSearchContext(for selection: SelectionContext) -> SelectionContext? {
-        guard !selection.isClipboardFallback,
-              !selection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        let pasteboard = NSPasteboard.general
-        guard let text = pasteboard.string(forType: .string),
-              TextSanitizer.isSubstantial(text),
-              text.utf8.count <= Constants.maxTextLength,
-              text != selection.text else { return nil }
-        return SelectionContext(
-            text: text,
-            sourceApp: selection.sourceApp,
-            cursorPosition: selection.cursorPosition,
-            mouseDownLocation: selection.mouseDownLocation,
-            selectionBounds: nil,
-            timestamp: selection.timestamp,
-            appPolicy: selection.appPolicy,
-            isClipboardFallback: true,
-            html: pasteboard.string(forType: .html),
-            rtf: pasteboard.string(forType: .rtf),
-            isEditable: false,
-            pasteTargetAvailable: selection.pasteTargetAvailable
-        )
-    }
-
-    private func updateSearchContext(_ selection: SelectionContext) {
-        guard modeStore.mode == .search else { return }
-        currentActionContext = ActionContext(
-            selection: selection,
-            modifiers: currentActionContext?.modifiers ?? []
-        )
-        // Inline values were for the original selection; clear them so the palette can't show a stale preview.
-        modeStore.inlineResults.removeAll()
-    }
-
     /// The hosting view grows the panel after the run-loop turn; nudge it back on screen once that growth lands (two retries, as in showResultCard).
     private func scheduleKeepPanelOnScreen() {
         DispatchQueue.main.async { [weak self] in self?.keepPanelOnScreen() }
@@ -682,7 +710,8 @@ public class PopupWindowController {
         if let currentContext {
             currentActionContext = ActionContext(
                 selection: currentContext,
-                modifiers: currentActionContext?.modifiers ?? []
+                modifiers: currentActionContext?.modifiers ?? [],
+                visibilityMemo: currentActionContext?.visibilityMemo
             )
         }
         modeStore.scope = nil
@@ -729,10 +758,12 @@ public class PopupWindowController {
         originalText: String? = nil,
         overrideOriginal: Bool = false,
         canFollowUp: Bool = true,
-        file: FileOutputPayload? = nil
+        presentation: ResultPresentation? = nil,
+        file: FileOutputPayload? = nil,
+        color: InlineColor? = nil
     ) {
         guard session == aiSessionID else { return }
-        let showsVersions = canFollowUp && !isError && !isStreaming && file == nil
+        let showsVersions = canFollowUp && !isError && !isStreaming && file == nil && color == nil
         let versionCount = showsVersions ? (cardConversation.map { $0.steps.count + redoSteps.count } ?? 1) : 1
         let versionIndex = showsVersions ? (cardConversation?.steps.count ?? 1) : 1
         if toastController.isLoading {
@@ -749,15 +780,18 @@ public class PopupWindowController {
             isStreaming: isStreaming,
             original: original,
             canFollowUp: canFollowUp,
+            presentation: presentation,
             file: file,
+            color: color,
             versionIndex: versionIndex,
             versionCount: versionCount
         )
         if !isStreaming {
-            // A settled card hands keyboard focus to its instruction field.
+            // A settled card takes keyboard focus without requiring a click. The follow-up field
+            // wins when present; otherwise the card's AppKit key catcher does.
             Task { @MainActor in
                 await Task.yield()
-                self.focusCardField()
+                self.focusResultCard()
             }
         }
         if modeStore.mode != .content {
@@ -786,12 +820,15 @@ public class PopupWindowController {
         fitPanelToContent()
         // Retry after the display cycle (DispatchQueue.main.async, not Task.yield, which doesn't guarantee a display pass).
         DispatchQueue.main.async { [weak self] in
-            self?.fitPanelToContent()
+            guard let self, self.modeStore.mode == .content else { return }
+            self.fitPanelToContent()
+            if !isStreaming { self.focusResultCard() }
         }
         // Safety-net retry: SwiftUI swaps the whole view tree on first content-mode entry.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard let self, self.modeStore.mode == .content else { return }
             self.fitPanelToContent()
+            if !isStreaming { self.focusResultCard() }
         }
     }
 
@@ -1063,7 +1100,7 @@ public class PopupWindowController {
         activeLoadingTask?.cancel()
         activeLoadingTask = nil
         activeLoadingID = nil
-        // Cancel in-flight work but keep warm inline-result caches for the next selection.
+        // Cancel in-flight work; extension previews are session-scoped, pure builtins stay warm.
         InlineResultEvaluator.shared.endSession(aiSessionID)
         aiSessionID = UUID()
         refiningPrevious = nil
@@ -1090,6 +1127,7 @@ public class PopupWindowController {
         pendingActionID = nil
         pendingActionRecommendedResult = nil
         pendingActionOutputKind = nil
+        pendingActionPresentation = nil
         accumulatedScrollDelta = 0
         isScrollDismissalSuspended = false
         distanceDismissGraceUntil = nil
@@ -1120,6 +1158,10 @@ public class PopupWindowController {
         currentContext = nil
         currentActionContext = nil
         hoveredAction = nil
+        latestPointerLocation = nil
+        previousPointerLocation = nil
+        lastPointerMoveTime = nil
+        clearPendingGroupAim()
         isMenuTracking = false
         PopupHoverState.shared.location = nil
         SubBarHoverState.shared.location = nil
@@ -1214,6 +1256,7 @@ public class PopupWindowController {
             let cursorLoc = NSEvent.mouseLocation
             updatePopupHover(at: cursorLoc)
             updateSubBarHover(at: cursorLoc)
+            trackPointerForGroupAim(at: cursorLoc)
             // Distance dismissal is suspended in search mode, while the card is modal, while AI processes, and during onboarding.
             let inArrivalGrace = PopupDismissalGrace.isActive(
                 now: ProcessInfo.processInfo.systemUptime,
@@ -1264,6 +1307,10 @@ public class PopupWindowController {
             let isShift = event.modifierFlags.contains(.shift)
             pendingClickIntent = isShift ? .secondary : .primary
             if !inMain && !inSub && !cardIsModal {
+                // A third press belongs to the same gesture that just opened the word popup.
+                // Keep it up; the paragraph result replaces its content when the button is
+                // released. A fresh click sequence starts at clickCount 1 and still dismisses.
+                if event.clickCount >= 3 { break }
                 // A mouse-down within 100 ms of showing is likely part of the gesture that selected the text (e.g. triple-click).
                 if sessionShowTime > 0,
                    (ProcessInfo.processInfo.systemUptime - sessionShowTime) < 0.1 {
@@ -1372,7 +1419,7 @@ public class PopupWindowController {
             panel.ignoresMouseEvents = !overContent
         }
         if overContent {
-            NSCursor.arrow.set()
+            PopupHoverState.shared.hoverCursor.set()
         }
 
         let windowPoint = panel.convertPoint(fromScreen: screenLocation)
@@ -1458,9 +1505,11 @@ public class PopupWindowController {
         let cursorLoc = NSEvent.mouseLocation
         updatePopupHover(at: cursorLoc, toggleClickThrough: false)
         updateSubBarHover(at: cursorLoc, toggleClickThrough: false)
+        trackPointerForGroupAim(at: cursorLoc)
     }
 
     private func handleCancelSubBarDwell() {
+        clearPendingGroupAim()
         if let hoveredAction, let actions = currentActions,
            let currentIndex = actions.firstIndex(where: { $0.id == hoveredAction.id }),
            subBarController.isImmediateNeighbor(actionIndex: currentIndex) {
@@ -1557,13 +1606,137 @@ public class PopupWindowController {
     }
 
     private func handleSubBarDwell(for action: any Action, index: Int, frame: CGRect) {
+        // An adjacent group must not replace the open row while the pointer is only
+        // crossing it on the way in (#194). The triangle decides; other groups still switch now.
+        if subBarController.isShowing,
+           subBarController.activeState?.groupID != action.id,
+           subBarController.isImmediateNeighbor(actionIndex: index) {
+            beginAdjacentGroupAim(for: action, index: index, frame: frame)
+            return
+        }
+        clearPendingGroupAim()
         subBarController.startDwell { [weak self] in
             guard let self else { return }
             self.showSubBar(for: action, index: index, frame: frame, isPinned: false)
         }
     }
 
+    private func beginAdjacentGroupAim(for action: any Action, index: Int, frame: CGRect) {
+        clearPendingGroupAim()
+        pendingGroupAim = PendingGroupAim(groupID: action.id) { [weak self] in
+            self?.showSubBar(for: action, index: index, frame: frame, isPinned: false)
+        }
+        let location = NSEvent.mouseLocation
+        let now = ProcessInfo.processInfo.systemUptime
+        let segment = aimSegment(for: location)
+        notePointer(at: location, now: now)
+        evaluateGroupAim(segment: segment, at: location, now: now)
+    }
+
+    private func trackPointerForGroupAim(at location: CGPoint) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let segment = aimSegment(for: location)
+        notePointer(at: location, now: now)
+        guard pendingGroupAim != nil else { return }
+        evaluateGroupAim(segment: segment, at: location, now: now)
+    }
+
+    private func evaluateGroupAim(segment: AimSegment, at location: CGPoint, now: TimeInterval) {
+        guard let pending = pendingGroupAim, subBarController.isShowing else {
+            clearPendingGroupAim()
+            return
+        }
+        guard hoveredAction?.id == pending.groupID else {
+            clearPendingGroupAim()
+            return
+        }
+        // The panel's shadow ring overlaps the main bar, so the triangle uses the visible row.
+        let rect = subBarController.panelFrame.insetBy(
+            dx: PopupMetrics.popupShadowInset,
+            dy: PopupMetrics.popupShadowInset
+        )
+        let rested = segment.isNewMovement ? 0 : pointerRestDuration(at: location, now: now)
+        let decision = SubBarAim.decision(
+            previous: segment.previous,
+            current: segment.current,
+            subBarRect: rect,
+            rested: rested
+        )
+        switch decision {
+        case .switchToHovered:
+            commitPendingGroupAim()
+        case .keepMovingToward:
+            subBarController.cancelGrace()
+            if segment.isNewMovement || groupAimRestTask == nil {
+                armGroupAimRest(for: pending.groupID)
+            }
+        case .keepResting:
+            subBarController.cancelGrace()
+            if groupAimRestTask == nil {
+                armGroupAimRest(for: pending.groupID)
+            }
+        }
+    }
+
+    private func aimSegment(for location: CGPoint) -> AimSegment {
+        guard let latest = latestPointerLocation else {
+            return AimSegment(previous: nil, current: location, isNewMovement: false)
+        }
+        if hypot(location.x - latest.x, location.y - latest.y) < SubBarAim.movementEpsilon {
+            return AimSegment(previous: previousPointerLocation, current: latest, isNewMovement: false)
+        }
+        return AimSegment(previous: latest, current: location, isNewMovement: true)
+    }
+
+    private func notePointer(at location: CGPoint, now: TimeInterval) {
+        guard let latest = latestPointerLocation else {
+            latestPointerLocation = location
+            lastPointerMoveTime = now
+            return
+        }
+        guard hypot(location.x - latest.x, location.y - latest.y) >= SubBarAim.movementEpsilon else { return }
+        previousPointerLocation = latest
+        latestPointerLocation = location
+        lastPointerMoveTime = now
+    }
+
+    private func pointerRestDuration(at location: CGPoint, now: TimeInterval) -> TimeInterval {
+        guard let latest = latestPointerLocation,
+              hypot(location.x - latest.x, location.y - latest.y) < SubBarAim.movementEpsilon,
+              let lastPointerMoveTime else { return 0 }
+        return max(0, now - lastPointerMoveTime)
+    }
+
+    private func armGroupAimRest(for groupID: String) {
+        groupAimRestTask?.cancel()
+        let nanos = UInt64((SubBarAim.switchDwell * 1_000_000_000).rounded())
+        groupAimRestTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: nanos)
+            guard !Task.isCancelled else { return }
+            self.groupAimRestTask = nil
+            guard let pending = self.pendingGroupAim, pending.groupID == groupID,
+                  self.hoveredAction?.id == groupID,
+                  self.subBarController.isShowing,
+                  self.subBarController.activeState?.groupID != groupID else { return }
+            // No further mouse event arrives while the pointer is still, so the timer is the rest half of SubBarAim.
+            self.commitPendingGroupAim()
+        }
+    }
+
+    private func commitPendingGroupAim() {
+        let pending = pendingGroupAim
+        clearPendingGroupAim()
+        pending?.commit()
+    }
+
+    private func clearPendingGroupAim() {
+        pendingGroupAim = nil
+        groupAimRestTask?.cancel()
+        groupAimRestTask = nil
+    }
+
     private func showSubBar(for action: any Action, index: Int, frame: CGRect, isPinned: Bool) {
+        clearPendingGroupAim()
         guard let context = currentActionContext else { return }
         let resolver = SubActionResolver()
         let catalog = currentActions ?? ActionCoordinator.shared.resolveActions(for: context)
@@ -1640,6 +1813,7 @@ public class PopupWindowController {
                 self.pendingActionID = action.id
                 self.pendingActionRecommendedResult = action.chrome.recommendedResult
                 self.pendingActionOutputKind = action.chrome.outputKind
+                self.pendingActionPresentation = action.chrome.presentation
                 self.inFlightDeliveryContext = self.deliverySnapshot(for: action, clickIntent: clickIntent)
                 return true
             },
@@ -1930,11 +2104,20 @@ public class PopupWindowController {
         restoreRefiningCard()
     }
 
-    /// Focuses the card's instruction field on the next run-loop turn; a @FocusState request during the mode change is dropped on macOS.
-    private func focusCardField() {
+    /// Gives a settled card keyboard focus on the next run-loop turn. A @FocusState request during
+    /// the mode change is dropped on macOS, so the follow-up field (or the card's AppKit catcher)
+    /// is made first responder directly.
+    private func focusResultCard() {
         guard let panel, panel.isVisible, modeStore.mode == .content else { return }
-        guard let field = Self.findEditableTextField(in: panel.contentView) else { return }
-        panel.makeFirstResponder(field)
+        if let field = Self.findEditableTextField(in: panel.contentView) {
+            panel.makeFirstResponder(field)
+            return
+        }
+        guard let catcher = Self.findResultCardKeyCatcher(in: panel.contentView) else { return }
+        guard panel.firstResponder !== catcher else { return }
+        // Never steal focus from an editable field or a preview that owns its own keyboard input.
+        if panel.firstResponder is NSTextView || panel.firstResponder is NSTextField { return }
+        panel.makeFirstResponder(catcher)
     }
 
     /// The first editable text field in a view tree (the result card's follow-up field), or nil.
@@ -1943,6 +2126,15 @@ public class PopupWindowController {
         if let field = view as? NSTextField, field.isEditable { return field }
         for subview in view.subviews {
             if let found = findEditableTextField(in: subview) { return found }
+        }
+        return nil
+    }
+
+    private static func findResultCardKeyCatcher(in view: NSView?) -> ResultCardKeyCatcher.CatcherView? {
+        guard let view else { return nil }
+        if let catcher = view as? ResultCardKeyCatcher.CatcherView { return catcher }
+        for subview in view.subviews {
+            if let found = findResultCardKeyCatcher(in: subview) { return found }
         }
         return nil
     }
@@ -2084,13 +2276,20 @@ public class PopupWindowController {
         let recommendedResult: ActionResultDeliveryMode?
         /// The action's uncommitted output kind.
         let outputKind: ActionOutputKind?
+        /// The action's declared card format for text results.
+        let presentation: ResultPresentation?
         /// The performing action's title — the result card header. nil for explicit user requests.
         let actionTitle: String?
         /// Display icon for the card header (customization-resolved).
         let actionIcon: ActionIcon?
         /// Input/destination requirements rechecked immediately before effects are executed.
-        let inputRequirement: ActionInputRequirement?
-        let requiresPasteTarget: Bool
+        let requirements: ActionRequirements?
+        /// Capability snapshot captured with the selection; liveness and the delivery-time probe
+        /// are applied by `resolveDelivery` before effects run.
+        let capabilities: TargetCapabilities
+        /// The session that produced this snapshot. A late editability probe may only fill in an
+        /// unknown answer for the same session.
+        let sessionID: UUID
         /// The selection context captured before any early-close (loading actions), used to re-show
         /// the popup as a preview card. nil when the popup never closed.
         let selection: SelectionContext?
@@ -2109,10 +2308,12 @@ public class PopupWindowController {
                 userOverride: userOverride,
                 recommendedResult: recommendedResult,
                 outputKind: outputKind,
+                presentation: presentation,
                 actionTitle: actionTitle,
                 actionIcon: actionIcon,
-                inputRequirement: inputRequirement,
-                requiresPasteTarget: requiresPasteTarget,
+                requirements: requirements,
+                capabilities: capabilities,
+                sessionID: sessionID,
                 selection: selection
             )
             return (declared, consumed)
@@ -2130,6 +2331,7 @@ public class PopupWindowController {
         let override = actionID.flatMap { ActionCustomizationManager.shared.override(for: $0)?.deliveryPreference }
         let rec = action?.chrome.recommendedResult ?? pendingActionRecommendedResult
         let outKind = action?.chrome.outputKind ?? pendingActionOutputKind
+        let presentation = action?.chrome.presentation ?? pendingActionPresentation
         return DeliveryContext(
             policy: currentActionContext?.selection.appPolicy ?? .default,
             clickIntent: intent,
@@ -2138,10 +2340,12 @@ public class PopupWindowController {
             userOverride: override,
             recommendedResult: rec,
             outputKind: outKind,
+            presentation: presentation,
             actionTitle: title,
             actionIcon: icon,
-            inputRequirement: (action as? any ActionWithRules).map { $0.rules?.requirements?.input ?? .text },
-            requiresPasteTarget: (action as? any ActionWithRules)?.rules?.requirements?.requiresPasteTarget ?? false,
+            requirements: (action as? any ActionWithRules)?.rules?.requirements,
+            capabilities: currentActionContext?.capabilities ?? lastCapabilities,
+            sessionID: presentationAttemptID,
             selection: currentActionContext?.selection
         )
     }
@@ -2158,7 +2362,7 @@ public class PopupWindowController {
 
     /// Declared paste-target requirements also apply to the async paste probe.
     private func requiredPasteTargetIsActive(_ delivery: DeliveryContext?) -> Bool {
-        guard let delivery, delivery.requiresPasteTarget else { return true }
+        guard let delivery, delivery.requirements?.requiresPasteTarget == true else { return true }
         return isTargetApplicationActive(delivery.application)
     }
 
@@ -2174,48 +2378,12 @@ public class PopupWindowController {
         pendingActionID = nil
         pendingActionRecommendedResult = nil
         pendingActionOutputKind = nil
+        pendingActionPresentation = nil
         let (deliveredResult, effectiveDelivery) = resolvedDelivery.consumeDeclaredSecondary(for: result)
-        let effectiveResult = normalizeOCRResult(deliveredResult, delivery: effectiveDelivery)
-        if shouldDismiss(effectiveResult, delivery: effectiveDelivery) {
+        if shouldDismiss(deliveredResult, delivery: effectiveDelivery) {
             hide()
         }
-        handleActionResult(effectiveResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveResult.containsToast, completionActionID: completedActionID)
-    }
-
-    private func copyOnlyOCRResult(_ result: ActionResult) -> ActionResult {
-        switch result {
-        case .paste(let text), .cut(let text): return .copy(text)
-        case .pasteContent(let payload): return .copyContent(payload)
-        case .simulatePaste: return .none
-        case .sequence(let items): return .sequence(items.map(copyOnlyOCRResult))
-        default: return result
-        }
-    }
-
-    private func normalizeOCRResult(_ result: ActionResult, delivery: DeliveryContext?) -> ActionResult {
-        let isOCRDelivery = delivery?.selection?.source == .ocr
-            || (delivery == nil && currentContext?.source == .ocr)
-        let ocrSafe = isOCRDelivery ? copyOnlyOCRResult(result) : result
-        guard let delivery, delivery.inputRequirement != nil || delivery.requiresPasteTarget else { return ocrSafe }
-
-        let selection = delivery.selection
-        let input = delivery.inputRequirement ?? .optional
-        let hasText = !(selection?.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-        let liveAndCurrent = selection?.source == .selection
-            && (selection.map(selectionIsCurrent) ?? false)
-            && isTargetApplicationActive(delivery.application)
-        let inputSatisfied: Bool
-        switch input {
-        case .optional: inputSatisfied = true
-        case .text: inputSatisfied = hasText
-        case .liveSelection: inputSatisfied = hasText && liveAndCurrent
-        case .editableSelection: inputSatisfied = hasText && liveAndCurrent && selection?.isEditable == true
-        }
-        let pasteTargetSatisfied = !delivery.requiresPasteTarget
-            || (selection?.pasteTargetAvailable == true
-                && PasteAvailability.effective(policy: delivery.policy, probe: selection?.pasteTargetAvailable) == true
-                && isTargetApplicationActive(delivery.application))
-        return inputSatisfied && pasteTargetSatisfied ? ocrSafe : .none
+        handleActionResult(deliveredResult, delivery: effectiveDelivery, suppressDeliveryToast: deliveredResult.containsToast, completionActionID: completedActionID)
     }
 
     /// Walks a performed result: presentation renders in the popup, leaf effects go to the effect handler. Dismissal is decided
@@ -2223,9 +2391,8 @@ public class PopupWindowController {
     @discardableResult
     func handleActionResult(_ result: ActionResult, delivery: DeliveryContext? = nil, suppressDeliveryToast: Bool = false, completionActionID: String? = nil, isFinalStep: Bool = true) -> Task<Void, Never>? {
         let (selectedResult, effectiveDelivery) = delivery?.consumeDeclaredSecondary(for: result) ?? (result, delivery)
-        let effectiveResult = normalizeOCRResult(selectedResult, delivery: effectiveDelivery)
-        let effectiveSuppressToast = suppressDeliveryToast || effectiveResult.containsToast
-        switch effectiveResult {
+        let effectiveSuppressToast = suppressDeliveryToast || selectedResult.containsToast
+        switch selectedResult {
         case .toast(let feedback):
             presentToast(feedback)
             ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
@@ -2241,7 +2408,7 @@ public class PopupWindowController {
                 }
             }
         default:
-            return handleEffect(effectiveResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isFinalStep)
+            return handleEffect(selectedResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isFinalStep)
         }
     }
 
@@ -2254,13 +2421,13 @@ public class PopupWindowController {
             do {
                 let resolved = await resolveDelivery(effect, delivery: delivery, suppressDeliveryToast: suppressDeliveryToast)
                 guard requiredPasteTargetIsActive(delivery) else { return }
-                if case .text(let text) = resolved.result {
+                if let content = resolved.result.textContent {
                     // Preview: show the text in the card and deliver nothing; the popup stays open. Probe paste if it was skipped,
                     // so the card gates Paste on a real answer (unknown normalizes to cannot-paste).
                     if modeStore.canPaste == nil {
                         modeStore.canPaste = await pasteProbe.canPaste(in: delivery?.application, policy: delivery?.policy ?? .default) ?? false
                     }
-                    showResultCard(text: text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, canFollowUp: false)
+                    showResultCard(text: content.text, isError: false, title: delivery?.actionTitle ?? "Action", icon: delivery?.actionIcon, session: aiSessionID, canFollowUp: false, presentation: content.presentation ?? delivery?.presentation)
                     ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
                     return
                 }
@@ -2273,6 +2440,19 @@ public class PopupWindowController {
                         session: aiSessionID,
                         canFollowUp: false,
                         file: filePayload
+                    )
+                    ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
+                    return
+                }
+                if case .color(let color) = resolved.result {
+                    showResultCard(
+                        text: color.hex,
+                        isError: false,
+                        title: delivery?.actionTitle ?? String(localized: "Color"),
+                        icon: delivery?.actionIcon,
+                        session: aiSessionID,
+                        canFollowUp: false,
+                        color: color
                     )
                     ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
                     return
@@ -2317,7 +2497,8 @@ public class PopupWindowController {
     }
 
     /// Decides a text result's delivery and companion toast from the snapshot. A nil `delivery` passes through with no toast.
-    /// The paste probe runs only when a paste outcome is on the table, since only `.paste` can downgrade to `.copy`.
+    /// Text insertion uses the captured editability; the paste probe runs only for payloads that
+    /// need a paste destination, since only those consult the app's Paste command.
     internal var selectionIsCurrent: @MainActor (SelectionContext) -> Bool = { _ in true }
     internal private(set) var lastDeliveryStatus: SelectionReadStatus?
 
@@ -2331,33 +2512,42 @@ public class PopupWindowController {
             recommendedResult: delivery.recommendedResult,
             outputKind: delivery.outputKind
         )
-        let couldPaste = delivery.selection?.source != .ocr && isPaste(selected)
+        var capabilities = delivery.capabilities
+        if capabilities.textInsertion == .unknown, delivery.sessionID == lastCapabilitiesSession {
+            capabilities.textInsertion = lastCapabilities.textInsertion
+        }
         let isTargetActive = isTargetApplicationActive(delivery.application)
             && (delivery.selection.map(selectionIsCurrent) ?? true)
-        var canPaste: Bool
-        if !couldPaste || !isTargetActive {
-            canPaste = false
-        } else if !PasteAvailability.needsProbe(policy: delivery.policy) {
-            canPaste = PasteAvailability.effective(policy: delivery.policy, probe: nil) ?? false
-        } else {
-            canPaste = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy) ?? false
+        capabilities.targetIsLive = isTargetActive ? .available : .unavailable
+        capabilities.applyDenyPaste(delivery.policy)
+        if !delivery.policy.denyPaste, isTargetActive, needsPasteboardProbe(selected, delivery: delivery) {
+            let probed = await pasteProbe.canPaste(in: delivery.application, policy: delivery.policy)
+            capabilities.pasteboardPaste = CapabilityAvailability(
+                PasteAvailability.effective(policy: delivery.policy, probe: probed)
+            )
         }
         // A target may change while the AX paste probe is suspended.
-        if couldPaste, !isTargetApplicationActive(delivery.application)
-            || !(delivery.selection.map(selectionIsCurrent) ?? true) {
-            canPaste = false
-        }
-        if couldPaste, !isTargetActive || !(delivery.selection.map(selectionIsCurrent) ?? true)
-            || !isTargetApplicationActive(delivery.application) {
+        let stillActive = isTargetApplicationActive(delivery.application)
+            && (delivery.selection.map(selectionIsCurrent) ?? true)
+        capabilities.targetIsLive = stillActive ? .available : .unavailable
+        if !isTargetActive || !stillActive {
             lastDeliveryStatus = .targetChanged
             Log.selection.debug("delivery outcome: targetChanged")
         } else {
             lastDeliveryStatus = nil
         }
+        if let requirements = delivery.requirements,
+           !ActionEligibility.isSatisfied(
+               requirements: requirements,
+               selection: delivery.selection,
+               capabilities: capabilities
+           ) {
+            return (.none, nil)
+        }
         let resolved = ActionResultDelivery.resolve(
             raw: result,
             clickIntent: delivery.clickIntent,
-            canPaste: canPaste,
+            capabilities: capabilities,
             delivery: delivery.delivery ?? .none,
             preference: delivery.userOverride,
             recommendedResult: delivery.recommendedResult,
@@ -2366,19 +2556,20 @@ public class PopupWindowController {
         return (resolved.result, suppressDeliveryToast ? nil : resolved.toast)
     }
 
-    private func isPaste(_ result: ActionResult?) -> Bool {
-        guard let result else { return false }
-        switch result {
-        case .paste, .pasteContent:
-            return true
-        default:
-            return false
-        }
+    /// Text insertion is decided by editability. The Paste command only has to be consulted for
+    /// payloads that need a destination, or when the action explicitly declared one.
+    private func needsPasteboardProbe(_ result: ActionResult, delivery: DeliveryContext) -> Bool {
+        // OCR text has no destination; its captured no-paste answer is the final word.
+        guard delivery.selection?.source != .ocr else { return false }
+        if delivery.requirements?.requiresPasteTarget == true { return true }
+        return ActionEligibility.requirement(for: result) == .pasteboardPaste
     }
 
     private func isText(_ result: ActionResult) -> Bool {
-        guard case .text = result else { return false }
-        return true
+        switch result {
+        case .text, .presentedText: return true
+        default: return false
+        }
     }
 
     /// Top-level dismissal: the popup stays open only when the resolved outcome is `.text` (preview) or `.file`. Mirrors the resolver's
@@ -2388,7 +2579,7 @@ public class PopupWindowController {
         let resolved = ActionResultDelivery.resolve(
             raw: effectiveResult,
             clickIntent: effectiveDelivery.clickIntent,
-            canPaste: false,
+            capabilities: .unknown,
             delivery: effectiveDelivery.delivery ?? .none,
             preference: effectiveDelivery.userOverride,
             recommendedResult: effectiveDelivery.recommendedResult,
@@ -2418,27 +2609,19 @@ public class PopupWindowController {
     /// Perform-time gate for clicks, group actions, and hotkeys. Visibility is recomputed from the captured context; source-bound
     /// requirements also check the selection generation and target app.
     private func canPerformAction(_ action: any Action, in context: ActionContext) -> Bool {
+        guard !action.chrome.displayOnly else { return false }
         guard action.isEnabled(for: context) else { return false }
         guard let ruledAction = action as? any ActionWithRules else { return true }
         let requirements = ruledAction.rules?.requirements ?? ActionRequirements()
         let selection = context.selection
-        let liveAndCurrent = selection.source == .selection
-            && selectionIsCurrent(selection)
-            && isTargetApplicationActive(previousFrontmostApp)
-        switch requirements.input {
-        case .optional, .text:
-            break
-        case .liveSelection:
-            guard liveAndCurrent else { return false }
-        case .editableSelection:
-            guard liveAndCurrent, selection.isEditable == true else { return false }
-        }
-        if requirements.requiresPasteTarget {
-            guard context.pasteTargetAvailable == true,
-                  PasteAvailability.effective(policy: selection.appPolicy, probe: context.pasteTargetAvailable) == true,
-                  isTargetApplicationActive(previousFrontmostApp) else { return false }
-        }
-        return true
+        var capabilities = context.capabilities
+        capabilities.targetIsLive = selectionIsCurrent(selection) && isTargetApplicationActive(previousFrontmostApp)
+            ? .available : .unavailable
+        return ActionEligibility.isSatisfied(
+            requirements: requirements,
+            selection: selection,
+            capabilities: capabilities
+        )
     }
 
     /// Performs an action directly for the right-click path, which the SwiftUI button never fires. Builds the delivery context
@@ -2465,15 +2648,20 @@ public class PopupWindowController {
         Task { @MainActor in
             do {
                 let result: ActionResult
-                if action.chrome.isInlineResult,
-                   let inFlightTask = InlineResultEvaluator.shared.runningTask(for: action.id, sessionID: self.aiSessionID) {
-                    if let text = await inFlightTask.value {
-                        result = .text(text)
+                if action.chrome.isInlineResult {
+                    if let cached = self.modeStore.inlineResults[action.id] {
+                        result = cached.inlineActionResult
+                    } else if let activated = await InlineResultActivation.invoke(
+                        action: action,
+                        context: performContext,
+                        sessionID: self.aiSessionID
+                    ) {
+                        result = activated
                     } else {
-                        result = try await action.perform(performContext)
+                        // A failed or invalid preview never falls back to unrestricted execution.
+                        self.inFlightDeliveryContext = nil
+                        return
                     }
-                } else if action.chrome.isInlineResult, let cached = self.modeStore.inlineResults[action.id] {
-                    result = .text(cached)
                 } else {
                     result = try await action.perform(performContext)
                 }
@@ -2551,9 +2739,8 @@ public class PopupWindowController {
     /// results fade the spinner. With `suppressDeliveryToast`, the script toast owns the toast (one per run).
     private func settleLoadingResult(_ result: ActionResult, delivery: DeliveryContext, suppressDeliveryToast: Bool = false, completionActionID: String? = nil, isFinalStep: Bool = true) async {
         let (selectedResult, effectiveDelivery) = delivery.consumeDeclaredSecondary(for: result)
-        let effectiveResult = normalizeOCRResult(selectedResult, delivery: effectiveDelivery)
-        let effectiveSuppressToast = suppressDeliveryToast || effectiveResult.containsToast
-        switch effectiveResult {
+        let effectiveSuppressToast = suppressDeliveryToast || selectedResult.containsToast
+        switch selectedResult {
         case .toast(var feedback):
             feedback.keepVisible = false
             toastController.show(feedback)
@@ -2567,14 +2754,13 @@ public class PopupWindowController {
                 await settleLoadingResult(item, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast, completionActionID: completionActionID, isFinalStep: isLast)
             }
         default:
-            let effect = effectiveResult
             do {
-                let resolved = await resolveDelivery(effect, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast)
+                let resolved = await resolveDelivery(selectedResult, delivery: effectiveDelivery, suppressDeliveryToast: effectiveSuppressToast)
                 guard requiredPasteTargetIsActive(effectiveDelivery) else {
                     toastController.hide()
                     return
                 }
-                if case .text(let text) = resolved.result {
+                if let content = resolved.result.textContent {
                     // Preview on a loading action: hide the spinner and re-show the popup as a card at the original selection, re-probing paste.
                     toastController.hide()
                     if let selection = effectiveDelivery.selection {
@@ -2584,7 +2770,7 @@ public class PopupWindowController {
                             return
                         }
                         show(for: selection, pasteAvailable: canPaste)
-                        showResultCard(text: text, isError: false, title: effectiveDelivery.actionTitle ?? "Action", icon: effectiveDelivery.actionIcon, session: aiSessionID, canFollowUp: false)
+                        showResultCard(text: content.text, isError: false, title: effectiveDelivery.actionTitle ?? "Action", icon: effectiveDelivery.actionIcon, session: aiSessionID, canFollowUp: false, presentation: content.presentation ?? effectiveDelivery.presentation)
                     }
                     ActionSoundPolicy.play(owner: completionActionID, isFinalStep: isFinalStep)
                     return

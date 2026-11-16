@@ -192,6 +192,7 @@ public struct CustomAction: ConfigurableAction, ActionWithRules, Codable, Sendab
             }
             env[Constants.envVarLocale] = Locale.current.identifier
             env[Constants.envVarLanguage] = Locale.current.language.languageCode?.identifier ?? "en"
+            TextLanguageDetector.assignTextLanguage(of: text, to: &env)
 
             let output = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
                 executableURL: URL(fileURLWithPath: "/bin/zsh"),

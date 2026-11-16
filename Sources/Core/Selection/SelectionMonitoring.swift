@@ -13,11 +13,13 @@ public protocol SelectionMonitoring: AnyObject, Sendable {
     @MainActor func currentSelection(for app: AppIdentity) async -> (context: SelectionContext, canPaste: Bool?)?
     @MainActor func synchronousSelection(for app: AppIdentity) -> (context: SelectionContext, canPaste: Bool?)?
     @MainActor func clearSelection()
+    @MainActor func cancelPendingSelection()
     @MainActor func start()
     @MainActor func stop()
 }
 
 extension SelectionMonitoring {
+    @MainActor public func cancelPendingSelection() {}
     @MainActor public var selectionGeneration: UInt64? { nil }
     @MainActor
     public func synchronousSelection(for bundleID: String?) -> (context: SelectionContext, canPaste: Bool?)? {

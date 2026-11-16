@@ -5,6 +5,7 @@
 // hover-target model, the frame preference key used to track row frames in popup space,
 // and the small view helpers that tag/annotate hoverable rows. Split out of PopupView.swift.
 import SwiftUI
+import AppKit
 import Core
 
 @MainActor
@@ -13,6 +14,10 @@ public final class PopupHoverState: ObservableObject {
 
     @Published public var location: CGPoint?
     @Published public var usesGlobalMouseMonitoring = false
+    /// Cursor the hovered surface wants. `PopupWindowController.updatePopupHover` applies this instead of a
+    /// blanket arrow, so nested surfaces set one value per move rather than fighting the arrow on every event.
+    /// Not `@Published`: it changes while the pointer moves and must not re-render observers.
+    public var hoverCursor: NSCursor = .arrow
 
     public init() {}
 }

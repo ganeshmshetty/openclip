@@ -17,17 +17,20 @@ struct ActionSettingsRow: View {
     var subtitle: String?
     /// Receives the alias rejection message, or nil once accepted.
     var onAliasMessage: (String?) -> Void
+    private let coordinator: ActionCoordinator
 
     init(
         action: any Action,
         disabledActionIDs: Binding<Set<String>>,
         disabledPackages: Binding<Set<String>>,
+        coordinator: ActionCoordinator = .shared,
         subtitle: String? = nil,
         onAliasMessage: @escaping (String?) -> Void = { _ in }
     ) {
         self.action = action
         _disabledActionIDs = disabledActionIDs
         _disabledPackages = disabledPackages
+        self.coordinator = coordinator
         self.subtitle = subtitle
         self.onAliasMessage = onAliasMessage
     }
@@ -46,7 +49,11 @@ struct ActionSettingsRow: View {
         let isEnabled = ActionEnablement.binding(
             for: action,
             disabledActionIDs: $disabledActionIDs,
-            disabledPackages: $disabledPackages
+            disabledPackages: $disabledPackages,
+            coordinator: coordinator
+        )
+        let parentIsDisabled = coordinator.isDisabledByParentGroup(
+            action, disabledActionIDs: disabledActionIDs, disabledPackages: disabledPackages
         )
 
         HStack(spacing: 10) {
@@ -55,6 +62,7 @@ struct ActionSettingsRow: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .accessibilityLabel(String(localized: "Enable \(presentation.title)"))
+                .disabled(parentIsDisabled)
 
             Button {
                 SettingsDestination.open(action)
@@ -63,6 +71,7 @@ struct ActionSettingsRow: View {
                     ActionIconView(icon: presentation.icon, size: 14)
                         .frame(width: 18, height: 18)
                         .foregroundStyle(.secondary)
+                        .opacity(parentIsDisabled ? 0.45 : 1)
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(presentation.title)

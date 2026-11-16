@@ -129,20 +129,29 @@ Notes:
 Extensions are re-scanned at launch and on every change, without relaunching.
 
 `ExtensionsDirectoryWatcher` (`Sources/OpenClip/Platform/Extensions/ExtensionsDirectoryWatcher.swift`)
-polls `~/.openclip/extensions` on a background queue and reloads via the same
+watches `~/.openclip/extensions` using FSEvents on a background queue and reloads via the same
 `ExtensionManager.loadExtensions()` seam that startup uses. It is started by `AppDelegate` after
 `ActionCoordinator.loadInitialState()` returns, so the `onRegister`/`onUnregister` registry wiring is
 already in place before any watcher-triggered reload.
 
-Mechanism (poll-snapshot diff, not FSEvents, pure Foundation):
+Mechanism:
 
-- Each tick builds an `ExtensionsSnapshot`: a recursive fingerprint of the tree
+- A recursive FSEvents stream watches an existing ancestor so replacement or recreation of the
+  extensions directory is observed too. Unrelated paths and hidden descendants are filtered out.
+- A relevant event schedules a one-shot check that builds an `ExtensionsSnapshot`: a fingerprint
   (relative path → content modification date), skipping hidden files (`.install_staging_*`,
   `.DS_Store`).
-- A reload fires only when **two consecutive ticks agree** that the tree changed. The settle window
-  keeps a reload from firing mid-copy while `cp -R`/download staging is still writing.
+- A reload fires only when **two consecutive checks agree** that the tree changed. Further events
+  restart settling. Checks stop when the tree stabilizes, is unchanged, or becomes unreadable;
+  an idle watcher has no recurring scan timer. A quiet interval cannot prove that an external copy
+  has finished if the writer pauses for longer than the interval.
 - On fire it hops to the MainActor and calls `loadExtensions()`; failures surface exactly as they do
   at startup (§6). The failure is silent by design: a hot-reloaded rejection shows up in the log, not the UI.
+- Reloads never overlap; changes settling during a reload request one follow-up reload. Dropped-event
+  notifications request snapshot reconciliation. Stream startup failure is logged without falling
+  back to perpetual polling.
 
-Latency: one tick per second, so a settled change appears within ~2 seconds. `stop()` cancels the
-timer (also used by tests; tests drive the settle logic synchronously via `pollOnce()`).
+Latency: FSEvents delivery plus two one-second settling intervals. `stop()` releases the stream,
+cancels pending checks and deferred reloads, and invalidates old-session deliveries. An already
+executing reload may finish. Tests cover both synchronous reconciliation through `pollOnce()` and
+real filesystem notification delivery.

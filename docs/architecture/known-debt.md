@@ -5,6 +5,19 @@ reached the target architecture. These change more often than the hard rules, so
 tracked here rather than in `AGENTS.md`. Keep this file current when you touch any of these
 areas; stale debt notes are worse than none.
 
+## Extension hot reload
+
+- `ExtensionsDirectoryWatcher` uses recursive FSEvents notifications and one-shot settling checks,
+  not a recurring directory scan. An unchanged tree has no scheduled snapshot work. It watches an
+  existing ancestor to detect extensions-root replacement/recreation and filters unrelated and
+  hidden paths. Reloads remain serialized through the existing loader callback.
+- Missing/unreadable roots preserve the registry and wait for another filesystem event rather than
+  retrying forever. Stream startup failure is logged; there is no polling fallback. Settling still
+  uses modification-date snapshots, so a writer paused longer than the quiet interval can appear
+  complete, and edits preserving paths and modification dates remain indistinguishable.
+- Permission-screen polling and event-driven selection listeners are unchanged. Removing idle
+  extension scans does not guarantee that app-wide CPU usage always displays exactly zero.
+
 ## Extension automatic updates
 
 - About → Extension Updates contains a persisted toggle, enabled by default. The app checks
@@ -12,6 +25,13 @@ areas; stale debt notes are worse than none.
   packages through the existing installer/trust flow. Revoked packages stay revoked.
 - Turning the toggle off prevents subsequent automatic installs; an install already in progress
   finishes. Manual update controls remain available. Local and sideloaded packages are excluded.
+
+## Extension uninstall
+
+- Uninstall clears declared package and action options for top-level actions and group sub-actions,
+  using the same group-relative IDs as the action factory. Both ordinary settings and secret entries
+  are cleared even when the package's actions are not currently loaded. Nested groups remain
+  unsupported, matching the factory. Other actions' options and the cloud AI credential are preserved.
 
 ## AI action prompting
 
@@ -25,13 +45,13 @@ areas; stale debt notes are worse than none.
   behavior and interfaces, returns raw corrected code, and permits a brief missing-context response
   when a reliable fix cannot be determined.
 - **Custom system prompt.** `SettingKey.aiCustomSystemPrompt` (Settings → AI → System Prompt)
-  replaces only `AIRequestSupport.defaultGuidelines` (role and behavior rules 1 to 4). The task, the
-  `<text>` input rule and the tagged/structured output contract are always appended and renumbered,
-  so parsing never depends on user text. Blank or unchanged-default text is stored as `""`, and the
-  built-in prompt is then byte-identical to the pre-setting one (pinned by
-  `AICustomSystemPromptTests`). `AIServiceManager.currentProvider` passes the value into every
-  provider's `customGuidelines`. CLI providers send it as part of the prompt argument, beneath the
-  tool's own agent instructions.
+  replaces only `AIRequestSupport.defaultGuidelines` (role and behavior rules 1 to 4). The fixed
+  formatting rules (plain replacement text vs. card-friendly Markdown), the task, the `<text>` input
+  rule and the tagged/structured output contract are always appended and renumbered, so parsing and
+  paste behavior never depend on user text. Blank or unchanged-default text is stored as `""`, so the
+  built-in prompt always applies (pinned by `AICustomSystemPromptTests`). `AIServiceManager.currentProvider`
+  passes the value into every provider's `customGuidelines`. CLI providers send it as part of the
+  prompt argument, beneath the tool's own agent instructions.
 
 ## Manual update window activation
 
@@ -123,6 +143,14 @@ areas; stale debt notes are worse than none.
   environment variables, including secrets; `AppleScriptAction` does not consume options today.
 
 ## Action seams already implemented
+
+- Parent-group disable state is resolved through the registry's existing provider/custom-group
+  membership and package rules, exposed by `ActionCoordinator.isDisabledByParentGroup`. Child
+  switches in Actions, Shortcuts, extension lists, and action editors show off and are non-interactive
+  while their parent is disabled. Child settings and configuration access are preserved; re-enabling
+  a group restores each child's previous choice rather than enabling every child. Outline signatures
+  include parent state so reused rows refresh. Per-action hotkeys use the same membership gate,
+  including canonical provider-owned IDs; standalone AI presets do not inherit AI Tools' switch.
 
 - Coordinator composition is done. `ActionCoordinator.loadInitialState()` wires `ExtensionManager`
   to the registry via `onRegister`/`onUnregister`; the manager never calls `ActionRegistry.shared`
@@ -228,7 +256,53 @@ areas; stale debt notes are worse than none.
   `ConfigurableAction.preferenceIconName`, the legacy block is gone. Keep it that way: never add
   id-string switches in presentation.
 
+## Typed inline results
+
+- Inline values are `InlineResultValue` (text, canonical sRGB color). `PopupModeStore`
+  publishes typed values; the shared `InlineResultLabel` renderer and `InlineResultLayout` width
+  math serve the main bar, group sub-bar, and search accessory. Core owns validation, bounds, and
+  delivery capability; AppKit/SwiftUI presentation stays in `Sources/OpenClip/`.
+- Automatic preview runs `OpenClipJSHost.Request(restrictedToPreview: true)`, which replaces effect
+  and clipboard APIs with throwing stubs and omits pasteboard capture before top-level code or
+  `require`d modules execute. This is capability removal, not a memory sandbox: JavaScriptCore's
+  execution limit stops nonterminating synchronous code, but allocation attacks remain a JSC
+  limitation.
+- `InlineResultEvaluator` caches at most 200 outcomes and 1 MiB. Only Calculate survives
+  `endSession`; extension caches are session-scoped because time and randomness make persistent
+  determinism unsafe. `null`/invalid outcomes are cached as not-applicable and are not retried
+  automatically; an explicit activation may start one fresh bounded evaluation.
+- The shared JavaScript execution gate rejects a request when its in-flight cap is reached rather
+  than queueing it; inline queue waiting therefore surfaces as a failed preview. Visible-row
+  prioritisation and a bounded queue remain follow-up work.
+- The typed color card owns its body. The color swatch grows with the card while the hex keeps its
+  fixed type size; the card offers explicit Copy (hex) and Save (plain-text hex), but a color still
+  never enters automatic Paste/Copy delivery. Emoji glyphs are ordinary text: same row metrics,
+  same Paste/Copy controls, delivered verbatim.
+- `displayOnly` is action-level on leaf inline JavaScript actions and requires
+  `minOpenClipVersion` 1.10.0 or newer. It is enforced at the shared invocation seams
+  (`canPerformAction`, `runBoundAction`, the evaluator, and each surface's activation handler), not
+  only in SwiftUI click closures. `project.yml` sets `MARKETING_VERSION` to 1.10.0 for this release;
+  keep `InlineResultValue.minimumOpenClipVersion` and the app version in step.
+- Extension-author documentation, validator rules, and examples for `displayOnly`, `output:
+  "color"`, and typed JavaScript returns belong to the separate `openclip-extensions`
+  repository.
+
 ## Action-search palette and popup growth
+
+- Shortcut-opened search resolves cached selection or clipboard input synchronously and never waits
+  for AX before presenting its field. The focused palette does not start AX retrieval: the
+  system-wide focused app is OpenClip itself, and reading its SwiftUI accessibility hierarchy from
+  the inspect queue crashes the main-actor isolation check. Cold copy-only apps therefore use the
+  clipboard snapshot captured at invocation, or an empty context. In-flight passive selection work
+  is cancelled before focus moves. Per-action hotkeys retain full retrieval. The source indicator is
+  read-only, and Tab is consumed without changing focus or input. Keyboard selection gestures
+  invalidate the previous cached input before their debounce begins.
+
+- The unscoped search palette starts with runnable contextual matches, using the bar's stable
+  contextual-first ordering and honoring both the global toggle and per-action contextual opt-outs.
+  Other actions retain their saved relative order; neither the registry nor saved preferences are
+  reordered. Typing still uses the existing alias/title/fuzzy/keyword ranking and usage tie-breaks;
+  clearing the query restores contextual-first order. Scoped palettes keep their explicit child order.
 
 - Classic popup shadows use a separate padded rendering buffer. `PopupCardChromeModifier`
   rasterizes only the solid rounded surface and its contact/ambient shadows, with
@@ -294,9 +368,12 @@ areas; stale debt notes are worse than none.
   enables `canBecomeKey`/`canBecomeMain` in both modes (`PopupPanel.swift:19`), routed through the
   same `enterKeyMode()`/`exitKeyMode()` primitives (`PopupWindowController.swift:196,206`). A
   `@FocusState`-in-onAppear request is silently dropped on macOS, so search forces focus via
-  `focusSearchField()` on the next run-loop turn (`PopupWindowController.swift:245`);
-  `previousFrontmostApp` is captured once per session (on `show(for:)`/`enterKeyMode`, never
-  re-captured mid-session) and re-activated on `exitKeyMode`/`hide`.
+  `focusSearchField()` on the next run-loop turn (`PopupWindowController.swift:245`). The result
+  card takes the same route through `focusResultCard()`: it focuses the follow-up field when one
+  exists, otherwise it makes the card's AppKit `ResultCardKeyCatcher` first responder, then retries
+  after the content swap so a regular action's card is usable without a click. `previousFrontmostApp`
+  is captured once per session (on `show(for:)`/`enterKeyMode`, never re-captured mid-session) and
+  re-activated on `exitKeyMode`/`hide`.
 - Search and content modes suspend popup dismissal. The distance auto-dismiss and the key/scroll
   dismissals in `handleEvent` are skipped while `modeStore.mode == .search` or `.content`
   (`PopupWindowController.swift:591,612,622`), so typing with the mouse elsewhere doesn't close the
@@ -335,9 +412,9 @@ areas; stale debt notes are worse than none.
 - The search header can move the popup. Dragging its magnifying glass or the clear strips above
   and below the text field uses the result card's panel-drag path; editing and selecting search text
   remains on the text field. The pre-search bar frame moves by the same delta so leaving search
-  returns the bar to the dragged position. The trailing source chip shows whether the active action
-  context is the selection or clipboard; Tab switches between them when a distinct clipboard text
-  snapshot is available, and the visible chip can also be clicked.
+  returns the bar to the dragged position. The trailing source indicator shows whether the active
+  action context is the selection or clipboard. It is read-only; Tab is reserved for a future
+  palette action and is currently consumed without changing focus or input.
 - Define has a single display picker. Popover mode is a system Look Up popover, not inline
   content. `DefineAction` exposes one `definitionDisplay` picker (`card` default / `popover` /
   `dictionary`), replacing the old `openInDictionaryApp` boolean; a legacy `true` migrates to
@@ -402,6 +479,27 @@ areas; stale debt notes are worse than none.
 - The Search all actions button is optional. `SettingKey.showSearchAllActions` defaults to
   true and is exposed under Customize → Behavior. Hiding it removes its width reservation
   from popup pagination and updates the Appearance preview. The search hotkey stays available.
+
+- AI result bodies render Markdown once settled. `MarkdownPresence`
+  (`Core/Utils/MarkdownPresence.swift`) is a detection-only scan (no parsing): line-anchored
+  constructs plus paired inline markers, checked outside fenced code blocks, with shell-comment
+  (`# lowercase`) and glob (`* .swift`) guards; texts over 20 000 characters stay plain.
+  `ResultCardView.bodyText` routes AI answers (`canFollowUp`) through `ResultMarkdownBody`
+  (MarkdownUI, 13.5 pt body, toned-down heading scale) only when not streaming, refining, errored,
+  or showing the diff. Copy/paste/drag keep using `payload.text`, so the Markdown source is what
+  leaves the card. Card height uses the rendered body's measured layout height (PreferenceKey
+  report, reset on payload change) and falls back to the source-text estimate before the first
+  layout pass; width still measures the source text. `AIRequestSupport` carries a fixed formatting
+  rule: replacement tasks return plain text, explanatory tasks may return Markdown. Remote images
+  are disabled with custom `ImageProvider`/`InlineImageProvider` implementations, so model output
+  cannot trigger network fetches. Known gaps: no toggle back to source view (⌘D is the diff), and
+  MarkdownUI brings NetworkImage + swift-cmark into the dependency graph.
+
+- Extension text previews can declare a card format. `presentation` (`plain`, `markdown`, `code`,
+  `diff`) resolves action → package → plain in `DefaultActionFactory` and rides `ActionChrome` →
+  `DeliveryContext` → `ResultCardPayload`; a typed text result can override it via
+  `.presentedText`. Copy/paste/drag ignore the presentation. `diff` reuses
+  `TextDiff.isMeaningfulEdit` and falls back to plain text for large or unrelated results.
 
 ## AI providers
 
@@ -507,13 +605,14 @@ lines by height interleaved multi-column text.
   (`performCardEffect`) that carry no delivery context and are never re-decided. The live probe
   (`PasteAvailabilityProbe`) needs
   Accessibility permission and
-  walks the target's Edit ▸ Paste AX menu item; without AX it returns "unknown" and delivery falls
-  back to copy (safe but means paste never happens for AX-less users). The same unified decision drives
-  `modeStore.canPaste`, which hides the card's Paste button and the bar/search Paste + Cut
-  (`PasteRequiringAction`) actions on a confirmed cannot-paste; unknown keeps them visible. The
-  probe is started by the trigger sites in parallel with selection retrieval and applied before the
-  first frame (probe-before-render, nothing cached), so a same-app focus-context change re-probes
-  cleanly. The click-intent capture reads
+  walks the target's Edit ▸ Paste AX menu item; without AX it returns "unknown", which hides
+  built-in Paste only when a destination is confirmed unavailable. Text insertion is separate
+  evidence (AX settable state), so text paste requires confirmed editability and degrades to copy
+  instead of trusting the app-level menu. `modeStore.canPaste` still feeds the card's Paste button
+  and palette labels, while Paste/Cut visibility comes from their `isEnabled` gates
+  (`ActionEligibility`). The probe is started by the trigger sites in parallel with selection
+  retrieval and applied before the first frame (probe-before-render, nothing cached), so a
+  same-app focus-context change re-probes cleanly. The click-intent capture reads
   only ⇧ (not ⌘/⌥); the bar/sub-bar take it from mouse-down, while the palette resolves it itself
   (`replace` for ⇧⏎ / the ⇧⏎ badge, else the captured mouse intent) and passes it explicitly into
   the delivery snapshot, and entering the palette resets `pendingClickIntent` so a keyboard run
@@ -608,7 +707,7 @@ lines by height interleaved multi-column text.
   not its provenance; external apps cannot be locked and late writes beyond the response
   window remain a platform limitation. OCR and explicit text/rich-payload results retain
   their supplied-output behavior. Cut still reconstructs plain text and is separate work.
-  The project consumes the released OpenSelection package at `v2.16.0`; for local package development, switch `project.yml` back to `path: openselection`.
+  The project consumes the released OpenSelection package at `v2.16.1`; for local package development, switch `project.yml` back to `path: openselection`.
 
 - Mouse gesture checks precede retrieval. A bounded AX hit-test of the original press rejects
   identifiable toolbar/titlebar chrome, including unchanged fullscreen windows, while
@@ -620,6 +719,33 @@ lines by height interleaved multi-column text.
   timeout on the system-wide element (that would change the process-wide AX default); its
   deadline race bounds it instead, as in `SelectionEditabilityProbe`.
   Multi-clicks also recheck window geometry after their settle delay for delayed zoom/resize updates.
+- Automatic Copy needs a text cue from the gesture. A drag or multi-click is a selection *gesture*,
+  not a selection: the pointer may have been on a scrollbar, a photo, a video, or window content,
+  and the copy tier would post a real ⌘C against an app with nothing selected. AppKit answers that
+  with the system alert sound and a flashing Edit menu (issues #210, #159, #109). `handleMouseUp`
+  therefore requests the copy fallback only when the press or the release showed the I-beam
+  (`textCue` in the selection log); arrow, pointing-hand, and unclassified cursors keep every AX
+  strategy but never reach a synthetic copy. The cue is structural, not per-app: text drags
+  (including one released over whitespace), multi-clicks on text, and the Chromium/Electron
+  fallback still copy. An app whose policy puts `keyboard-copy` first is exempt: that policy
+  declares its AX tree cannot expose the selection, so the cue gate would remove its only read
+  path; the copy engine still requires selection evidence and an enabled Copy command. Keyboard, hold, and hotkey paths are not gated. Remaining hole: the
+  package's browser fallback still grants weak evidence when an exposed web area reports no
+  selection (the Safari shape in #210); closing that belongs in OpenSelection.
+- Capability facts are tri-state and decided in one place. `TargetCapabilities` carries text
+  insertion (Accessibility settable state), pasteboard paste (the Edit ▸ Paste probe), and target
+  liveness; `ActionEligibility` turns them into visibility and delivery decisions. Text insertion
+  is element-level evidence: a read-only text view exposes a selection range but accepts no edits,
+  and the app-level Paste command is enabled in browsers that cannot insert text at the caret.
+  Cut and text paste therefore require positive editability (paste degrades to copy otherwise);
+  clipboard and file payloads use the Paste probe because Finder, Preview, and canvases accept
+  them without a text control. OpenSelection v2.16.5 reads settable state during inspect and adds
+  `EditabilityProbe` for sessions that open without a selection. Extensions that declare
+  `input: editableSelection` or `requiresPasteTarget` map onto the same needs.
+  Residual debt: a loading action captures editability at selection time and does not re-probe
+  the focused element at delivery, so a focus change inside the same app is caught only by the
+  selection-generation check. `requiresLiveSelection` plus `OCRInputAction` remain a separate
+  input-provenance axis from target capabilities.
 - Mouse-gesture results must be where the gesture was. AX reports the document's selection,
   not the gesture's: Chromium's double-click selects the closest word even over a video, so a
   player with `opacity: 0` controls yields an invisible selection far from the click (issue #162),
@@ -628,10 +754,12 @@ lines by height interleaved multi-column text.
   the press-to-release rectangle (both padded 12 pt). Nil, empty, sub-2 pt, or off-screen bounds
   fail open. Triple-clicks are not checked: Chromium reports paragraph ranges as a 1×1 rect or
   offset by a line. Keyboard, hold, and hotkey reads are not checked either.
-- Double-click reads wait out a possible third press. A double-click read starts only after
-  `min(NSEvent.doubleClickInterval, 220 ms)`, so a triple-click's third press cancels it instead
-  of flashing a word popup that the paragraph selection immediately replaces. Triple and later
-  clicks keep the 50 ms geometry settle.
+- Double-click reads no longer wait out a possible third press. Every multi-click read starts
+  after the same 50 ms window-geometry settle, so a double-click popup appears promptly instead
+  of after the system multi-click interval. A third press cancels a read that is still in
+  flight; if the word popup already opened, the press keeps it up and the paragraph result
+  replaces its content instead of dismissing and re-showing it. Title-bar zoom remains guarded
+  by the pre-read chrome hit-test and the post-settle window-frame check.
   Mouse-up Paste availability inspection begins only after a valid text result is accepted.
 - Clipboard operations share ownership. OpenSelection's pasteboard coordinator reserves
   the clipboard through preparation, activation, and the bounded delivery window. Posted
@@ -730,6 +858,12 @@ lines by height interleaved multi-column text.
   paths use the same target-transition handler, so duplicate entries and stale local exits cannot
   restart dwell or cancel a different group's timer. Pointer-distance dismissal in fullscreen remains dependent on monitor
   delivery and is not supplied by this tracking-area path.
+- Adjacent group buttons share that corridor. While a sub-bar is open, `SubBarAim` keeps it
+  when the pointer moves inside the triangle from its previous position to the open row's near
+  edge, including across the next group button (#194). That group replaces the row when the
+  pointer leaves the triangle or rests for `SubBarAim.switchDwell` (200 ms). Non-group
+  neighbors still only cancel grace; they do not open a row. The keep-or-switch decision is a
+  pure function of the pointer samples, the visible sub-bar rect, and the rest time.
 - Tooltip and sub-bar windows follow the toast Space recovery. Both panels include
   `canJoinAllApplications`. Each show schedules one 150 ms check; a reused window that is
   invisible or off the active Space is replaced once, keeping its content view and frame,
@@ -853,7 +987,7 @@ Actual capacity depends on the popup display, scale, controls, and rendered acti
 
 Extension requirements now declare `content: ["url", "email", "date", "path", "phone", "address"]` (any listed type). A lazy, lock-protected cache on each immutable `SelectionContext` supplies the same ordered recognition results to applicability and JS execution; cursor/editability copies retain the cache. URL/email scans share their native link results. Content requirements classify an action as contextual while preserving user exclusions and existing input/destination/app/regex gates. JS receives deeply frozen `openclip.input.detected` arrays, and all JS HTTP/HTTPS effects preserve source-browser routing independently of content requirements. Open Link, Add Event, and Reveal in Finder share the native detector; Finder existence checks remain platform-side and bounded, with cached exact lexical candidates checked before cleaned alternatives so literal filename punctuation survives.
 
-The former expression evaluator was retired. Manifests declaring `requirements.expression` fail decoding with an actionable migration diagnostic instead of dropping their gate. No catalog manifest used it in the implementation inventory. Path detection is lexical and does not guarantee existence; native date/phone/address recognition remains dependent on system formats. URL scanning now covers the complete selection rather than the old 2,000-character prefix. Very large selections may incur synchronous native detection latency once per requested type. Colors/JSON and arbitrary JS applicability callbacks are deferred. Packages using content requirements reserve the 1.9.0 compatibility floor and must wait for its release before store publication.
+The former expression evaluator was retired. Manifests declaring `requirements.expression` fail decoding with an actionable migration diagnostic instead of dropping their gate. No catalog manifest used it in the implementation inventory. Path detection is lexical and does not guarantee existence; native date/phone/address recognition remains dependent on system formats. URL scanning now covers the complete selection rather than the old 2,000-character prefix. Very large selections may incur synchronous native detection latency once per requested type. Colors/JSON remain deferred. Arbitrary JS applicability callbacks now ship as the narrow, file-based `requirements.predicate` gate: one CommonJS function, read-only input, package-confined `require`, a 5 ms budget, and fail-open errors/timeouts. Contextual promotion follows the uniform narrowing-requirement rule and can be overridden with the action-level `contextual` boolean; user settings still win. Packages using content requirements reserve the 1.9.0 compatibility floor and must wait for its release before store publication.
 
 ## URL opening
 
@@ -862,4 +996,19 @@ it targets the recognized source browser, falling back to the system default oth
 JavaScript `openclip.openURL` HTTP/HTTPS effect uses the same routing, regardless of content
 requirements; other schemes retain their system handlers. Effects run through the existing
 BrowserTabOpener front-window scripting and LaunchServices fallback. JavaScript owns its loop
-and deduplication when opening multiple URLs.
+and deduplication when opening multiple URLs. Firefox has no tab scripting; from a private window
+(detected by the English "Private Browsing" title suffix) it runs `firefox --private-window URL`.
+
+## Default app blocks
+
+`DefaultAppRules.disabledApps` ships a `disabled: true` catalog rule for VMs, remote desktops,
+emulators, and canvas-first apps. It is a normal rule layer: a user rule with `disabled: false`
+overrides it, and the menu bar's **Disable in <App>** item writes exactly that override. `AppFilter`
+is now only the never-target tier (OpenClip itself, Dock, SystemUIServer, the character palette,
+PopClip, and the bundle-less Java launcher); it runs before the rules engine, so those identities
+cannot be re-enabled from a rule file.
+
+Known UI gap: the App Rules page lists only user rules. A default-blocked app therefore shows
+"No App Rules Configured" there until the menu bar writes an override, and the row switch reads the
+effective policy so it never claims a blocked app is enabled. Planned: one merged list with a
+Default badge and Reset-to-default.

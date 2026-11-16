@@ -34,8 +34,11 @@ public enum SettingsCatalog {
             SettingKey.isMouseHoldEnabled.erased,
             SettingKey.hasCompletedOnboarding.erased,
             SettingKey.hasDismissedPostOnboardingCoachMark.erased,
+            SettingKey.hasSeenStarPrompt.erased,
             SettingKey.startAtLogin.erased,
             SettingKey.completionCopyToClipboard.erased,
+            SettingKey.completionOnlyMisspelled.erased,
+            SettingKey.completionDisplayMode.erased,
             SettingKey.captureTextAutoCopy.erased,
             SettingKey.playActionSound.erased,
             SettingKey.actionSoundName.erased,
@@ -60,6 +63,7 @@ public enum SettingsCatalog {
             // Gesture / lifecycle
             SettingKey.mouseHoldDuration.erased,
             SettingKey.pauseUntilTimestamp.erased,
+            SettingKey.onboardingCompletedAt.erased,
             SettingKey.lastRunVersion.erased,
             SettingKey.lastRunBuild.erased,
 

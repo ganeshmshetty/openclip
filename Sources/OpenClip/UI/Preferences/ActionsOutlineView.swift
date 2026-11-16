@@ -129,11 +129,13 @@ final class OutlineNode: NSObject {
             sig += "ph:\(pkgID):\(title):\(String(describing: gatedReason)):dis=\(dis)"
         case .groupMember(let action, let parentGroupID):
             let p = customization.presented(action, surface: .table)
-            let dis = disabledActionIDs.contains(action.id)
+            let dis = disabledActionIDs.contains(action.id) || disabledActionIDs.contains(parentGroupID)
+                || (ActionIdentity.extensionPackageID(of: action).map { disabledPackages.contains($0) } ?? false)
             sig += "gm:\(parentGroupID):\(p.title):\(String(describing: p.icon)):dis=\(dis)"
         case .extensionSubAction(let action, let parentGroupID):
             let p = customization.presented(action, surface: .table)
-            let dis = disabledActionIDs.contains(action.id) || (ActionIdentity.extensionPackageID(of: action).map { disabledPackages.contains($0) } ?? false)
+            let dis = disabledActionIDs.contains(action.id) || disabledActionIDs.contains(parentGroupID)
+                || (ActionIdentity.extensionPackageID(of: action).map { disabledPackages.contains($0) } ?? false)
             // Options are part of the signature so a hot-reloaded manifest re-renders the settings cog.
             let optionsSig = action.actionOptions.map { opt in
                 "\(opt.identifier):\(opt.type.rawValue):\(opt.label):\(opt.defaultValue ?? ""):\(opt.options?.joined(separator: "|") ?? "")"
@@ -926,6 +928,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                     presentationModel: presentation,
                     disabledActionIDs: parent.$disabledActionIDs,
                     disabledPackages: parent.$disabledPackages,
+                    coordinator: parent.coordinator,
                     isRenaming: renamingActionID == action.id,
                     onRename: { [weak self] title in
                         self?.finishRenaming(action: action, title: title)

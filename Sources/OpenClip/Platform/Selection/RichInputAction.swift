@@ -29,7 +29,8 @@ struct RichInputAction: ConfigurableAction, ActionWithRules {
         try Task.checkCancellation()
         let enriched = ActionContext(selection: selection, modifiers: context.modifiers,
                                      isSecondaryClick: context.isSecondaryClick, match: context.match,
-                                     pasteTargetAvailable: context.pasteTargetAvailable)
+                                     pasteTargetAvailable: context.pasteTargetAvailable,
+                                     visibilityMemo: context.visibilityMemo)
         return try await base.perform(enriched)
     }
 }

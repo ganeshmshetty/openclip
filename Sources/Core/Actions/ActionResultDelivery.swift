@@ -6,7 +6,7 @@
 // then the clipboard invariant on secondary clicks, except a user "Show in card" preference keeps
 // text in the card) -> Probe (paste downgraded to copy when the target can't paste) -> Toast.
 // Only paste outcomes are downgraded; non-text results pass through.
-// Core stays free of AppKit and UserDefaults; `canPaste` is injected so this is unit-testable.
+// Core stays free of AppKit and UserDefaults; `capabilities` is injected so this is unit-testable.
 import Foundation
 
 /// Behavior for an action that implicitly returns text. The controller injects the per-click value into `resolve`.
@@ -32,7 +32,7 @@ public enum ActionResultDelivery {
     public static func resolve(
         raw: ActionResult,
         clickIntent: ClickIntent,
-        canPaste: Bool,
+        capabilities: TargetCapabilities,
         delivery: ActionDelivery = .none,
         preference: ResultDeliveryPreference? = nil,
         recommendedResult: ActionResultDeliveryMode? = nil,
@@ -46,7 +46,7 @@ public enum ActionResultDelivery {
             recommendedResult: recommendedResult,
             outputKind: outputKind
         )
-        let delivered = applyProbe(to: selected, canPaste: canPaste)
+        let delivered = ActionEligibility.degrade(selected, capabilities: capabilities)
         let toast = toast(for: delivered, clickIntent: clickIntent, delivery: delivery)
         return (delivered, toast)
     }
@@ -62,6 +62,7 @@ public enum ActionResultDelivery {
         recommendedResult: ActionResultDeliveryMode? = nil,
         outputKind: ActionOutputKind? = nil
     ) -> ActionResult {
+        if case .color = raw { return raw }
         if clickIntent == .secondary, let declared = delivery.secondary {
             // Declared outcomes always win over automatic conventions.
             return declared
@@ -79,6 +80,7 @@ public enum ActionResultDelivery {
         } else if let outputKind {
             switch outputKind {
             case .text: explicitMode = .pasteOrCopy
+            case .color: explicitMode = .preview
             case .file, .dynamic: explicitMode = .preview
             case .none: explicitMode = .preview
             }
@@ -99,6 +101,10 @@ public enum ActionResultDelivery {
         explicitMode: ActionResultDeliveryMode?,
         previewOnSecondary: Bool = false
     ) -> ActionResult {
+        // A color is Show-only on every route: recommendations, force-copy, and card commands cannot
+        // turn its canonical hex into text delivery.
+        if case .color = raw { return raw }
+
         if case .sequence(let items) = raw {
             return .sequence(items.map {
                 selectItem($0, clickIntent: clickIntent, explicitMode: explicitMode, previewOnSecondary: previewOnSecondary)
@@ -108,7 +114,7 @@ public enum ActionResultDelivery {
         let effectiveMode: ActionResultDeliveryMode
         if let explicitMode {
             effectiveMode = explicitMode
-        } else if case .text = raw {
+        } else if raw.textContent != nil {
             effectiveMode = .pasteOrCopy
         } else if case .file = raw {
             effectiveMode = .preview
@@ -116,17 +122,17 @@ public enum ActionResultDelivery {
             effectiveMode = .preview
         }
 
-        if case .text(let text) = raw {
+        if let content = raw.textContent {
             if clickIntent == .primary {
                 switch effectiveMode {
                 case .preview:
                     return raw
                 case .paste, .pasteOrCopy:
-                    return .paste(text)
+                    return .paste(content.text)
                 case .copy:
-                    return .copy(text)
+                    return .copy(content.text)
                 case .open, .save:
-                    return .paste(text)
+                    return .paste(content.text)
                 }
             } else {
                 switch effectiveMode {
@@ -134,10 +140,10 @@ public enum ActionResultDelivery {
                     // User chose "Show in card": the secondary click shows the card too.
                     return raw
                 case .paste, .pasteOrCopy, .preview, .open, .save:
-                    return .copy(text)
+                    return .copy(content.text)
                 case .copy:
                     // Primary copy -> Secondary preview
-                    return .text(text)
+                    return raw
                 }
             }
         }
@@ -179,20 +185,6 @@ public enum ActionResultDelivery {
             }
         }
         return raw
-    }
-
-    /// Step 2: downgrades `.paste`/`.pasteContent` to copy when the target can't paste. The single choke point.
-    private static func applyProbe(to selected: ActionResult, canPaste: Bool) -> ActionResult {
-        switch selected {
-        case .paste(let text):
-            return canPaste ? .paste(text) : .copy(text)
-        case .pasteContent(let payload):
-            return canPaste ? .pasteContent(payload) : .copyContent(payload)
-        case .sequence(let items):
-            return .sequence(items.map { applyProbe(to: $0, canPaste: canPaste) })
-        default:
-            return selected
-        }
     }
 
     /// Step 3: the click's declared toast wins; otherwise a default toast for copy and save outcomes.

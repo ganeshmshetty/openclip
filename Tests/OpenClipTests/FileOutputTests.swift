@@ -83,7 +83,7 @@ final class FileOutputTests: XCTestCase {
         let (primaryResolved, primaryToast) = ActionResultDelivery.resolve(
             raw: .file(payload),
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         if case .file(let resPayload) = primaryResolved {
@@ -96,7 +96,7 @@ final class FileOutputTests: XCTestCase {
         let (secondaryResolved, secondaryToast) = ActionResultDelivery.resolve(
             raw: .file(payload),
             clickIntent: .secondary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         if case .copyFile(let copyURL) = secondaryResolved {
@@ -113,7 +113,7 @@ final class FileOutputTests: XCTestCase {
         let (_, copyToast) = ActionResultDelivery.resolve(
             raw: .copyFile(fileURL),
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         XCTAssertEqual(copyToast?.message, "Copied File")
@@ -121,7 +121,7 @@ final class FileOutputTests: XCTestCase {
         let (_, saveToast) = ActionResultDelivery.resolve(
             raw: .saveFile(fileURL),
             clickIntent: .primary,
-            canPaste: true,
+            capabilities: .stub(),
             delivery: .none
         )
         XCTAssertEqual(saveToast?.message, "File Saved")

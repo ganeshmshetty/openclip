@@ -107,6 +107,8 @@ struct ActionRowView: View {
     @Binding var disabledActionIDs: Set<String>
     @Binding var disabledPackages: Set<String>
 
+    var coordinator: ActionCoordinator = .shared
+
     var isRenaming: Bool = false
     var onRename: ((String?) -> Void)? = nil
     @State private var editedTitle = ""
@@ -116,13 +118,18 @@ struct ActionRowView: View {
         let isEnabled = ActionEnablement.binding(
             for: action,
             disabledActionIDs: $disabledActionIDs,
-            disabledPackages: $disabledPackages
+            disabledPackages: $disabledPackages,
+            coordinator: coordinator
+        )
+        let parentIsDisabled = coordinator.isDisabledByParentGroup(
+            action, disabledActionIDs: disabledActionIDs, disabledPackages: disabledPackages
         )
 
         HStack(alignment: .center, spacing: 10) {
             ActionIconView(icon: presentationModel.icon, size: 16)
                 .frame(width: 20, height: 20, alignment: .center)
                 .foregroundStyle(.secondary)
+                .opacity(parentIsDisabled ? 0.45 : 1)
 
             if isRenaming {
                 TextField("Action Name", text: $editedTitle)
@@ -161,6 +168,7 @@ struct ActionRowView: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .accessibilityLabel(String(localized: "Enable \(presentationModel.title)"))
+                .disabled(parentIsDisabled)
 
             Button {
                 SettingsDestination.open(action)

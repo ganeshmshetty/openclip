@@ -60,6 +60,8 @@ Dragging an action changes its position in the popup bar. [`SettingsStore`](../.
 
 Search, Copy, Cut, Paste, Calculate, Define, Add Event, Open Link, Reveal in Finder, and Word Completion each have a row in the sidebar's second group. The page opens with the same header an extension's page has, showing the action's icon and name. Below it are the name and icon shown in the popup bar, the alias and hotkey, and any options the action declares (Search's engine, for example). The action's switch is in the toolbar. **Revert** discards unsaved edits and **Save Changes** applies them.
 
+Word Completion's page also has **Only suggest for misspelled words** (on by default) and **Show completions**. Both apply as soon as they change. A word counts as spelled correctly when any enabled keyboard input language accepts it. **Inline**, the default, opens the suggestion row in the bar. **As contextual action** shows the Word Completion group in the contextual island: hovering it opens the suggestions sub-bar, and clicking it opens a scoped search palette. Picking a suggestion pastes it. The group stays hidden when there is nothing to suggest.
+
 ## Custom actions
 
 Your own Open URL, Text Snippet, and Shell Script actions are on the **Custom Actions** page. Each has a switch and a **›** into its editor. **Add Custom Action** (also the toolbar's **+**) creates a new one. An action's page has **Duplicate** and **Delete Action…** in its footer.
@@ -128,7 +130,7 @@ OpenClip can send selected text to a local or cloud AI model. Select **AI** in t
 | :--- | :--- | :--- |
 | Apple Intelligence | On-device macOS intelligence framework | macOS 26.0 or later on Apple Silicon, with Apple Intelligence enabled |
 | Ollama (Local) | Local LLM execution, so text stays on your Mac | A running Ollama instance (`http://localhost:11434`) |
-| Cloud AI (OpenAI, Claude, Gemini, DeepSeek, Groq, OpenRouter, Custom) | Cloud API language models | A valid API key, stored in `SecretStore` (`~/.openclip/secrets.json`) |
+| Cloud AI (OpenAI, Claude, Gemini, DeepSeek, Groq, OpenRouter, OpenCode, OpenCode Go, Mistral, xAI, Cerebras, Together AI, Fireworks, Custom) | Cloud API language models | A valid API key, stored in `SecretStore` (`~/.openclip/secrets.json`) |
 | Browser Redirect | Opens the AI query in your browser | No API key |
 
 With the Ollama preset, OpenClip asks reasoning models (Qwen 3.5 and DeepSeek-R1, for example) to skip their thinking pass, so results arrive in seconds instead of minutes. The CLI presets do the same where the tool has a switch for it: Claude Code runs with `MAX_THINKING_TOKENS=0` and Codex CLI with `-c model_reasoning_effort=none`. GitHub Copilot and custom commands have no "off" level, so they keep their defaults.
@@ -151,7 +153,7 @@ Select a preset under **AI > AI Actions** to edit its icon, display name, **Icon
 
 Every AI action sends a system prompt before the action's own prompt. It says what OpenClip is asking the model to do and sets general rules: return only the result, follow the requested language and tone, keep the meaning when editing, and don't invent facts. You can rewrite this part under **AI > System Prompt**. The editor starts with the built-in text and saves as you type, and **Reset to Default** brings the built-in text back. Your text applies to every AI action, Ask AI, and result-card follow-ups, with every provider.
 
-OpenClip always adds three things after your text, and you can't edit them: the action's prompt (as the *Task*), the rule that the selected text in the `<text>…</text>` block is material to work on and not instructions, and the answer format OpenClip uses to read the result.
+OpenClip always adds these after your text, and you can't edit them: the action's prompt (as the *Task*), a formatting rule that keeps edit-style actions as plain replacement text and lets explain-style answers use Markdown, the rule that the selected text in the `<text>…</text>` block is material to work on and not instructions, and the answer format OpenClip uses to read the result.
 
 **Example: reply in the sender's language.** Say you have an action that drafts replies ("Reply to this message, very friendly, same tone…"), and its prompt is written in German. It tends to answer in German even when the message you selected is in English, because the built-in rules tell the model to follow the task's language. Replacing that rule in the system prompt fixes it for every action at once:
 
@@ -164,7 +166,7 @@ You execute a user-defined action in OpenClip. Follow the task below.
 4. Do not invent facts missing from the input.
 ```
 
-The CLI providers (Claude Code, Codex, Copilot) add their own agent instructions, and OpenClip's system prompt reaches the model as part of the request, not as a real system message. Your rules still apply, but the model may follow them less strictly than with Apple Intelligence, local models, or the cloud APIs.
+The CLI providers (Claude Code, Codex, Copilot, Antigravity CLI, Cursor Agent, and OpenCode) add their own agent instructions, and OpenClip's system prompt reaches the model as part of the request, not as a real system message. Your rules still apply, but the model may follow them less strictly than with Apple Intelligence, local models, or the cloud APIs. Settings shows the selected CLI on one row: Ready and its version, Sign in needed, or Not installed. When it isn't ready, a button installs the CLI in the background, or opens Terminal for the sign-in flow. The menu marks CLIs that aren't installed. Custom Command stays quiet until a command is entered. OpenClip finds the binary the way a login shell does — including Homebrew, npm, bun, Volta, nvm, and ~/.opencode locations — and runs that same path.
 
 ### Ask AI from the search palette
 

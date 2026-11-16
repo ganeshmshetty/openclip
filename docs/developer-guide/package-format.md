@@ -72,8 +72,9 @@ OpenClip decodes extension metadata via [`ExtensionMetadata`](../../Sources/Core
 | `keywords` | Array / String | - | Optional search keywords for the package actions in the action-search palette. |
 | `version` | String | - | Declared package version; recorded in the validation log line, not used for loading. |
 | `capabilities` | Array | - | Declared runtime capabilities. The known set is empty on day one, so any non-empty value rejects the manifest. Reserved. |
-| `output` | String | - | Optional default output contract kind (`"text"`, `"file"`, `"none"`, `"dynamic"`) inherited by actions in the package. |
+| `output` | String | - | Optional default output contract kind (`"text"`, `"color"`, `"file"`, `"none"`, `"dynamic"`) inherited by actions in the package. |
 | `result` | String | - | Optional default delivery recommendation (`"preview"`, `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`) inherited by actions. |
+| `presentation` | String | - | Optional default card format for text results: `"plain"`, `"markdown"`, `"code"`, or `"diff"`. Inherited by actions; defaults to `"plain"`. |
 
 Manifests are validated on load (`ManifestValidator`): unknown action kinds, missing required
 fields (`keyPress`/`shortcutName`/`subActions`/executable payload), and any declared capability
@@ -100,22 +101,72 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `shortcutName` | String | Name of a macOS Shortcut to run (for `type: "shortcut"`). |
 | `serviceName` | String | Reserved for the macOS Services menu (for `type: "service"`). |
 | `subActions` | Array | Sub-action objects for `type: "group"`; rendered as a sub-menu with IDs `<groupID>.<subID>`. |
-| `output` | String | Optional declared output kind: `"text"`, `"file"`, `"none"`, `"dynamic"`. Inherits package-level `output` if omitted, or falls back to inference sniffing for legacy extensions. |
+| `output` | String | Optional declared output kind: `"text"`, `"color"`, `"file"`, `"none"`, `"dynamic"`. Inherits package-level `output` if omitted, or falls back to inference sniffing for legacy extensions. |
 | `result` | String | Optional recommended delivery: `"preview"` (result card), `"paste"`, `"copy"`, `"paste-or-copy"`, `"open"`, `"save"`. Defaults to package-level default or kind defaults (`paste-or-copy` for text, `preview` for file). |
+| `presentation` | String | Optional card format for text results: `"plain"`, `"markdown"`, `"code"`, or `"diff"`. Overrides the package default; defaults to `"plain"`. Set it on each sub-action of a group, not on the structural group row. |
 | `secondary` | Object | Optional. Secondary-click (right-click/⇧-click) outcome: `{ "type": "copy" | "paste" | "openURL" | "toast" | "success" | "none", "value"?, "message"? }`. **Non-JS kinds only**, rejected on `javascript` (JS authors branch on `openclip.input.isSecondaryClick` in-script instead). |
 | `toast` | Object | Optional. Primary-click companion toast `{ "message": string | object, "style"?: "success" | "error" | "info" }` (default style `success`). Valid on all kinds. Message can be localized dictionary. |
 | `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. Dash alias: `secondary-toast`. |
-| `requirements.content` | Array | Non-empty list of `url`, `email`, `date`, `path`, `phone`, `address`; any detected type passes, makes the action contextual, and supplies `openclip.input.detected`. Requires 1.9.0. |
-| `requirements.input` | String | Input contract: `optional`, `text` (default), `liveSelection`, or `editableSelection`. Legacy `requiresSelection`/`requires-selection` maps `true` to `text` and `false` to `optional`; do not combine legacy and new keys. |
-| `requirements.requiresPasteTarget` | Boolean | Optional destination gate. `true` requires a confirmed Paste-capable target; `false` or omission means no paste target is required, not that paste is forbidden. Dash alias: `requires-paste-target`. |
+| `requirements.content` | Array | Non-empty list of `url`, `email`, `date`, `path`, `phone`, `address`; any detected type passes and supplies `openclip.input.detected`. A narrowing requirement makes the action contextual by default; `contextual` overrides. Requires 1.9.0. |
+| `requirements.input` | String | Input contract: `optional`, `text` (default), `liveSelection`, or `editableSelection`. Legacy `requiresSelection`/`requires-selection` maps `true` to `text` and `false` to `optional`; do not combine legacy and new keys. `liveSelection` and `editableSelection` are narrowing requirements for contextual promotion; `text` and `optional` are not. |
+| `requirements.requiresPasteTarget` | Boolean | Optional destination gate. `true` requires a confirmed Paste-capable target and is a narrowing requirement for contextual promotion; `false` or omission means no paste target is required, not that paste is forbidden. Dash alias: `requires-paste-target`. |
+| `requirements.predicate` | String | Optional package-relative `.js` file (64 KiB max) exporting one pure `(input) => boolean` function. ANDed after every other gate; fail-open on error/timeout; may `require` package-local helpers. Requires a `minOpenClipVersion` for the release that ships predicate support. |
+| `contextual` | Boolean | Optional contextual-promotion override. `true` promotes even without requirements; `false` prevents promotion even with requirements; absent uses the uniform narrowing-requirement rule. User settings override this value. |
 
 `text` accepts nonblank selection, clipboard, or OCR text. `liveSelection` requires text from the
-current live selection. `editableSelection` additionally requires confirmed editability of that
-selection; unknown editability fails closed. Paste destination support is independent from input
-source, so clipboard-derived transformations can still be pasted into a confirmed destination.
+current live selection. `editableSelection` additionally requires confirmed editability of the
+focused target; unknown editability fails closed. Paste destination support is independent from
+input source, so clipboard-derived transformations can still be pasted into a confirmed
+destination. `requiresPasteTarget` tests the app's Paste command, which is not the same evidence as
+text insertion: a result that pastes text still needs a confirmed editable target, and falls back
+to copy otherwise.
 Older OpenClip releases ignore unknown manifest keys; do not publish catalog packages that rely on
 these gates until an enforcing release exists. The current source version 1.7.3 is not a confirmed
 compatibility floor, so `minOpenClipVersion` must wait for that release's version to be established.
+
+### Result presentation
+
+`presentation` only changes how the preview card renders a text result. Copy, Paste, and Drag always
+use the text itself. Declare it on the action or package, or return it with a typed text result:
+
+```js
+return { type: "text", value: markdown, presentation: "markdown" };
+```
+
+```json
+{ "type": "text", "value": "print(1)", "presentation": "code" }
+```
+
+`diff` compares the original selection with the result. When the texts are too large or not
+meaningfully similar, the card falls back to plain text and hides the diff toggle. Unknown values
+fall back to `plain`.
+
+Manifest-level `presentation` is ignored by older releases, which show plain text. A typed text
+result with `presentation` is only understood by releases that support the key; gate it with
+`minOpenClipVersion` once that release is known.
+
+### Contextual promotion
+
+A parsed action is contextual by default when it declares a **narrowing** requirement: `apps`,
+`content`, `regex`/`regexNegated`, `predicate`, `requiresPasteTarget`, `input: "liveSelection"` or
+`"editableSelection"`, a legacy top-level `regex`, or `menuRelevance`.
+
+`input: "optional"`, explicit `input: "text"`, and `requiredOptions` on their own do not narrow when
+the action appears, so they do not promote it. If a narrowing requirement is also present, the
+action is contextual.
+
+`contextual: true` forces promotion; `contextual: false` prevents it. The user's global contextual
+toggle and per-action disable still win. Within the contextual tier, the user's action order remains
+authoritative; there is no author ranking.
+
+`requirements.predicate` points at a package-relative `.js` file. The file must be a CommonJS module
+exporting one function. It receives a read-only `input` object with `text`, `app`, `source`,
+`editable`, `pasteTarget`, `matchedText`, `captures`, and `detected` arrays, and may `require`
+package-local helpers. The predicate file's own directory is the `require` base. Helpers run with
+no `openclip.*` bridge, so they must be pure. The file is limited to 64 KiB. It has a 5 ms budget;
+errors and timeouts leave the action visible. The predicate runs only after the cheap gates pass.
+The module is ordinary CommonJS, so authors can test it in Node with a plain fixture object. The
+manifest must declare a `minOpenClipVersion` for the release that ships predicate support.
 
 The `secondary`/`toast`/`secondaryToast` keys map onto the per-action `Action.delivery` (see
 [`Extensions/AGENTS.md` §5b](../../Extensions/AGENTS.md)); the delivery decision (Select → Probe →
@@ -124,10 +175,28 @@ Toast) then applies the probe and resolves the companion toast.
 ### Extension output contract and delivery resolution
 
 OpenClip uses an author output contract (`output` and `result`) for extensions:
-- **`output` (`text` | `file` | `none` | `dynamic`)**: Declares what type of output the action produces. Non-output actions (`url`, `keyPress`, `shortcut`, `service`) default to `none`.
-- **`result` (`preview` | `paste` | `copy` | `paste-or-copy` | `open` | `save`)**: Declares the author's recommended default outcome. Text actions default to `paste-or-copy`; file actions default to `preview`.
+- **`output` (`text` | `color` | `file` | `none` | `dynamic`)**: Declares what type of output the action produces. Non-output actions (`url`, `keyPress`, `shortcut`, `service`) default to `none`.
+- **`result` (`preview` | `paste` | `copy` | `paste-or-copy` | `open` | `save`)**: Declares the author's recommended default outcome. Text actions default to `paste-or-copy`; file actions default to `preview`; color actions support `preview` only and fall back to it with a validation warning.
 - **User Customization**: Users can override the delivery mode per-action in Settings (`Show in card`, `Paste`, `Copy`).
-- **Clipboard Invariant**: Secondary click (right-click or ⇧-click) always copies the result to the clipboard (or displays a preview card if the primary click was copy), unless the action explicitly declares a custom `secondary` outcome. If the user set the action to **Show in card**, a secondary click on a text result shows the card too.
+- **Clipboard Invariant**: Secondary click (right-click or ⇧-click) always copies the result to the clipboard (or displays a preview card if the primary click was copy), unless the action explicitly declares a custom `secondary` outcome. If the user set the action to **Show in card**, a secondary click on a text result shows the card too. A color never enters automatic copy/paste delivery on any route, including force-copy; its card offers explicit Copy of the hex and Save of the hex text.
+
+### Typed inline results
+
+Synchronous JavaScript actions with `inline: true` can return typed preview values:
+
+```js
+return "144";                              // shorthand text
+return { type: "text", value: "144" };
+return { type: "color", value: "#FF8800" };
+return null;                               // no applicable result
+```
+
+- The structured type must match the declared `output` (`text` or `color`); a mismatch produces no preview.
+- An emoji is an ordinary text value: it renders in the row and pastes/copies verbatim.
+- Text keeps the existing Paste/Copy/Show delivery matrix. Color renders a swatch and canonical hex with automatic Show-only delivery; the card offers explicit Copy and Save.
+- `displayOnly: true` requires `inline: true` on a synchronous JavaScript action, and requires `minOpenClipVersion` `1.10.0` or newer. The item stays visible, searchable, and accessible, but mouse, footer, Enter/Shift-Enter, Command-digit, and bound-hotkey routes do nothing and record no execution.
+- Automatic preview runs in a restricted environment: clipboard, fetch, file, URL, notification, keypress, subprocess, and configuration APIs are removed before top-level code or `require`d modules execute. A script that needs those effects must not declare `inline`.
+- Extension-author documentation, validator rules, and catalog examples remain authoritative in the separate `openclip-extensions` repository (`Extensions/AGENTS.md`).
 
 ### Native file output results
 

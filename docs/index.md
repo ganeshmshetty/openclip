@@ -52,6 +52,9 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [Logging](logging.md) — the single `Log` surface, category table, and per-subsystem filtering workflow.
 - [DMG Installer](dmg.md) — the styled disk image: HTML-rendered background, Retina TIFF, and the Finder layout contract.
 
+### Design Proposals
+- [Typed Inline Results](architecture/typed-inline-results-design.md) — Text and color values; delivery rules; display-only items; search-palette behavior.
+
 ### Developer Guide
 - [AGENTS.md — Authoring & Packaging Extensions](../Extensions/AGENTS.md) — **Start here.** Self-contained guide: manifest schema, all action kinds, options, requirements, groups, and the result surface.
 - [Extending OpenClip Overview](developer-guide/overview.md) — Extension architecture and custom action integration.
@@ -64,7 +67,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 - [AppleScript Runtime](runtimes/applescript.md) — `AppleScriptAction` execution, variable injection, and output handling.
 - [JavaScript Runtime](runtimes/javascript.md) — `JavaScriptAction` under JavaScriptCore, the `openclip` bridge, and option keys via `SettingKey`.
 - [URL Templates Engine](runtimes/url-templates.md) — Parameterized search links using `URLTemplateAction` and `TextPlaceholderEngine`.
-- [Shell & Executable Scripts](runtimes/zsh-python.md) — Process execution, environment variables (`OPENCLIP_TEXT`, `OPENCLIP_MATCHED`, `OPENCLIP_ACTION_ID`), and JSON/text stdout parsing.
+- [Shell & Executable Scripts](runtimes/zsh-python.md) — Process execution, environment variables (`OPENCLIP_TEXT`, `OPENCLIP_TEXT_LANGUAGE`, `OPENCLIP_MATCHED`, `OPENCLIP_ACTION_ID`), and JSON/text stdout parsing.
 
 ### User Guide
 - [Installation & Onboarding](user-guide/installation.md) — Installing OpenClip, Accessibility permissions setup, and first-launch workflow.

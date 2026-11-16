@@ -139,6 +139,17 @@ final class TextDiffTests: XCTestCase {
         XCTAssertFalse(TextDiff.isMeaningfulEdit(from: huge, to: huge + "!"))
     }
 
+    func testWhitespaceOnlyChangesAreNotMeaningfulEdits() {
+        XCTAssertTrue(TextDiff.differsOnlyInWhitespace(from: "one\ntwo\n\nthree", to: "one two three"))
+        XCTAssertTrue(TextDiff.differsOnlyInWhitespace(from: "one   two", to: "one two"))
+        XCTAssertFalse(TextDiff.isMeaningfulEdit(from: "one\ntwo\n\nthree", to: "one two three"),
+                       "line-break removal must not open a diff that repaints the old line structure")
+
+        XCTAssertFalse(TextDiff.differsOnlyInWhitespace(from: "one\ntwo", to: "One two"))
+        XCTAssertFalse(TextDiff.differsOnlyInWhitespace(from: "same", to: "same"),
+                       "identical text is not a whitespace-only edit")
+    }
+
     func testWordReplacementDoesNotFragmentCommonLetters() {
         let oldCat = "the large cat"
         let newCat = "the huge cat"

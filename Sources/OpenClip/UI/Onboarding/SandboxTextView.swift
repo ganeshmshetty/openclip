@@ -49,7 +49,8 @@ struct SandboxTextView: NSViewRepresentable {
                 mouseDownLocation: nil,
                 selectionBounds: selectionBounds,
                 timestamp: Date(),
-                appPolicy: .default
+                appPolicy: .default,
+                isEditable: textView.isEditable
             )
 
             NotificationCenter.default.post(name: Notification.Name("OpenClipShowSandboxPopup"), object: context)

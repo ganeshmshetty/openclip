@@ -56,6 +56,7 @@ public enum ActionIdentity {
     /// Leaf actions that actually run; containers and the AI Tools launcher are excluded.
     public static func isBindable(_ action: any Action) -> Bool {
         !action.chrome.launchesAI &&
+        !action.chrome.displayOnly &&
         !isCompletionPseudoAction(action) &&
         action.chrome.popupBehavior != .showSubActions &&
         action.chrome.rowStyle != .actionGroup
