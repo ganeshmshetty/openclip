@@ -1,8 +1,7 @@
 // CloudEndpointSettings.swift
 // OpenClip
 //
-// Stores a base endpoint override per cloud provider. The legacy single override could leak into
-// whichever provider was selected next, so it now seeds only the Custom provider.
+// Stores a base endpoint override per cloud provider.
 import Core
 
 enum CloudEndpointSettings {
@@ -30,16 +29,16 @@ enum CloudEndpointSettings {
         provider.defaultBaseURL
     }
 
-    /// The old build applied `aiCloudCustomURL` to every provider. Move it to Custom and drop the
-    /// cached model lists once, because they may have come from that endpoint.
+    /// Moves the single endpoint override to the Custom provider and clears cached model lists,
+    /// which may have come from that override.
     static func migrateLegacyCustomURLIfNeeded(store: SettingsStore = DefaultSettingsStore.shared) {
         guard store.rawObject(forKey: SettingKey.aiCloudCustomURLs.name) == nil else { return }
         let legacy = store.get(.aiCloudCustomURL)
         var overrides: [String: String] = [:]
         if !legacy.isEmpty {
             overrides[CloudServiceProvider.custom.rawValue] = legacy
-            store.set(.aiCloudModelCache, value: "")
         }
+        store.set(.aiCloudModelCache, value: "")
         store.set(.aiCloudCustomURLs, value: overrides)
     }
 }
