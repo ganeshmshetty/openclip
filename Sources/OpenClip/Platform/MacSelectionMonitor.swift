@@ -58,7 +58,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// reads AppKit live, tests force it true.
     internal var primaryButtonPressed: @MainActor () -> Bool = { NSEvent.pressedMouseButtons & 1 != 0 }
     internal var now: @MainActor () -> Date = { Date() }
-    internal lazy var retriever = SelectionRetrievalCoordinator(configuration: .default, detailedCopyCapture: { [weak self] request in
+    internal lazy var retriever = SelectionRetrievalCoordinator(configuration: .openClipDefault, detailedCopyCapture: { [weak self] request in
         guard let self else { return SelectionReadResponse(status: .cancelled) }
         return await self.captureAutomaticCopyResponse(request)
     })
@@ -98,6 +98,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// elsewhere is focused. Inert under XCTest; inject for tests.
     internal var isPressOverEditableText: @MainActor (CGPoint, pid_t) async -> Bool = { point, pid in
         await MacSelectionMonitor.pressIsOverEditableText(at: point, pid: pid)
+    }
+    /// Suppresses automatic synthetic `Cmd+C` when focus is inside a keybinding-recording input widget.
+    internal var shouldSuppressAutomaticCopyForFocusedElement: @MainActor (pid_t) async -> Bool = { pid in
+        guard NSClassFromString("XCTestCase") == nil else { return false }
+        return await AutomaticCopyTargetProbe.default.shouldSuppressCopy(pid: pid)
     }
     /// Overlay gate: true when a *foreign* window (a screenshot/annotation tool's full-screen picker,
     /// a non-activating HUD) sits above the frontmost app at `point`. The automatic path stands down
@@ -377,6 +382,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal func captureAutomaticCopyResponse(_ request: CopyRequest) async -> SelectionReadResponse {
         if Task.isCancelled { return .init(status: .cancelled) }
         guard let source = selectionSourceApp, isSelectionSourceActive(source) else {
+            return .init(status: isSuppressed() ? .copyBlocked : .targetChanged)
+        }
+        if await shouldSuppressAutomaticCopyForFocusedElement(source.processIdentifier) {
+            Log.selection.debug("monitor: suppressed automatic copy on keybinding recording widget pid=\(source.processIdentifier)")
+            return .init(status: .copyBlocked)
+        }
+        if Task.isCancelled { return .init(status: .cancelled) }
+        guard let currentSource = selectionSourceApp, isSelectionSourceActive(currentSource) else {
             return .init(status: isSuppressed() ? .copyBlocked : .targetChanged)
         }
         return await AutomaticCopyCapture.captureResponse(request: request)

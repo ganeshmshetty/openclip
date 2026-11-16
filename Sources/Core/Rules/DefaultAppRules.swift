@@ -108,7 +108,7 @@ public enum DefaultAppRules: Sendable {
         "com.apple.SystemSettings"
     ]
     
-    public static let keyboardCopyApps: [String] = [
+    public static let kbCpNoAXWebAreaApps: [String] = [
         // Code Editors & IDEs
         "com.apple.Terminal",
         "com.googlecode.iterm2",
@@ -134,8 +134,10 @@ public enum DefaultAppRules: Sendable {
         "neovide",
         "com.jetbrains.*",
         "com.google.android.studio",
-        "com.rstudio.positron",
-        
+        "com.rstudio.positron"
+    ]
+
+    public static let keyboardCopyApps: [String] = kbCpNoAXWebAreaApps + [
         // Notes, Knowledge & Markdown
         "com.apple.Notes",
         // Pages' text engine does not expose a usable AX selection.
@@ -292,6 +294,11 @@ public enum DefaultAppRules: Sendable {
         "extraterm"
     ]
     
+    public static let disabledApps: [String] = [
+        DefaultAppRules.processNamePrefix + "qemu-system-aarch64",
+        DefaultAppRules.processNamePrefix + "qemu-system-x86_64"
+    ]
+
     public static let catalog: [AppRule] = [
         AppRule(
             bundleIdentifiers: disabledApps,
@@ -322,12 +329,20 @@ public enum DefaultAppRules: Sendable {
             retrievalMode: .keyboardCopy
         ),
         AppRule(
+            bundleIdentifiers: kbCpNoAXWebAreaApps,
+            kbCpNoAXWebAreaRetry: true
+        ),
+        AppRule(
             bundleIdentifiers: menuCopyApps,
             retrievalMode: .menuCopy
         ),
         AppRule(
             bundleIdentifiers: denyPasteApps,
             denyPaste: true
+        ),
+        AppRule(
+            bundleIdentifiers: disabledApps,
+            disabled: true
         )
     ]
 }

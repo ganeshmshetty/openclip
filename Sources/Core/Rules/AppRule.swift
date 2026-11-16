@@ -15,6 +15,9 @@ public struct AppPolicyContext: Sendable {
     public let denyPaste: Bool
     /// Apps opting into menu-based copy read selected text via the AX Edit ▸ Copy menu item.
     public let useMenuCopy: Bool
+    /// For keyboardCopy apps whose AXWebArea cannot expose selection (e.g. Monaco/VSCode, custom editors),
+    /// bypass the AXWebArea settle retry loop to trigger synthetic copy immediately.
+    public let kbCpNoAXWebAreaRetry: Bool
     /// Which mechanism should be used to read the current selection from the target app.
     public let retrievalMode: SelectionRetrievalMode
     /// Gate rules (skip roles / allowed cursors / selection requirement) applied before retrieval.
@@ -27,6 +30,7 @@ public struct AppPolicyContext: Sendable {
         hotkeyOnly: Bool = false,
         denyPaste: Bool = false,
         useMenuCopy: Bool = false,
+        kbCpNoAXWebAreaRetry: Bool = false,
         retrievalMode: SelectionRetrievalMode = .axTextControl,
         gate: SelectionGatePolicy = .default
     ) {
@@ -34,6 +38,7 @@ public struct AppPolicyContext: Sendable {
         self.hotkeyOnly = hotkeyOnly
         self.denyPaste = denyPaste
         self.useMenuCopy = useMenuCopy
+        self.kbCpNoAXWebAreaRetry = kbCpNoAXWebAreaRetry
         self.retrievalMode = retrievalMode
         self.gate = gate
     }
@@ -46,6 +51,7 @@ public struct AppRule: Codable, Sendable, Equatable, Identifiable {
     public let hotkeyOnly: Bool?
     public let useMenuCopy: Bool?
     public let denyPaste: Bool?
+    public let kbCpNoAXWebAreaRetry: Bool?
     public let retrievalMode: SelectionRetrievalMode?
     public let gate: SelectionGatePolicy?
     
@@ -55,6 +61,7 @@ public struct AppRule: Codable, Sendable, Equatable, Identifiable {
         hotkeyOnly: Bool? = nil,
         useMenuCopy: Bool? = nil,
         denyPaste: Bool? = nil,
+        kbCpNoAXWebAreaRetry: Bool? = nil,
         retrievalMode: SelectionRetrievalMode? = nil,
         gate: SelectionGatePolicy? = nil
     ) {
@@ -63,6 +70,7 @@ public struct AppRule: Codable, Sendable, Equatable, Identifiable {
         self.hotkeyOnly = hotkeyOnly
         self.useMenuCopy = useMenuCopy
         self.denyPaste = denyPaste
+        self.kbCpNoAXWebAreaRetry = kbCpNoAXWebAreaRetry
         self.retrievalMode = retrievalMode
         self.gate = gate
     }
@@ -73,6 +81,7 @@ public struct AppRule: Codable, Sendable, Equatable, Identifiable {
         case hotkeyOnly = "hotkey-only"
         case useMenuCopy = "use-menu-copy"
         case denyPaste = "deny-paste"
+        case kbCpNoAXWebAreaRetry = "kb-cp-no-ax-web-area-retry"
         case retrievalMode = "retrieval-mode"
         case gate = "gate"
     }

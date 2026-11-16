@@ -98,6 +98,58 @@ oc_resolve_identity() {
     printf '%s\n' "$matches"
 }
 
+# Echoes the default signing identity in the system keychain, falling back to ad-hoc.
+# Precedence:
+#   1. Explicit argument or OPENCLIP_SIGN_IDENTITY if set (and not "auto" or "default")
+#   2. "Developer ID Application: *" in keychain
+#   3. "Apple Development: *" in keychain
+#   4. "Mac Developer: *" in keychain
+#   5. Any other valid code signing identity in keychain
+#   6. "-" (ad-hoc)
+oc_default_system_identity() {
+    local requested="${1:-}"
+    if [ -n "$requested" ] && [ "$requested" != "auto" ] && [ "$requested" != "default" ]; then
+        printf '%s\n' "$requested"
+        return 0
+    fi
+    if [ -n "${OPENCLIP_SIGN_IDENTITY:-}" ] && [ "$OPENCLIP_SIGN_IDENTITY" != "auto" ] && [ "$OPENCLIP_SIGN_IDENTITY" != "default" ]; then
+        printf '%s\n' "$OPENCLIP_SIGN_IDENTITY"
+        return 0
+    fi
+
+    local all_identities
+    all_identities="$(security find-identity -v -p codesigning 2>/dev/null \
+        | sed -n 's/^[[:space:]]*[0-9]\{1,\})[[:space:]]*[0-9A-Fa-f]\{40\}[[:space:]]*"\(.*\)"/\1/p')"
+
+    if [ -z "$all_identities" ]; then
+        printf '%s\n' "$OC_ADHOC_IDENTITY"
+        return 0
+    fi
+
+    local dev_id
+    dev_id="$(printf '%s\n' "$all_identities" | grep '^Developer ID Application:' | head -n 1 || true)"
+    if [ -n "$dev_id" ]; then
+        printf '%s\n' "$dev_id"
+        return 0
+    fi
+
+    local apple_dev
+    apple_dev="$(printf '%s\n' "$all_identities" | grep '^Apple Development:' | head -n 1 || true)"
+    if [ -n "$apple_dev" ]; then
+        printf '%s\n' "$apple_dev"
+        return 0
+    fi
+
+    local mac_dev
+    mac_dev="$(printf '%s\n' "$all_identities" | grep '^Mac Developer:' | head -n 1 || true)"
+    if [ -n "$mac_dev" ]; then
+        printf '%s\n' "$mac_dev"
+        return 0
+    fi
+
+    printf '%s\n' "$all_identities" | head -n 1
+}
+
 # True when the resolved identity is the ad-hoc pseudo-identity.
 oc_is_adhoc() {
     [ "${1:-}" = "$OC_ADHOC_IDENTITY" ]

@@ -351,7 +351,7 @@ public final class HotkeyManager {
             }, isCopyAuthorized: isTriggerAuthorized).captureResponse(trigger: request.trigger)
         }
 
-        let coordinator = retriever ?? SelectionRetrievalCoordinator(detailedCopyCapture: copyCapture)
+        let coordinator = retriever ?? SelectionRetrievalCoordinator(configuration: .openClipDefault, detailedCopyCapture: copyCapture)
         let read = await coordinator.retrieveResponse(
             for: appIdentity,
             policy: policy,
