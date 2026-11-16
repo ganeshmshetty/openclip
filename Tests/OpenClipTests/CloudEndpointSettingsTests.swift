@@ -52,6 +52,21 @@ final class CloudEndpointSettingsTests: XCTestCase {
         XCTAssertEqual(CloudModelCatalog.cached(for: .opencodeGo, store: store)?.models, ["fresh"])
     }
 
+    func testMigrationClearsModelCacheWithoutLegacyURL() {
+        let store = MemorySettingsStore()
+        CloudModelCatalog.save(["stale"], for: .opencodeGo, store: store)
+        XCTAssertNil(store.rawObject(forKey: SettingKey.aiCloudCustomURLs.name))
+
+        CloudEndpointSettings.migrateLegacyCustomURLIfNeeded(store: store)
+
+        XCTAssertNil(CloudModelCatalog.cached(for: .opencodeGo, store: store))
+        XCTAssertEqual(CloudEndpointSettings.customURL(for: .custom, store: store), "")
+
+        CloudModelCatalog.save(["fresh"], for: .opencodeGo, store: store)
+        CloudEndpointSettings.migrateLegacyCustomURLIfNeeded(store: store)
+        XCTAssertEqual(CloudModelCatalog.cached(for: .opencodeGo, store: store)?.models, ["fresh"])
+    }
+
     func testSettingsCatalogIncludesPerProviderOverrides() {
         XCTAssertTrue(SettingsCatalog.aiKeys.contains { $0.name == "aiCloudCustomURLs" })
     }
