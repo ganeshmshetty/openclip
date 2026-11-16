@@ -25,6 +25,7 @@ extension SettingsCatalog {
             SettingKey.aiActiveProvider.erased,
             SettingKey.aiCloudService.erased,
             SettingKey.aiCloudCustomURL.erased,
+            SettingKey.aiCloudCustomURLs.erased,
             SettingKey.aiCloudModel.erased,
             SettingKey.aiCloudCustomModel.erased,
             SettingKey.aiLocalPreset.erased,

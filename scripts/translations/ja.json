@@ -213,6 +213,7 @@
   "Custom Web URL": "カスタムWeb URL",
   "Use **{text}** as a placeholder for the prompt and selection.": "プロンプトと選択したテキストのプレースホルダーとして **{text}** を使用します。",
   "Base Endpoint URL": "ベースエンドポイントURL",
+  "Leave empty to use the provider default.": "空欄の場合はプロバイダーのデフォルトを使用します。",
   "API Key": "APIキー",
   "OpenAI (ChatGPT)": "OpenAI (ChatGPT)",
   "Anthropic (Claude)": "Anthropic (Claude)",

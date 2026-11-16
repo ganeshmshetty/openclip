@@ -213,6 +213,7 @@
   "Custom Web URL": "自定义网页 URL",
   "Use **{text}** as a placeholder for the prompt and selection.": "用 **{text}** 作为提示词和选中文本的占位符。",
   "Base Endpoint URL": "接口地址",
+  "Leave empty to use the provider default.": "留空以使用提供商默认值。",
   "API Key": "API 密钥",
   "OpenAI (ChatGPT)": "OpenAI (ChatGPT)",
   "Anthropic (Claude)": "Anthropic (Claude)",

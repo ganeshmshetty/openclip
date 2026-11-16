@@ -213,6 +213,7 @@
   "Custom Web URL": "URL web personnalisée",
   "Use **{text}** as a placeholder for the prompt and selection.": "Utilisez **{text}** comme paramètre fictif pour l’invite et la sélection.",
   "Base Endpoint URL": "URL de base du point de terminaison",
+  "Leave empty to use the provider default.": "Laissez vide pour utiliser la valeur par défaut du fournisseur.",
   "API Key": "Clé d’API",
   "OpenAI (ChatGPT)": "OpenAI (ChatGPT)",
   "Anthropic (Claude)": "Anthropic (Claude)",

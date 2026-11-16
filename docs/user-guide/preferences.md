@@ -133,6 +133,8 @@ OpenClip can send selected text to a local or cloud AI model. Select **AI** in t
 | Cloud AI (OpenAI, Claude, Gemini, DeepSeek, Groq, OpenRouter, OpenCode, OpenCode Go, Mistral, xAI, Cerebras, Together AI, Fireworks, Custom) | Cloud API language models | A valid API key, stored in `SecretStore` (`~/.openclip/secrets.json`) |
 | Browser Redirect | Opens the AI query in your browser | No API key |
 
+Each cloud provider keeps its own optional Base Endpoint URL. Leave it empty to use the provider default. A URL set for Custom Endpoint no longer applies to the other providers.
+
 With the Ollama preset, OpenClip asks reasoning models (Qwen 3.5 and DeepSeek-R1, for example) to skip their thinking pass, so results arrive in seconds instead of minutes. The CLI presets do the same where the tool has a switch for it: Claude Code runs with `MAX_THINKING_TOKENS=0` and Codex CLI with `-c model_reasoning_effort=none`. GitHub Copilot and custom commands have no "off" level, so they keep their defaults.
 
 AI settings are managed by `AIServiceManager` and kept isolated for security and privacy.
