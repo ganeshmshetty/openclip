@@ -121,6 +121,13 @@ final class CLIToolCatalogTests: XCTestCase {
         } else {
             XCTFail("Antigravity should list models")
         }
+        if case .any(let checks) = tool.auth {
+            XCTAssertTrue(checks.contains(.homeRelativeFile(".gemini/oauth_creds.json")))
+            XCTAssertTrue(checks.contains(.homeRelativeFile(".gemini/google_accounts.json")))
+            XCTAssertTrue(checks.contains(.environmentNonEmpty(["GEMINI_API_KEY", "GOOGLE_API_KEY", "AGY_ADC_AUTH"])))
+        } else {
+            XCTFail("Antigravity should have composite auth check")
+        }
     }
 
     func testOpenCodeCatalogEntry() throws {

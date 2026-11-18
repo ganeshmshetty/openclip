@@ -259,8 +259,12 @@ struct CLITool: Sendable, Equatable, Identifiable {
             authHelp: "Run “agy” in Terminal to sign in with Google. It opens the browser when no session is saved.",
             runner: .subprocess,
             auth: .any([
-                .environmentNonEmpty(["GEMINI_API_KEY", "AGY_ADC_AUTH"]),
-                .homeRelativeFile(".gemini/antigravity-cli/antigravity-oauth-token")
+                .environmentNonEmpty(["GEMINI_API_KEY", "GOOGLE_API_KEY", "AGY_ADC_AUTH"]),
+                .homeRelativeFile(".gemini/oauth_creds.json"),
+                .homeRelativeFile(".gemini/google_accounts.json"),
+                .homeRelativeFile(".gemini/antigravity-cli/antigravity-oauth-token"),
+                .homeRelativeFile(".gemini/antigravity/oauth_creds.json"),
+                .homeRelativeFile(".config/gcloud/application_default_credentials.json")
             ]),
             models: .command(arguments: ["models"], parse: .tabName),
             documentedAliases: [],

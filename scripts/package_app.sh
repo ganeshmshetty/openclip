@@ -36,8 +36,10 @@ if [ "$NOTARIZE" = "1" ] && oc_is_adhoc "$IDENTITY"; then
     exit 1
 fi
 
-echo "Generating Xcode project..."
-xcodegen generate
+if command -v xcodegen >/dev/null 2>&1; then
+    echo "Generating Xcode project..."
+    xcodegen generate
+fi
 
 echo "Building OpenClip (Release)..."
 # The build is left ad-hoc signed whatever the final identity is, and scripts/sign_artifact.sh
