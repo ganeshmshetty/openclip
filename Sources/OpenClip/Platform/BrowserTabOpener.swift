@@ -48,15 +48,30 @@ public struct BrowserTabOpener {
               let title = title as? String else { return false }
         return title.hasSuffix("Private Browsing")
     }
-    /// Runs `firefox --private-window URL` against the running instance. No shell involved.
-    var launchPrivateWindow: @MainActor @Sendable (URL, String) -> Bool = { url, bundleID in
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
-              let executable = Bundle(url: appURL)?.executableURL else { return false }
-        let process = Process()
-        process.executableURL = executable
-        process.arguments = ["--private-window", url.absoluteString]
-        do { try process.run() } catch { return false }
-        return true
+    /// Runs `firefox --private-window URL` through LaunchServices. A bare executable launch makes
+    /// OpenClip the TCC-responsible process on macOS 27, so Firefox cannot read its protected
+    /// profile; LaunchServices makes Firefox responsible instead. A forced new instance is required
+    /// because LaunchServices drops `arguments` when it reuses a running app.
+    var launchPrivateWindow: @MainActor @Sendable (URL, String) async -> Bool = { url, bundleID in
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            return false
+        }
+        let configuration = Self.privateWindowConfiguration(for: url)
+        return await withCheckedContinuation { continuation in
+            NSWorkspace.shared.openApplication(at: appURL, configuration: configuration) { application, error in
+                continuation.resume(returning: application != nil && error == nil)
+            }
+        }
+    }
+
+    /// LaunchServices only passes `arguments` to a new instance. Firefox forwards the argv to the
+    /// running instance and exits, so the private window opens in the existing process.
+    static func privateWindowConfiguration(for url: URL) -> NSWorkspace.OpenConfiguration {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        configuration.activates = true
+        configuration.arguments = ["--private-window", url.absoluteString]
+        return configuration
     }
     /// Last resort: the system default handler.
     var openDefault: @MainActor @Sendable (URL) -> Void = { url in
@@ -73,7 +88,8 @@ public struct BrowserTabOpener {
 
     public func open(_ url: URL, inApp bundleID: String) async {
         // Firefox has no tab scripting and sends external URLs to a normal window (#205).
-        if Self.firefoxPrivateCapable.contains(bundleID), isPrivateWindow(bundleID), launchPrivateWindow(url, bundleID) {
+        if Self.firefoxPrivateCapable.contains(bundleID), isPrivateWindow(bundleID),
+           await launchPrivateWindow(url, bundleID) {
             return
         }
         if BrowserDetector.isBrowser(bundleIdentifier: bundleID) {

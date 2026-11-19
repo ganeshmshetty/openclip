@@ -1011,7 +1011,13 @@ JavaScript `openclip.openURL` HTTP/HTTPS effect uses the same routing, regardles
 requirements; other schemes retain their system handlers. Effects run through the existing
 BrowserTabOpener front-window scripting and LaunchServices fallback. JavaScript owns its loop
 and deduplication when opening multiple URLs. Firefox has no tab scripting; from a private window
-(detected by the English "Private Browsing" title suffix) it runs `firefox --private-window URL`.
+(detected by the English "Private Browsing" title suffix) it launches Firefox through LaunchServices
+with `--private-window URL` and a forced new instance. A bare executable launch makes OpenClip the
+TCC-responsible process on macOS 27, which cannot read the protected Firefox profile; LaunchServices
+makes Firefox responsible instead. The forced new instance is required because LaunchServices drops
+arguments when it reuses a running app. Firefox forwards the argv to the running instance and exits,
+so the tab lands in the existing private window. A non-default Firefox profile can still miss the
+remote port and start a second instance; OpenClip cannot read `profiles.ini` for the same TCC reason.
 
 ## Default app blocks
 
