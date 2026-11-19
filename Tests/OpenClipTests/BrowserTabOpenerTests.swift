@@ -30,6 +30,16 @@ final class BrowserTabOpenerTests: XCTestCase {
         XCTAssertEqual(calls.scripts, 0)
     }
 
+    func testPrivateWindowConfigurationForcesANewLaunchServicesInstance() {
+        let configuration = BrowserTabOpener.privateWindowConfiguration(for: url)
+        XCTAssertTrue(configuration.createsNewApplicationInstance, "LaunchServices drops arguments when it reuses a running app")
+        XCTAssertTrue(configuration.activates)
+        XCTAssertEqual(
+            configuration.arguments ?? [],
+            ["--private-window", url.absoluteString]
+        )
+    }
+
     func testNonPrivateFirefoxKeepsExistingPath() async {
         let calls = Calls()
         await opener(private: false, calls: calls).open(url, inApp: "org.mozilla.firefox")
