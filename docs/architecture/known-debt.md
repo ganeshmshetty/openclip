@@ -608,10 +608,12 @@ lines by height interleaved multi-column text.
   walks the target's Edit ▸ Paste AX menu item; without AX it returns "unknown", which hides
   built-in Paste only when a destination is confirmed unavailable. Text insertion is separate
   evidence (AX settable state), so text paste requires confirmed editability and degrades to copy
-  instead of trusting the app-level menu. The exception is an app that reads selections through
-  the standard ⌘C path because its AX tree cannot expose the text surface
-  (`retrieval-mode: keyboard-copy`): there an enabled Paste command is the editing contract, so a
-  live selection may paste. Browsers are not keyboard-copy apps, so the article case still copies.
+  instead of trusting the app-level menu. The exception is a selection that was actually read
+  through the standard ⌘C path because Accessibility could not expose the text surface: there an
+  enabled Paste command is the editing contract, so a live selection may paste. A configured
+  `keyboard-copy` policy alone is not enough: apps such as Slack and Discord still read their
+  messages through Accessibility first, so a read-only message keeps the strict check. Browsers are
+  not keyboard-copy apps, so the article case still copies.
   `modeStore.canPaste` still feeds the card's Paste button
   and palette labels, while Paste/Cut visibility comes from their `isEnabled` gates
   (`ActionEligibility`). The probe is started by the trigger sites in parallel with selection
@@ -737,18 +739,21 @@ lines by height interleaved multi-column text.
   package's browser fallback still grants weak evidence when an exposed web area reports no
   selection (the Safari shape in #210); closing that belongs in OpenSelection.
 - Capability facts are tri-state and decided in one place. `TargetCapabilities` carries text
-  insertion (Accessibility settable state), pasteboard paste (the Edit ▸ Paste probe), the
-  keyboard-copy editing surface, and target liveness; `ActionEligibility` turns them into
-  visibility and delivery decisions. Text insertion is element-level evidence: a read-only text
-  view exposes a selection range but accepts no edits, and the app-level Paste command is enabled
-  in browsers that cannot insert text at the caret. Cut and text paste therefore require positive
-  editability (paste degrades to copy otherwise), except that a keyboard-copy app may paste on an
-  enabled Paste command: its AX tree cannot expose the text surface, so the standard editing
-  contract is the only positive evidence available. Clipboard and file payloads use the Paste probe
-  because Finder, Preview, and canvases accept them without a text control. OpenSelection v2.16.5
-  reads settable state during inspect and adds `EditabilityProbe` for sessions that open without a
-  selection. Extensions that declare `input: editableSelection` or `requiresPasteTarget` map onto
-  the same needs; a keyboard-copy exception applies only to delivery, not to those declared gates.
+  insertion (Accessibility settable state), pasteboard paste (the Edit ▸ Paste probe), whether the
+  selection was actually read through the keyboard-copy fallback, and target liveness;
+  `ActionEligibility` turns them into visibility and delivery decisions. Text insertion is
+  element-level evidence: a read-only text view exposes a selection range but accepts no edits, and
+  the app-level Paste command is enabled in browsers that cannot insert text at the caret. Cut and
+  text paste therefore require positive editability (paste degrades to copy otherwise), except that
+  a selection actually read through keyboard copy may paste on an enabled Paste command: there
+  Accessibility could not expose the text surface, so the standard editing contract is the only
+  positive evidence available. A configured `keyboard-copy` policy alone does not qualify, because
+  apps such as Slack and Discord still read their messages through Accessibility first. Clipboard
+  and file payloads use the Paste probe because Finder, Preview, and canvases accept them without a
+  text control. OpenSelection v2.16.5 reads settable state during inspect and adds
+  `EditabilityProbe` for sessions that open without a selection. Extensions that declare
+  `input: editableSelection` or `requiresPasteTarget` map onto the same needs; a keyboard-copy
+  exception applies only to delivery, not to those declared gates.
   Residual debt: a loading action captures editability at selection time and does not re-probe
   the focused element at delivery, so a focus change inside the same app is caught only by the
   selection-generation check. `requiresLiveSelection` plus `OCRInputAction` remain a separate

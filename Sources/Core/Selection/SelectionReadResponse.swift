@@ -9,12 +9,22 @@ public enum SelectionReadStatus: String, Sendable, Codable, Equatable {
 public struct TextReadResponse: Sendable {
     public let result: TextResult?
     public let isEditable: Bool
+    /// True when the winning retrieval strategy was the keyboard-copy fallback, so Accessibility
+    /// could not expose the selection and the app's Paste command is the only editability evidence.
+    public let usedKeyboardCopy: Bool
     public let traceID: UInt64?
     public let status: SelectionReadStatus
 
-    public init(result: TextResult? = nil, isEditable: Bool = false, status: SelectionReadStatus, traceID: UInt64? = nil) {
+    public init(
+        result: TextResult? = nil,
+        isEditable: Bool = false,
+        usedKeyboardCopy: Bool = false,
+        status: SelectionReadStatus,
+        traceID: UInt64? = nil
+    ) {
         self.result = result
         self.isEditable = isEditable
+        self.usedKeyboardCopy = usedKeyboardCopy
         self.traceID = traceID
         self.status = status
     }

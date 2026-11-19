@@ -114,8 +114,14 @@ extension SelectionRetrievalCoordinator {
         } else {
             textResult = nil
         }
-        return Core.TextReadResponse(result: textResult, isEditable: response.isEditable,
-                                     status: Core.SelectionReadStatus(rawValue: response.status.rawValue) ?? .failed, traceID: response.traceID)
+        let usedKeyboardCopy = response.result?.strategy == .keyboardCopy
+        return Core.TextReadResponse(
+            result: textResult,
+            isEditable: response.isEditable,
+            usedKeyboardCopy: usedKeyboardCopy,
+            status: Core.SelectionReadStatus(rawValue: response.status.rawValue) ?? .failed,
+            traceID: response.traceID
+        )
     }
 
 

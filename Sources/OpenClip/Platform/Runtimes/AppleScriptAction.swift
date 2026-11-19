@@ -96,6 +96,7 @@ public struct AppleScriptAction: ConfigurableAction, ActionWithRules {
             html: html,
             rtf: rtf,
             isEditable: context.selection.isEditable,
+            usedKeyboardCopy: context.selection.usedKeyboardCopy,
             pasteTargetAvailable: context.selection.pasteTargetAvailable
         )
 

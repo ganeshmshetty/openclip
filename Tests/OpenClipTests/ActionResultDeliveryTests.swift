@@ -494,7 +494,8 @@ final class ActionResultDeliveryTests: XCTestCase {
                                  toastController: ToastPanelController = ToastPanelController(),
                                  settingsStore: SettingsStore = MemorySettingsStore(),
                                  source: SelectionSource = .selection,
-                                 isEditable: Bool? = nil) -> PopupWindowController {
+                                 isEditable: Bool? = nil,
+                                 usedKeyboardCopy: Bool = false) -> PopupWindowController {
         let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe, toastController: toastController, settingsStore: settingsStore)
         let context = SelectionContext(
             text: "hello",
@@ -503,7 +504,8 @@ final class ActionResultDeliveryTests: XCTestCase {
             timestamp: Date(),
             appPolicy: appPolicy,
             source: source,
-            isEditable: isEditable ?? (source == .selection)
+            isEditable: isEditable ?? (source == .selection),
+            usedKeyboardCopy: usedKeyboardCopy
         )
         controller.startTestSession(for: context, pasteAvailable: source == .ocr ? false : nil)
         return controller
@@ -581,7 +583,8 @@ final class ActionResultDeliveryTests: XCTestCase {
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: true),
                                          appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
-                                         isEditable: false)
+                                         isEditable: false,
+                                         usedKeyboardCopy: true)
         defer { controller.hide() }
 
         controller.deliverResult(.paste("hello"))
@@ -595,7 +598,25 @@ final class ActionResultDeliveryTests: XCTestCase {
         let controller = shownController(resultHandler: handler,
                                          pasteProbe: FixedProbe(result: false),
                                          appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
-                                         isEditable: false)
+                                         isEditable: false,
+                                         usedKeyboardCopy: true)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+    }
+
+    /// Slack/Discord configure keyboard copy, but Accessibility still reads their messages. A
+    /// read-only message must not paste into the composer just because the policy says so.
+    @MainActor
+    func testKeyboardCopyPolicyWithAnAXReadCopiesInsteadOfPasting() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
+                                         isEditable: false,
+                                         usedKeyboardCopy: false)
         defer { controller.hide() }
 
         controller.deliverResult(.paste("hello"))
