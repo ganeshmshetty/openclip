@@ -624,6 +624,23 @@ final class ActionResultDeliveryTests: XCTestCase {
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
     }
 
+    /// A browser can fall back to keyboard copy for read-only text. Its web-area policy keeps the
+    /// strict check, so the result copies instead of disappearing into the page.
+    @MainActor
+    func testBrowserKeyboardCopyFallbackCopiesInsteadOfPasting() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(retrievalMode: .axWebArea),
+                                         isEditable: false,
+                                         usedKeyboardCopy: true)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+    }
+
     /// User picks copy for the primary click: `.text` delivers a copy with the default Copied toast and dismisses.
     @MainActor
     func testTextDeliversCopyWhenPreferenceIsCopy() async throws {

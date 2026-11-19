@@ -609,11 +609,11 @@ lines by height interleaved multi-column text.
   built-in Paste only when a destination is confirmed unavailable. Text insertion is separate
   evidence (AX settable state), so text paste requires confirmed editability and degrades to copy
   instead of trusting the app-level menu. The exception is a selection that was actually read
-  through the standard ⌘C path because Accessibility could not expose the text surface: there an
-  enabled Paste command is the editing contract, so a live selection may paste. A configured
-  `keyboard-copy` policy alone is not enough: apps such as Slack and Discord still read their
-  messages through Accessibility first, so a read-only message keeps the strict check. Browsers are
-  not keyboard-copy apps, so the article case still copies.
+  through the standard ⌘C path in an app configured for keyboard copy: there an enabled Paste
+  command is the editing contract, so a live selection may paste. A configured `keyboard-copy`
+  policy alone is not enough: apps such as Slack and Discord still read their messages through
+  Accessibility first, so a read-only message keeps the strict check. A browser's web-area policy is
+  excluded even when its read falls back to keyboard copy, so a read-only page still copies.
   `modeStore.canPaste` still feeds the card's Paste button
   and palette labels, while Paste/Cut visibility comes from their `isEnabled` gates
   (`ActionEligibility`). The probe is started by the trigger sites in parallel with selection
@@ -745,12 +745,14 @@ lines by height interleaved multi-column text.
   element-level evidence: a read-only text view exposes a selection range but accepts no edits, and
   the app-level Paste command is enabled in browsers that cannot insert text at the caret. Cut and
   text paste therefore require positive editability (paste degrades to copy otherwise), except that
-  a selection actually read through keyboard copy may paste on an enabled Paste command: there
-  Accessibility could not expose the text surface, so the standard editing contract is the only
-  positive evidence available. A configured `keyboard-copy` policy alone does not qualify, because
-  apps such as Slack and Discord still read their messages through Accessibility first. Clipboard
-  and file payloads use the Paste probe because Finder, Preview, and canvases accept them without a
-  text control. OpenSelection v2.16.5 reads settable state during inspect and adds
+  a selection actually read through keyboard copy in an app configured for that fallback may paste
+  on an enabled Paste command: there Accessibility could not expose the text surface, so the
+  standard editing contract is the only positive evidence available. A configured `keyboard-copy`
+  policy alone does not qualify, because apps such as Slack and Discord still read their messages
+  through Accessibility first. Browsers keep the strict check even when their read falls back to
+  keyboard copy, because their web-area policy means the fallback is not the app's editing
+  contract. Clipboard and file payloads use the Paste probe because Finder, Preview, and canvases
+  accept them without a text control. OpenSelection v2.16.5 reads settable state during inspect and adds
   `EditabilityProbe` for sessions that open without a selection. Extensions that declare
   `input: editableSelection` or `requiresPasteTarget` map onto the same needs; a keyboard-copy
   exception applies only to delivery, not to those declared gates.

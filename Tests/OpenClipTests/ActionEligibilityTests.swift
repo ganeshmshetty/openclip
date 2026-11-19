@@ -13,11 +13,13 @@ final class ActionEligibilityTests: XCTestCase {
         source: SelectionSource = .selection,
         editable: Bool? = true,
         paste: Bool? = true,
-        usedKeyboardCopy: Bool = false
+        usedKeyboardCopy: Bool = false,
+        retrievalMode: SelectionRetrievalMode = .axTextControl
     ) -> SelectionContext {
         SelectionContext(
             text: text,
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            appPolicy: AppPolicyContext(retrievalMode: retrievalMode),
             source: source,
             isEditable: editable,
             usedKeyboardCopy: usedKeyboardCopy,
@@ -138,7 +140,7 @@ final class ActionEligibilityTests: XCTestCase {
     // MARK: - Keyboard-copy surfaces
 
     func testKeyboardCopySurfacePastesTextThroughTheEnabledPasteCommand() {
-        let editor = selection(editable: false, paste: true, usedKeyboardCopy: true)
+        let editor = selection(editable: false, paste: true, usedKeyboardCopy: true, retrievalMode: .keyboardCopy)
         let target = capabilities(editor, live: .available)
         XCTAssertEqual(target.standardEditingSurface, .available)
         guard case .paste("a") = ActionEligibility.degrade(.paste("a"), capabilities: target) else {
@@ -147,7 +149,7 @@ final class ActionEligibilityTests: XCTestCase {
     }
 
     func testKeyboardCopySurfaceCopiesWhenThePasteCommandIsUnavailable() {
-        let editor = selection(editable: false, paste: false, usedKeyboardCopy: true)
+        let editor = selection(editable: false, paste: false, usedKeyboardCopy: true, retrievalMode: .keyboardCopy)
         guard case .copy("a") = ActionEligibility.degrade(
             .paste("a"),
             capabilities: capabilities(editor, live: .available)
@@ -155,7 +157,7 @@ final class ActionEligibilityTests: XCTestCase {
     }
 
     func testKeyboardCopySurfaceCopiesWhenThePasteCommandIsUnknown() {
-        let editor = selection(editable: false, paste: nil, usedKeyboardCopy: true)
+        let editor = selection(editable: false, paste: nil, usedKeyboardCopy: true, retrievalMode: .keyboardCopy)
         guard case .copy("a") = ActionEligibility.degrade(
             .paste("a"),
             capabilities: capabilities(editor, live: .available)
@@ -163,7 +165,7 @@ final class ActionEligibilityTests: XCTestCase {
     }
 
     func testKeyboardCopySurfaceKeepsCutStrict() {
-        let editor = selection(editable: false, paste: true, usedKeyboardCopy: true)
+        let editor = selection(editable: false, paste: true, usedKeyboardCopy: true, retrievalMode: .keyboardCopy)
         guard case .copy("a") = ActionEligibility.degrade(
             .cut("a"),
             capabilities: capabilities(editor, live: .available)
@@ -208,9 +210,26 @@ final class ActionEligibilityTests: XCTestCase {
         }
     }
 
+    func testBrowserKeyboardCopyFallbackDoesNotGetTheEditingSurface() {
+        // Browsers use the web-area policy, but a read-only page can still fall back to keyboard
+        // copy when AX cannot expose the selection. That must not turn into a paste.
+        let page = SelectionContext(
+            text: "read-only article",
+            appPolicy: AppPolicyContext(retrievalMode: .axWebArea),
+            isEditable: false,
+            usedKeyboardCopy: true,
+            pasteTargetAvailable: true
+        )
+        let target = capabilities(page, live: .available)
+        XCTAssertEqual(target.standardEditingSurface, .unknown)
+        guard case .copy("a") = ActionEligibility.degrade(.paste("a"), capabilities: target) else {
+            return XCTFail("a browser keyboard-copy fallback must keep the strict check")
+        }
+    }
+
     func testNonSelectionSourcesDoNotUseTheKeyboardCopyFallback() {
         for source in [SelectionSource.ocr, .clipboard] {
-            let context = selection(source: source, editable: false, paste: true, usedKeyboardCopy: true)
+            let context = selection(source: source, editable: false, paste: true, usedKeyboardCopy: true, retrievalMode: .keyboardCopy)
             XCTAssertEqual(capabilities(context, live: .available).standardEditingSurface, .unknown)
         }
     }

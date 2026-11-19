@@ -233,12 +233,14 @@ public extension SelectionContext {
         )
     }
 
-    /// Apps whose AX tree cannot expose the selection read it through ⌘C. Only a live selection
-    /// actually read that way counts: a configured `keyboard-copy` policy is not enough, because
-    /// apps such as Slack still read their messages through Accessibility first. OCR and
-    /// clipboard-fallback text has no editing surface behind it.
+    /// Apps whose AX tree cannot expose the selection read it through ⌘C. Both checks matter: the
+    /// actual read proves Accessibility could not expose the surface (excluding Slack/Discord,
+    /// which AX reads first), and the policy excludes browsers, which can also fall back to
+    /// keyboard copy for read-only text. OCR and clipboard-fallback text has no editing surface.
     internal var standardEditingSurface: CapabilityAvailability {
-        source == .selection && usedKeyboardCopy ? .available : .unknown
+        source == .selection && usedKeyboardCopy && appPolicy.retrievalMode == .keyboardCopy
+            ? .available
+            : .unknown
     }
 }
 
