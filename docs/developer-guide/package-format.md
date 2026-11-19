@@ -119,7 +119,11 @@ focused target; unknown editability fails closed. Paste destination support is i
 input source, so clipboard-derived transformations can still be pasted into a confirmed
 destination. `requiresPasteTarget` tests the app's Paste command, which is not the same evidence as
 text insertion: a result that pastes text still needs a confirmed editable target, and falls back
-to copy otherwise.
+to copy otherwise. The exception is a selection that was actually read through keyboard copy in an
+app configured for that fallback, because Accessibility could not expose the text surface; there an
+enabled Paste command is the editing contract, so text can replace the selection. A configured
+`keyboard-copy` policy alone does not qualify, and browsers keep the strict check even when their
+read falls back to keyboard copy. Declared `editableSelection` gates do not get that exception.
 Older OpenClip releases ignore unknown manifest keys; do not publish catalog packages that rely on
 these gates until an enforcing release exists. The current source version 1.7.3 is not a confirmed
 compatibility floor, so `minOpenClipVersion` must wait for that release's version to be established.

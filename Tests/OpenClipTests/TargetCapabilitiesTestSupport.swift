@@ -8,11 +8,13 @@ extension TargetCapabilities {
     static func stub(
         textInsertion: CapabilityAvailability = .available,
         pasteboardPaste: CapabilityAvailability = .available,
+        standardEditingSurface: CapabilityAvailability = .unknown,
         targetIsLive: CapabilityAvailability = .available
     ) -> TargetCapabilities {
         TargetCapabilities(
             textInsertion: textInsertion,
             pasteboardPaste: pasteboardPaste,
+            standardEditingSurface: standardEditingSurface,
             targetIsLive: targetIsLive
         )
     }

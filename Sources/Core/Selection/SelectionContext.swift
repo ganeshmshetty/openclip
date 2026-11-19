@@ -29,6 +29,10 @@ public struct SelectionContext: Sendable {
     /// independent of where `text` came from, so clipboard fallback can still land in an editable
     /// control.
     public let isEditable: Bool?
+    /// True when the selection read actually fell back to the keyboard-copy path because
+    /// Accessibility could not expose the text surface. A configured `keyboard-copy` policy alone
+    /// does not count: apps such as Slack still read their messages through Accessibility first.
+    public let usedKeyboardCopy: Bool
     /// Whether the current destination was confirmed to accept paste. This is destination
     /// evidence, independent of where `text` came from.
     public let pasteTargetAvailable: Bool?
@@ -58,6 +62,7 @@ public struct SelectionContext: Sendable {
         selectionGeneration: UInt64? = nil,
         source: SelectionSource? = nil,
         isEditable: Bool? = nil,
+        usedKeyboardCopy: Bool = false,
         pasteTargetAvailable: Bool? = nil,
         traceID: UInt64? = nil
     ) {
@@ -73,6 +78,7 @@ public struct SelectionContext: Sendable {
         self.source = source ?? (isClipboardFallback ? .clipboard : .selection)
         self.isClipboardFallback = self.source == .clipboard
         self.isEditable = isEditable
+        self.usedKeyboardCopy = usedKeyboardCopy
         self.pasteTargetAvailable = pasteTargetAvailable
         self.html = html
         self.rtf = rtf
@@ -87,6 +93,7 @@ public struct SelectionContext: Sendable {
                          timestamp: timestamp, appPolicy: appPolicy, html: html ?? self.html,
                          rtf: rtf ?? self.rtf, flavors: flavors.isEmpty ? self.flavors : flavors,
                          selectionGeneration: selectionGeneration, source: source, isEditable: isEditable,
+                         usedKeyboardCopy: usedKeyboardCopy,
                          pasteTargetAvailable: pasteTargetAvailable, traceID: traceID)
     }
 
@@ -107,6 +114,7 @@ public struct SelectionContext: Sendable {
             selectionGeneration: selectionGeneration,
             source: source,
             isEditable: isEditable,
+            usedKeyboardCopy: usedKeyboardCopy,
             pasteTargetAvailable: pasteTargetAvailable,
             traceID: traceID
         )
@@ -129,6 +137,7 @@ public struct SelectionContext: Sendable {
             selectionGeneration: selectionGeneration,
             source: source,
             isEditable: isEditable ?? self.isEditable,
+            usedKeyboardCopy: usedKeyboardCopy,
             pasteTargetAvailable: pasteTargetAvailable ?? self.pasteTargetAvailable,
             traceID: traceID
         )

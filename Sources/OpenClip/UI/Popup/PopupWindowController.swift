@@ -2557,12 +2557,17 @@ public class PopupWindowController {
     }
 
     /// Text insertion is decided by editability. The Paste command only has to be consulted for
-    /// payloads that need a destination, or when the action explicitly declared one.
+    /// payloads that need a destination, or when the action explicitly declared one. Keyboard-copy
+    /// apps have no AX editability to read, so their Paste command also decides a text paste.
     private func needsPasteboardProbe(_ result: ActionResult, delivery: DeliveryContext) -> Bool {
         // OCR text has no destination; its captured no-paste answer is the final word.
         guard delivery.selection?.source != .ocr else { return false }
         if delivery.requirements?.requiresPasteTarget == true { return true }
-        return ActionEligibility.requirement(for: result) == .pasteboardPaste
+        let requirement = ActionEligibility.requirement(for: result)
+        if requirement == .pasteboardPaste { return true }
+        return requirement == .textInsertion
+            && delivery.capabilities.standardEditingSurface == .available
+            && delivery.capabilities.pasteboardPaste == .unknown
     }
 
     private func isText(_ result: ActionResult) -> Bool {

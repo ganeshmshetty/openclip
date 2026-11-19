@@ -415,6 +415,7 @@ public final class HotkeyManager {
             flavors: selectionFlavors,
             selectionGeneration: generation,
             isEditable: read.isEditable,
+            usedKeyboardCopy: read.usedKeyboardCopy,
             traceID: read.traceID
         )
         let canPaste = await probeTask?.value

@@ -494,7 +494,8 @@ final class ActionResultDeliveryTests: XCTestCase {
                                  toastController: ToastPanelController = ToastPanelController(),
                                  settingsStore: SettingsStore = MemorySettingsStore(),
                                  source: SelectionSource = .selection,
-                                 isEditable: Bool? = nil) -> PopupWindowController {
+                                 isEditable: Bool? = nil,
+                                 usedKeyboardCopy: Bool = false) -> PopupWindowController {
         let controller = PopupWindowController(resultHandler: resultHandler, pasteProbe: pasteProbe, toastController: toastController, settingsStore: settingsStore)
         let context = SelectionContext(
             text: "hello",
@@ -503,7 +504,8 @@ final class ActionResultDeliveryTests: XCTestCase {
             timestamp: Date(),
             appPolicy: appPolicy,
             source: source,
-            isEditable: isEditable ?? (source == .selection)
+            isEditable: isEditable ?? (source == .selection),
+            usedKeyboardCopy: usedKeyboardCopy
         )
         controller.startTestSession(for: context, pasteAvailable: source == .ocr ? false : nil)
         return controller
@@ -571,6 +573,72 @@ final class ActionResultDeliveryTests: XCTestCase {
 
         assertCase(try await awaitDelivery(from: handler), .copy("hello"))
         XCTAssertEqual(toast.currentFeedback?.message, String(localized: "Copied"))
+    }
+
+    /// Keyboard-copy editors expose no AX editability; an enabled Paste command is their
+    /// text-insertion evidence, so the replacement pastes instead of copying.
+    @MainActor
+    func testKeyboardCopyEditorPastesTextThroughThePasteCommand() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
+                                         isEditable: false,
+                                         usedKeyboardCopy: true)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .paste("hello"))
+    }
+
+    @MainActor
+    func testKeyboardCopyEditorCopiesWhenThePasteCommandIsDisabled() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
+                                         isEditable: false,
+                                         usedKeyboardCopy: true)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+    }
+
+    /// Slack/Discord configure keyboard copy, but Accessibility still reads their messages. A
+    /// read-only message must not paste into the composer just because the policy says so.
+    @MainActor
+    func testKeyboardCopyPolicyWithAnAXReadCopiesInsteadOfPasting() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
+                                         isEditable: false,
+                                         usedKeyboardCopy: false)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+    }
+
+    /// A browser can fall back to keyboard copy for read-only text. Its web-area policy keeps the
+    /// strict check, so the result copies instead of disappearing into the page.
+    @MainActor
+    func testBrowserKeyboardCopyFallbackCopiesInsteadOfPasting() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(retrievalMode: .axWebArea),
+                                         isEditable: false,
+                                         usedKeyboardCopy: true)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
     }
 
     /// User picks copy for the primary click: `.text` delivers a copy with the default Copied toast and dismisses.

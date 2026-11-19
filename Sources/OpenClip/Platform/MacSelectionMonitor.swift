@@ -524,6 +524,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
                 flavors: selectionFlavors,
                 selectionGeneration: self.selectionGeneration,
                 isEditable: isEditable,
+                usedKeyboardCopy: read.usedKeyboardCopy,
                 pasteTargetAvailable: canPaste,
                 traceID: read.traceID
             )
@@ -838,6 +839,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             flavors: result.flavors,
             selectionGeneration: selectionGeneration,
             isEditable: response.isEditable,
+            usedKeyboardCopy: response.usedKeyboardCopy,
             pasteTargetAvailable: nil,
             traceID: response.traceID
         )
