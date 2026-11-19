@@ -170,6 +170,17 @@ final class ActionEligibilityTests: XCTestCase {
         ) else { return XCTFail("Cut deletes the selection and needs element-level editability") }
     }
 
+    func testTargetChangeDegradesCutToCopy() {
+        let target = TargetCapabilities(
+            textInsertion: .available,
+            pasteboardPaste: .available,
+            targetIsLive: .unavailable
+        )
+        guard case .copy("a") = ActionEligibility.degrade(.cut("a"), capabilities: target) else {
+            return XCTFail("a target that went away must not receive a cut")
+        }
+    }
+
     func testAXWebAreaSelectionDoesNotUseTheKeyboardCopyFallback() {
         let page = selection(editable: false, paste: true)
         let target = capabilities(page, live: .available)
