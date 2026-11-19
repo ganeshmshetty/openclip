@@ -123,8 +123,9 @@ final class CLIToolCatalogTests: XCTestCase {
         }
         if case .any(let checks) = tool.auth {
             XCTAssertTrue(checks.contains(.homeRelativeFile(".gemini/oauth_creds.json")))
-            XCTAssertTrue(checks.contains(.homeRelativeFile(".gemini/google_accounts.json")))
             XCTAssertTrue(checks.contains(.environmentNonEmpty(["GEMINI_API_KEY", "GOOGLE_API_KEY", "AGY_ADC_AUTH"])))
+            // google_accounts.json records who is signed in, not that usable credentials exist.
+            XCTAssertFalse(checks.contains(.homeRelativeFile(".gemini/google_accounts.json")))
         } else {
             XCTFail("Antigravity should have composite auth check")
         }
