@@ -12,11 +12,13 @@ final class ActionEligibilityTests: XCTestCase {
         text: String = "hello",
         source: SelectionSource = .selection,
         editable: Bool? = true,
-        paste: Bool? = true
+        paste: Bool? = true,
+        retrievalMode: SelectionRetrievalMode = .axTextControl
     ) -> SelectionContext {
         SelectionContext(
             text: text,
             sourceApp: AppIdentity(bundleIdentifier: "com.test", localizedName: "Test"),
+            appPolicy: AppPolicyContext(retrievalMode: retrievalMode),
             source: source,
             isEditable: editable,
             pasteTargetAvailable: paste
@@ -133,6 +135,57 @@ final class ActionEligibilityTests: XCTestCase {
         }
     }
 
+    // MARK: - Keyboard-copy surfaces
+
+    func testKeyboardCopySurfacePastesTextThroughTheEnabledPasteCommand() {
+        let editor = selection(editable: false, paste: true, retrievalMode: .keyboardCopy)
+        let target = capabilities(editor, live: .available)
+        XCTAssertEqual(target.standardEditingSurface, .available)
+        guard case .paste("a") = ActionEligibility.degrade(.paste("a"), capabilities: target) else {
+            return XCTFail("a keyboard-copy editor with Paste enabled accepts text")
+        }
+    }
+
+    func testKeyboardCopySurfaceCopiesWhenThePasteCommandIsUnavailable() {
+        let editor = selection(editable: false, paste: false, retrievalMode: .keyboardCopy)
+        guard case .copy("a") = ActionEligibility.degrade(
+            .paste("a"),
+            capabilities: capabilities(editor, live: .available)
+        ) else { return XCTFail("a disabled Paste command is not editability evidence") }
+    }
+
+    func testKeyboardCopySurfaceCopiesWhenThePasteCommandIsUnknown() {
+        let editor = selection(editable: false, paste: nil, retrievalMode: .keyboardCopy)
+        guard case .copy("a") = ActionEligibility.degrade(
+            .paste("a"),
+            capabilities: capabilities(editor, live: .available)
+        ) else { return XCTFail("an unprobed Paste command must still copy") }
+    }
+
+    func testKeyboardCopySurfaceKeepsCutStrict() {
+        let editor = selection(editable: false, paste: true, retrievalMode: .keyboardCopy)
+        guard case .copy("a") = ActionEligibility.degrade(
+            .cut("a"),
+            capabilities: capabilities(editor, live: .available)
+        ) else { return XCTFail("Cut deletes the selection and needs element-level editability") }
+    }
+
+    func testAXWebAreaSelectionDoesNotUseTheKeyboardCopyFallback() {
+        let page = selection(editable: false, paste: true)
+        let target = capabilities(page, live: .available)
+        XCTAssertEqual(target.standardEditingSurface, .unknown)
+        guard case .copy("a") = ActionEligibility.degrade(.paste("a"), capabilities: target) else {
+            return XCTFail("the browser-article case must keep the strict text-insertion check")
+        }
+    }
+
+    func testNonSelectionSourcesDoNotUseTheKeyboardCopyFallback() {
+        for source in [SelectionSource.ocr, .clipboard] {
+            let context = selection(source: source, editable: false, paste: true, retrievalMode: .keyboardCopy)
+            XCTAssertEqual(capabilities(context, live: .available).standardEditingSurface, .unknown)
+        }
+    }
+
     func testSimulatePasteIsDroppedOnlyWhenTheDestinationIsConfirmedUnavailable() {
         guard case .none = ActionEligibility.degrade(
             .simulatePaste,
@@ -157,10 +210,15 @@ final class ActionEligibilityTests: XCTestCase {
     }
 
     func testDenyPasteForcesBothPastePathsToCopy() {
-        var target = TargetCapabilities(textInsertion: .available, pasteboardPaste: .available)
+        var target = TargetCapabilities(
+            textInsertion: .available,
+            pasteboardPaste: .available,
+            standardEditingSurface: .available
+        )
         target.applyDenyPaste(AppPolicyContext(denyPaste: true))
         XCTAssertEqual(target.textInsertion, .unavailable)
         XCTAssertEqual(target.pasteboardPaste, .unavailable)
+        XCTAssertEqual(target.standardEditingSurface, .unavailable)
 
         var untouched = TargetCapabilities(textInsertion: .available, pasteboardPaste: .available)
         untouched.applyDenyPaste(.default)

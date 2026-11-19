@@ -27,16 +27,21 @@ public struct TargetCapabilities: Sendable, Equatable {
     public var textInsertion: CapabilityAvailability
     /// The target app advertises an enabled Paste command.
     public var pasteboardPaste: CapabilityAvailability
+    /// The target reads selections through the standard editing clipboard because Accessibility
+    /// cannot expose its text surface. An enabled Paste command is then the editability evidence.
+    public var standardEditingSurface: CapabilityAvailability
     /// The captured target is still frontmost with the same selection. Unknown until perform time.
     public var targetIsLive: CapabilityAvailability
 
     public init(
         textInsertion: CapabilityAvailability = .unknown,
         pasteboardPaste: CapabilityAvailability = .unknown,
+        standardEditingSurface: CapabilityAvailability = .unknown,
         targetIsLive: CapabilityAvailability = .unknown
     ) {
         self.textInsertion = textInsertion
         self.pasteboardPaste = pasteboardPaste
+        self.standardEditingSurface = standardEditingSurface
         self.targetIsLive = targetIsLive
     }
 
@@ -48,6 +53,7 @@ public struct TargetCapabilities: Sendable, Equatable {
         guard policy.denyPaste else { return }
         textInsertion = .unavailable
         pasteboardPaste = .unavailable
+        standardEditingSurface = .unavailable
     }
 }
 
@@ -158,7 +164,12 @@ public enum ActionEligibility {
         case .none:
             return true
         case .textInsertion:
-            return capabilities.textInsertion == .available
+            // Keyboard-copy apps expose no AX text control to prove editability. Their enabled
+            // Paste command is the standard editing contract, so it may stand in for element-level
+            // evidence. Cut keeps its own strict check in `degrade` because it deletes the selection.
+            if capabilities.textInsertion == .available { return true }
+            return capabilities.standardEditingSurface == .available
+                && capabilities.pasteboardPaste == .available
         case .pasteboardPaste:
             return capabilities.pasteboardPaste == .available
         }
@@ -170,7 +181,13 @@ public enum ActionEligibility {
         switch result {
         case .sequence(let items):
             return .sequence(items.map { degrade($0, capabilities: capabilities) })
-        case .paste(let text), .cut(let text):
+        case .cut(let text):
+            // Cut deletes the selection, so it keeps the strict element-level proof even when a
+            // keyboard-copy surface may paste. Liveness still applies.
+            return capabilities.targetIsLive != .unavailable && capabilities.textInsertion == .available
+                ? result
+                : .copy(text)
+        case .paste(let text):
             return isDeliverable(.textInsertion, capabilities: capabilities) ? result : .copy(text)
         case .pasteContent(let payload):
             return isDeliverable(requirement(for: result), capabilities: capabilities)
@@ -211,8 +228,15 @@ public extension SelectionContext {
         TargetCapabilities(
             textInsertion: CapabilityAvailability(isEditable),
             pasteboardPaste: CapabilityAvailability(pasteTargetAvailable),
+            standardEditingSurface: standardEditingSurface,
             targetIsLive: targetIsLive
         )
+    }
+
+    /// Apps whose AX tree cannot expose the selection read it through ⌘C. Only a live selection
+    /// counts: OCR and clipboard-fallback text has no editing surface behind it.
+    internal var standardEditingSurface: CapabilityAvailability {
+        source == .selection && appPolicy.retrievalMode == .keyboardCopy ? .available : .unknown
     }
 }
 
@@ -220,7 +244,8 @@ public extension ActionContext {
     var capabilities: TargetCapabilities {
         TargetCapabilities(
             textInsertion: CapabilityAvailability(selection.isEditable),
-            pasteboardPaste: CapabilityAvailability(pasteTargetAvailable)
+            pasteboardPaste: CapabilityAvailability(pasteTargetAvailable),
+            standardEditingSurface: selection.standardEditingSurface
         )
     }
 }

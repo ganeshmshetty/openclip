@@ -573,6 +573,36 @@ final class ActionResultDeliveryTests: XCTestCase {
         XCTAssertEqual(toast.currentFeedback?.message, String(localized: "Copied"))
     }
 
+    /// Keyboard-copy editors expose no AX editability; an enabled Paste command is their
+    /// text-insertion evidence, so the replacement pastes instead of copying.
+    @MainActor
+    func testKeyboardCopyEditorPastesTextThroughThePasteCommand() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: true),
+                                         appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
+                                         isEditable: false)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .paste("hello"))
+    }
+
+    @MainActor
+    func testKeyboardCopyEditorCopiesWhenThePasteCommandIsDisabled() async throws {
+        let handler = RecordingHandler()
+        let controller = shownController(resultHandler: handler,
+                                         pasteProbe: FixedProbe(result: false),
+                                         appPolicy: AppPolicyContext(retrievalMode: .keyboardCopy),
+                                         isEditable: false)
+        defer { controller.hide() }
+
+        controller.deliverResult(.paste("hello"))
+
+        assertCase(try await awaitDelivery(from: handler), .copy("hello"))
+    }
+
     /// User picks copy for the primary click: `.text` delivers a copy with the default Copied toast and dismisses.
     @MainActor
     func testTextDeliversCopyWhenPreferenceIsCopy() async throws {
