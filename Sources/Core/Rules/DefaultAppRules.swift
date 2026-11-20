@@ -183,7 +183,8 @@ public enum DefaultAppRules: Sendable {
         "com.postmanlabs.mac",
         "com.insomnia.app",
         "com.1password.1password",
-        "com.spotify.client"
+        "com.spotify.client",
+        "com.google.GeminiMacOS"
     ]
     
     public static let menuCopyApps: [String] = [

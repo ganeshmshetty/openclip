@@ -2006,6 +2006,82 @@ final class MacSelectionMonitorTests: XCTestCase {
         }
     }
 
+    /// A drag that begins in margin/whitespace (.arrow), crosses selectable text (.beam), and
+    /// finishes in whitespace (.arrow) still observed a text cue mid-drag and must keep copy
+    /// fallback enabled.
+    func testDragCrossingTextRetainsMidDragBeamCue() async {
+        let monitor = makeMonitor()
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in AppPolicyContext.default }
+        var cursor: CursorClass = .arrow
+        monitor.currentCursorProvider = { cursor }
+        monitor.retriever = SelectionRetrievalCoordinator(
+            inspect: { Self.fixtureTarget(role: "AXGroup", selectedText: nil) },
+            copyCapture: { request in
+                XCTAssertEqual(request.evidence.strength, .weak)
+                XCTAssertTrue(request.requiresEnabledCopyMenu)
+                return SelectionResult(text: "mid-drag beam selection", strategy: .keyboardCopy)
+            }
+        )
+
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        cursor = .beam
+        monitor.handleMouseDragged(at: CGPoint(x: 150, y: 100))
+        cursor = .arrow
+        monitor.handleMouseUp(app: MockTestApp(bundleID: "com.openai.codex"),
+                              cursor: CGPoint(x: 220, y: 100), clickCount: 1)
+        await monitor.debounceTask?.value
+
+        XCTAssertEqual(monitor.latestSelection?.context.text, "mid-drag beam selection")
+    }
+
+    /// Web pages often style selectable text with non-I-beam cursors (arrow, pointing hand, or
+    /// custom cursors). Chromium/Firefox browsers using `.axWebArea` must still reach the
+    /// copy-evidence / enabled-Copy-menu fallback, while Safari with an exposed empty `AXWebArea`
+    /// remains blocked inside OpenSelection (#210).
+    func testWebPolicyAllowsNonBeamCopyFallbackInChromiumAndBlocksExposedEmptySafari() async {
+        for cursor: CursorClass in [.arrow, .pointingHand, .unknown] {
+            let chromeMonitor = makeMonitor()
+            chromeMonitor.isExcludedBundle = { _ in false }
+            chromeMonitor.policyResolver = { _ in AppPolicyContext(retrievalMode: .axWebArea) }
+            chromeMonitor.currentCursorProvider = { cursor }
+            chromeMonitor.retriever = SelectionRetrievalCoordinator(
+                inspect: {
+                    AXElementInspector.Target(role: nil, containedInRoles: ["AXWebArea"], selectedText: nil)
+                },
+                copyCapture: { request in
+                    XCTAssertEqual(request.evidence.strength, .weak)
+                    XCTAssertTrue(request.requiresEnabledCopyMenu)
+                    return SelectionResult(text: "chrome web selection", strategy: .keyboardCopy)
+                }
+            )
+
+            chromeMonitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+            chromeMonitor.handleMouseUp(app: MockTestApp(bundleID: "com.google.Chrome"),
+                                        cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+            await chromeMonitor.debounceTask?.value
+            XCTAssertEqual(chromeMonitor.latestSelection?.context.text, "chrome web selection", cursor.rawValue)
+
+            let safariMonitor = makeMonitor()
+            safariMonitor.isExcludedBundle = { _ in false }
+            safariMonitor.policyResolver = { _ in AppPolicyContext(retrievalMode: .axWebArea) }
+            safariMonitor.currentCursorProvider = { cursor }
+            safariMonitor.retriever = SelectionRetrievalCoordinator(
+                inspect: { Self.fixtureTarget(role: "AXWebArea", selectedText: nil) },
+                copyCapture: { _ in
+                    XCTFail("Safari with an exposed empty AXWebArea and \(cursor.rawValue) must not post a synthetic copy")
+                    return nil
+                }
+            )
+
+            safariMonitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+            safariMonitor.handleMouseUp(app: MockTestApp(bundleID: "com.apple.Safari"),
+                                        cursor: CGPoint(x: 200, y: 100), clickCount: 1)
+            await safariMonitor.debounceTask?.value
+            XCTAssertNil(safariMonitor.latestSelection, cursor.rawValue)
+        }
+    }
+
     func testTextDragPressEvidenceDoesNotOverrideObjectSelectionOrOverlayGates() async {
         for (role, overlay) in [("AXImage", false), ("AXCollection", false), ("AXGroup", true)] {
             let monitor = makeKeyboardMonitor(overlay: overlay, bundleID: "com.figma.Desktop", role: role)
