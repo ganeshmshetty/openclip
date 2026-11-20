@@ -39,8 +39,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     private var appActivationObserver: NSObjectProtocol?
     internal var mouseHoldTask: Task<Void, Never>?
     private var mouseDownLocation: CGPoint?
-    /// Preserve text context when a selection drag ends over blank space and the cursor changes.
+    /// Preserve text context when a selection drag starts or ends over blank space.
     private var mouseDownCursor: CursorClass?
+    private var mouseDragSawBeam: Bool = false
     private var mouseDownWindow: SelectionGestureWindow?
     /// Whether the press that started the current gesture landed on system chrome. Gate on this
     /// (the press), not on where the pointer is released: a drag that begins in a window and
@@ -291,6 +292,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         selectionSourceApp = nil
         mouseDownWindow = nil
         mouseDownCursor = nil
+        mouseDragSawBeam = false
         if let appActivationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(appActivationObserver)
             self.appActivationObserver = nil
@@ -338,6 +340,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         triggeredByHold = false
         selectionSourceApp = nil
         mouseDownCursor = nil
+        mouseDragSawBeam = false
         clearSelection()
     }
 
@@ -395,6 +398,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         mouseDownWasSystemChrome = false
         mouseDownLocation = point
         mouseDownCursor = currentCursorProvider()
+        mouseDragSawBeam = false
         mouseDownWindow = windowAtPoint(point)
         triggeredByHold = false
         mouseHoldTask?.cancel()
@@ -547,6 +551,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
     internal func handleMouseDragged(at point: CGPoint) {
         guard let downPoint = mouseDownLocation else { return }
+        if !mouseDragSawBeam, currentCursorProvider() == .beam {
+            mouseDragSawBeam = true
+        }
         let dx = point.x - downPoint.x
         let dy = point.y - downPoint.y
         if (dx * dx + dy * dy) > Self.holdDragDisarmSquared {
@@ -570,6 +577,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         selectionSourceApp = app
         let pressCursor = mouseDownCursor
         mouseDownCursor = nil
+        let dragSawBeam = mouseDragSawBeam
+        mouseDragSawBeam = false
         let gestureWindow = mouseDownWindow
         mouseDownWindow = nil
         if let gestureWindow, windowFrame(gestureWindow.id) != gestureWindow.frame {
@@ -637,14 +646,15 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             nil
         }
         let releaseCursor = currentCursorProvider()
-        let retrievalCursor: CursorClass = isDrag && pressCursor == .beam ? .beam : releaseCursor
+        let sawDragBeam = isDrag && (pressCursor == .beam || dragSawBeam)
+        let retrievalCursor: CursorClass = sawDragBeam ? .beam : releaseCursor
         // A drag or multi-click is a selection *gesture*, not a selection. Without an I-beam at the
-        // press or the release the pointer was never over text, so the copy tier must stay shut:
-        // a synthetic ⌘C against an app with nothing selected makes it play the system alert sound
-        // and flash its Edit menu (#210, #159, #109). AX reads are unaffected and still deliver a
-        // selection the app exposes.
-        let hasTextCue = pressCursor == .beam || releaseCursor == .beam
-        Log.selection.debug("monitor: mouse selection context press=\(pressCursor?.rawValue ?? "none", privacy: .public) release=\(releaseCursor.rawValue, privacy: .public) retrieval=\(retrievalCursor.rawValue, privacy: .public) drag=\(isDrag, privacy: .public) textCue=\(hasTextCue, privacy: .public)")
+        // press, during the drag, or at the release, the pointer was never over text, so the copy
+        // tier stays shut for non-web/non-copy-only apps: a synthetic ⌘C against an app with nothing
+        // selected plays the system alert sound and flashes its Edit menu (#210, #159, #109). AX
+        // reads are unaffected and still deliver a selection the app exposes.
+        let hasTextCue = pressCursor == .beam || dragSawBeam || releaseCursor == .beam
+        Log.selection.debug("monitor: mouse selection context press=\(pressCursor?.rawValue ?? "none", privacy: .public) dragBeam=\(dragSawBeam, privacy: .public) release=\(releaseCursor.rawValue, privacy: .public) retrieval=\(retrievalCursor.rawValue, privacy: .public) drag=\(isDrag, privacy: .public) textCue=\(hasTextCue, privacy: .public)")
 
         debounceTask = Task { @MainActor in
             guard self.isSelectionSourceActive(app) else {
@@ -690,15 +700,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // 1. "Appear Automatically" is disabled (passive background caching must stay non-invasive)
             // 2. The app has `hotkeyOnly` policy
             // 3. A foreign overlay owns the key window
-            // 4. The gesture carried no text cue (see `hasTextCue` above) and the app does not
-            //    declare copy as its only retrieval path. A copy-only policy means the AX tree
-            //    cannot expose the selection, so refusing the copy removes the only read path;
-            //    the copy engine still requires selection evidence and an enabled Copy command.
+            // 4. The gesture carried no text cue (see `hasTextCue` above) and the app is neither
+            //    copy-only nor a browser web-area policy. Web pages frequently override the cursor
+            //    (`cursor: default`/`pointer`/custom) over selectable text while Chromium/Firefox
+            //    leave AX selections unexposed; OpenSelection's copy-evidence and Copy-menu gates
+            //    still block empty WebKit web areas (#210) and disabled Copy commands.
             let isAutoEnabled = self.settingsStore.get(.isAppEnabled)
             let isCopyOnlyPolicy = policy.retrievalMode == .keyboardCopy
+            let isWebPolicy = policy.retrievalMode == .axWebArea
             let allowCopyFallback = isAutoEnabled && !policy.hotkeyOnly
-                && !self.isOverlayPresent(cursor) && (hasTextCue || isCopyOnlyPolicy)
-            if isAutoEnabled, !policy.hotkeyOnly, !hasTextCue, !isCopyOnlyPolicy {
+                && !self.isOverlayPresent(cursor) && (hasTextCue || isCopyOnlyPolicy || isWebPolicy)
+            if isAutoEnabled, !policy.hotkeyOnly, !hasTextCue, !isCopyOnlyPolicy, !isWebPolicy {
                 Log.selection.debug("monitor: copy fallback withheld, no text cursor cue bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
             }
             // Direct AX check executed IMMEDIATELY (0ms delay) for instant smooth opening
