@@ -746,15 +746,14 @@ lines by height interleaved multi-column text.
   not a selection: the pointer may have been on a scrollbar, a photo, a video, or window content,
   and the copy tier would post a real ⌘C against an app with nothing selected. AppKit answers that
   with the system alert sound and a flashing Edit menu (issues #210, #159, #109). `handleMouseUp`
-  therefore requests the copy fallback only when the press or the release showed the I-beam
-  (`textCue` in the selection log); arrow, pointing-hand, and unclassified cursors keep every AX
-  strategy but never reach a synthetic copy. The cue is structural, not per-app: text drags
-  (including one released over whitespace), multi-clicks on text, and the Chromium/Electron
-  fallback still copy. An app whose policy puts `keyboard-copy` first is exempt: that policy
-  declares its AX tree cannot expose the selection, so the cue gate would remove its only read
-  path; the copy engine still requires selection evidence and an enabled Copy command. Keyboard, hold, and hotkey paths are not gated. Remaining hole: the
-  package's browser fallback still grants weak evidence when an exposed web area reports no
-  selection (the Safari shape in #210); closing that belongs in OpenSelection.
+  therefore requests the copy fallback only when the press, the drag (`mouseDragSawBeam`), or the
+  release showed the I-beam (`textCue` in the selection log); arrow, pointing-hand, and unclassified
+  cursors keep every AX strategy but never reach a synthetic copy for ordinary native apps. Copy-only
+  policies (`keyboard-copy`) and browser web-area policies (`ax-web-area`) are exempt from the
+  pre-AX cursor gate so custom-cursor web pages remain selectable; OpenSelection's copy-evidence
+  gate blocks WebKit browsers (`safariGroup`) when an exposed `AXWebArea` reports no selection
+  without a text cue (closing the Safari #210 hole) while Chromium/Firefox/Arc remain gated on an
+  enabled Edit ▸ Copy command. Keyboard, hold, and hotkey paths are not gated.
 - Capability facts are tri-state and decided in one place. `TargetCapabilities` carries text
   insertion (Accessibility settable state), pasteboard paste (the Edit ▸ Paste probe), whether the
   selection was actually read through the keyboard-copy fallback, and target liveness;

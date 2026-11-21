@@ -2875,7 +2875,7 @@
 			repositoryURL = "https://github.com/ganeshmshetty/OpenSelection.git";
 			requirement = {
 				kind = exactVersion;
-				version = 2.16.5;
+				version = 2.16.6;
 			};
 		};
 		676612F6B58E1DD1F25971A9 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
