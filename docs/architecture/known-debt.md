@@ -559,16 +559,14 @@ to Copy and simulated paste is dropped, including direct and loading action path
 require a live or editable selection recheck the captured selection generation and target before
 their effects run. This check does not sandbox scripts or prevent arbitrary side effects authored
 inside them. Catalog manifests using the new fields must wait for the first app release that enforces
-them; the current source version (1.7.3) is not a confirmed compatibility floor. The OCR flow automatically copies nonempty recognized text by default, then opens the action
+them; the current source version (1.7.3) is not a confirmed compatibility floor. The OCR flow silently copies nonempty recognized text by default, then opens the action
 bar. The “Copy to Clipboard Automatically” checkbox beneath Capture Text in General → Shortcuts
-can disable this behavior. Successful capture shows a content-free “Text copied” toast
-when auto-copy is enabled, or “Text captured” when disabled, in a separate `ToastPanel` near
-the pointer position captured at recognition completion. Placement prefers above the cursor and
-chooses a clear nearby side when the popup, a group bar, or screen edges obstruct it. The position
-never follows mouse movement. It auto-dismisses after 1.2 seconds using the existing toast lifecycle;
-the action panel never grows, shrinks, or moves for feedback. Search stays an explicit action.
-OCR group sub-bars prefer opening below the actions; toast placement avoids either side without
-restarting its timer. Hover tooltips avoid the toast. Dismissal and new sessions clear it.
+can disable the copy. Successful capture has no toast: the action bar is the feedback. Failures
+use a content-free `ToastPanel` near the pointer; placement prefers above the cursor and chooses a
+clear nearby side when the popup, a group bar, or screen edges obstruct it. The position never
+follows mouse movement, and the toast auto-dismisses after 1.2 seconds. The action panel never
+grows, shrinks, or moves for feedback. OCR group sub-bars prefer opening below the actions;
+hover tooltips avoid the toast. Dismissal and new sessions clear it.
 Copy uses the shared clipboard coordinator and rechecks cancellation/session validity after
 acquiring its lease, so superseded recognition does not overwrite the clipboard. Screen Recording access is
 requested by the system on

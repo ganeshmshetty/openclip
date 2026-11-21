@@ -28,8 +28,9 @@ final class CaptureTextController {
     }
 
     /// Shared completion path: never copy empty, cancelled, or superseded recognition results.
+    /// Success is silent; the action bar is the feedback.
     func deliverRecognizedText(_ text: String, isCurrent: @escaping @MainActor () -> Bool,
-                               showPopup: @MainActor (StatusFeedback) -> Void) async throws {
+                               showPopup: @MainActor () -> Void) async throws {
         try Task.checkCancellation()
         guard isCurrent(), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         let autoCopy = settingsStore.get(.captureTextAutoCopy)
@@ -39,11 +40,7 @@ final class CaptureTextController {
         }
         try Task.checkCancellation()
         guard isCurrent() else { return }
-        showPopup(StatusFeedback(
-            message: autoCopy ? String(localized: "Text copied") : String(localized: "Text captured"),
-            style: .success,
-            symbolName: "checkmark.circle.fill"
-        ))
+        showPopup()
     }
 
     var isCapturing: Bool { requestID != nil }
@@ -135,9 +132,9 @@ final class CaptureTextController {
                 guard let self else { return false }
                 return self.requestID == id && self.isSourceAppStillActive
                     && HotkeyManager.triggerAllowed(frontmost: self.sourceApp)
-            }) { feedback in
+            }) {
                 self.popupController?.previousFrontmostApp = self.sourceApp
-                self.popupController?.show(for: context, pasteAvailable: false, captureFeedback: feedback)
+                self.popupController?.show(for: context, pasteAvailable: false)
             }
         } catch is CancellationError {
             return

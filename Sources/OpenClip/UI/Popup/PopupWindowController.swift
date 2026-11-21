@@ -226,11 +226,11 @@ public class PopupWindowController {
         }
     }
 
-    public func show(for context: SelectionContext, pasteAvailable: Bool? = nil, initialMode: PopupMode = .actions, captureFeedback: StatusFeedback? = nil) {
-        show(for: context, pasteAvailable: pasteAvailable, preservingSessionID: nil, streamingTask: nil, initialMode: initialMode, captureFeedback: captureFeedback)
+    public func show(for context: SelectionContext, pasteAvailable: Bool? = nil, initialMode: PopupMode = .actions) {
+        show(for: context, pasteAvailable: pasteAvailable, preservingSessionID: nil, streamingTask: nil, initialMode: initialMode)
     }
 
-    func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?, initialMode: PopupMode = .actions, captureFeedback: StatusFeedback? = nil) {
+    func show(for context: SelectionContext, pasteAvailable: Bool?, preservingSessionID: UUID?, streamingTask: Task<Void, Never>?, initialMode: PopupMode = .actions) {
         ActionSound.prepareIfEnabled()
         presentationAttemptID = UUID()
         didAttemptSpaceRecovery = false
@@ -459,11 +459,6 @@ public class PopupWindowController {
         panel.horizontalAnchor = .center
         // Content-driven growth keeps the bottom edge fixed when the popup sits low. A directly opened palette is not pinned, so its top edge stays fixed.
         panel.pinBottomEdgeOnResize = initialMode == .search ? false : cardAbove
-        if context.source == .ocr, let captureFeedback {
-            toastController.show(captureFeedback, anchorFrame: panel.frame, placement: .nearCursor(selectionContext.cursorPosition))
-            captureToastPresentationID = toastController.presentationID
-            updateToastPlacement()
-        }
         if NSClassFromString("XCTestCase") == nil {
             panel.orderFront(nil)
         }
