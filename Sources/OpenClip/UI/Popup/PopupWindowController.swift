@@ -294,7 +294,9 @@ public class PopupWindowController {
         let verticalPosition = PopupVerticalPosition(rawValue: rawVertical) ?? .auto
 
         // Card direction from the real screen position. A shortcut-opened palette anchors on the selection and honors the same placement prefs as the bar.
-        let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
+        let screen = PopupPositioner.screen(containing: context.cursorPosition)
+            ?? PopupPositioner.screen(containing: NSEvent.mouseLocation)
+            ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         panel.heightCap = initialMode == .search ? screenBounds.height : PopupMetrics.popupMaxHeight
         let probeWidth = initialMode == .search ? currentSearchPanelWidth : 320
@@ -1079,7 +1081,9 @@ public class PopupWindowController {
     }
 
     private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext, alignment: PopupBarAlignment = .left, verticalPosition: PopupVerticalPosition = .auto) {
-        let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
+        let screen = PopupPositioner.screen(containing: context.cursorPosition)
+            ?? PopupPositioner.screen(containing: NSEvent.mouseLocation)
+            ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let frame = PopupPositioner.calculateFrame(
             for: context,

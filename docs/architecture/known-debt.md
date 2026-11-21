@@ -536,13 +536,18 @@ areas; stale debt notes are worse than none.
 
 ## Screen text capture
 
-The menu bar and the dedicated ⌥⌘O shortcut start a one-shot ScreenCaptureKit capture after a
-per-screen crosshair drag. Vision performs recognition locally; captured text opens the ordinary
-action bar beside the selector's mouse-release point using the standard popup gap and
-`SelectionSource.ocr`. If the pointer moves more than eight points while recognition runs, the
-popup follows its current location and drops the stale drag-direction hint; the original capture
-region remains in `selectionBounds`. The selector closes synchronously on a valid release so the
-screen returns to normal before capture and recognition begin. A one-second arrival grace avoids
+The menu bar and the dedicated ⌥⌘O shortcut start Apple's interactive region selection
+(`/usr/sbin/screencapture -i`) and run Vision OCR locally on the resulting image. The system tool
+owns the crosshair, the non-activating selection surface, the mouse grab, multi-display geometry,
+and full-screen Spaces; OpenClip never activates, so the source window keeps focus and Safari
+AutoPiP and full-screen Spaces are unaffected. The decoded pixels are copied into an owned bitmap
+before the temp file is deleted, so Vision always has pixel data even when `CGImageSource` would
+otherwise decode lazily from the file. On macOS 27.2 a 600×300 pt selection produced a 1202×602 px
+image, so the system path keeps the display's native scale. Captured text opens the ordinary action
+bar beside the pointer's position when the selection finished, using the standard popup gap and
+`SelectionSource.ocr`. Interactive mode does not report the selected rectangle on this OS, so
+`selectionBounds` and the drag-direction hint are nil; if the pointer moves more than eight points
+while recognition runs, the popup follows its current location. A one-second arrival grace avoids
 distance-dismissal from cursor movement during recognition. Switching to another app cancels the
 pending OCR delivery.
 OCR sessions permit Copy and other actions that accept text. Extension `requirements.input` now
@@ -567,19 +572,31 @@ restarting its timer. Hover tooltips avoid the toast. Dismissal and new sessions
 Copy uses the shared clipboard coordinator and rechecks cancellation/session validity after
 acquiring its lease, so superseded recognition does not overwrite the clipboard. Screen Recording access is
 requested by the system on
-first capture. Errors are mapped by cause: only a declined permission points to System Settings,
-while a vanished display, a failed capture, and a Vision failure each get their own message. A hotkey
+first capture. Errors are mapped by cause: a declined permission points to System Settings, while an
+unreadable selection and a Vision failure get their own messages. A hotkey
 pressed in a paused or excluded app shows a "Paused" toast instead of doing nothing. Selection monitoring
 is suppressed and pending OCR is cancelled through the capture request token, so stale OCR results
 cannot replace a newer popup; cancelling also cancels the Vision request itself.
 
-The region overlay is a non-activating panel that never becomes key, and OpenClip does not activate
-for it. Activating would blur the source window (the Safari AutoPiP extension enters Picture in
-Picture on window blur) and could switch away from a full-screen Space. Escape comes from the global
-cancel shortcut. Because an inactive app's cursor changes are ignored, `BackgroundCursor` sets the
-private `SetsCursorInBackground` connection property during capture; if that symbol disappears the
-overlay falls back to the arrow cursor. A "Recognizing text…" spinner shows near the release point
-until the popup or a failure toast replaces it.
+Capture Text deliberately does not own the selection overlay. macOS only honors `NSCursor` changes
+and cursor rects for the active app, so a custom crosshair over a non-activating panel would need
+either activation (which blurs the source window and can enter Safari PiP or switch Spaces), the
+private `SetsCursorInBackground` connection property plus an Accessibility event tap (what
+RetinaShot and Snapzy do), or ownership of the selection surface itself. Delegating to
+`/usr/sbin/screencapture -i` is the root-level fix: the system process already has a
+non-activating, full-screen-capable selection surface, a WindowServer event grab, and a registered
+crosshair, so OpenClip never touches the cursor. The trade-off is Apple's selection UI rather than a
+branded overlay, and no selected rectangle for `selectionBounds` in interactive mode. A
+"Recognizing text…" spinner shows near the release point until the popup or a failure toast replaces
+it. Escape is handled by the system tool; the global cancel shortcut terminates the child process as
+well.
+
+Vision recognition is the only slow stage and is prewarmed. `VisionTextRecognizer` runs a real
+recognition on a small rendered text image at launch and when a capture starts. The first accurate
+Vision request after macOS evicts its text model can take tens of seconds, while warm requests take
+about 100 ms; a blank warm-up image does not load the text model. The recognition time is logged on
+the `selection` channel. The system selection process adds its own startup cost before the
+crosshair appears; there is no supported way to prewarm `/usr/sbin/screencapture`.
 
 Recognized lines keep Vision's own order, which is already reading order including column by column;
 `RecognizedTextLayout` only joins a fragment that continues the previous line with a space. Sorting
