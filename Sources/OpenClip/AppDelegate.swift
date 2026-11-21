@@ -168,6 +168,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         
         guard NSClassFromString("XCTestCase") == nil else { return }
 
+        if PermissionManager.shared.isScreenRecordingGranted {
+            Task { @MainActor in
+                // Let launch settle before loading the on-device OCR model in the background.
+                try? await Task.sleep(for: .seconds(3))
+                VisionTextRecognizer.shared.warmUpIfStale()
+            }
+        }
+
         let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
         let currentBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         let lastRunVersion = DefaultSettingsStore.shared.get(.lastRunVersion)

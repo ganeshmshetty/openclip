@@ -161,7 +161,7 @@ public struct PopupPositioner: Sendable {
 
     /// Screen containing `point`, with a 2pt boundary tolerance so points on secondary-display edges still resolve.
     public static func screen(containing point: CGPoint, in screens: [NSScreen] = NSScreen.screens) -> NSScreen? {
-        screens.first { $0.frame.insetBy(dx: -2, dy: -2).contains(point) } ?? screens.first
+        screens.first { $0.frame.insetBy(dx: -2, dy: -2).contains(point) }
     }
 
     /// Selects the screen frame containing `point` with inclusive boundary tolerance.

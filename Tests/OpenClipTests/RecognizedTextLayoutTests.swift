@@ -1,4 +1,3 @@
-import ScreenCaptureKit
 import Vision
 import XCTest
 @testable import OpenClip
@@ -31,9 +30,7 @@ final class RecognizedTextLayoutTests: XCTestCase {
     }
 
     func testFailuresMapToTheirOwnMessages() {
-        XCTAssertEqual(CaptureFailure(CaptureError.displayUnavailable), .displayUnavailable)
-        XCTAssertEqual(CaptureFailure(CaptureError.noImage), .captureFailed)
-        XCTAssertEqual(CaptureFailure(SCStreamError(.userDeclined)), .permission)
+        XCTAssertEqual(CaptureFailure(SystemRegionSelector.SelectionError.unreadableImage), .captureFailed)
         XCTAssertEqual(CaptureFailure(NSError(domain: VNErrorDomain, code: 9)), .recognitionFailed)
         XCTAssertEqual(CaptureFailure(NSError(domain: "other", code: 1)), .captureFailed)
     }
