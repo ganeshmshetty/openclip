@@ -99,7 +99,7 @@ struct ToastView: View {
         .foregroundColor(activeForeground)
         .padding(.horizontal, 11 * scale)
         .padding(.vertical, 5 * scale)
-        .frame(minWidth: reservedWidth, alignment: .leading)
+        .frame(minWidth: reservedWidth, alignment: isCancelHovered ? .center : .leading)
         .background {
             RoundedRectangle(cornerRadius: max(0, cornerRadius - 2 * scale), style: .continuous)
                 .fill(effectiveColorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06))
