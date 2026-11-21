@@ -112,6 +112,29 @@ public struct SelectionContext: Sendable {
         )
     }
 
+    /// Replaces the text while keeping the source identity; content detection is recomputed for the new text.
+    public func with(text: String) -> SelectionContext {
+        SelectionContext(
+            text: text,
+            sourceApp: sourceApp,
+            cursorPosition: cursorPosition,
+            mouseDownLocation: mouseDownLocation,
+            selectionBounds: selectionBounds,
+            timestamp: timestamp,
+            appPolicy: appPolicy,
+            isClipboardFallback: isClipboardFallback,
+            html: html,
+            rtf: rtf,
+            flavors: flavors,
+            contentDetection: nil,
+            selectionGeneration: selectionGeneration,
+            source: source,
+            isEditable: isEditable,
+            pasteTargetAvailable: pasteTargetAvailable,
+            traceID: traceID
+        )
+    }
+
     public func with(isEditable: Bool? = nil, pasteTargetAvailable: Bool? = nil) -> SelectionContext {
         SelectionContext(
             text: text,

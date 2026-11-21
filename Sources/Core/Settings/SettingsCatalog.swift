@@ -40,6 +40,7 @@ public enum SettingsCatalog {
             SettingKey.completionOnlyMisspelled.erased,
             SettingKey.completionDisplayMode.erased,
             SettingKey.captureTextAutoCopy.erased,
+            SettingKey.captureTextPresentation.erased,
             SettingKey.playActionSound.erased,
             SettingKey.actionSoundName.erased,
             SettingKey.actionSoundCustomName.erased,

@@ -402,6 +402,7 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.holdMouseToTrigger, "Hold Mouse to Trigger"),
             (GeneralSearchTarget.commandPalette, "Command Palette"),
             (GeneralSearchTarget.captureText, "Capture Text"),
+            (GeneralSearchTarget.captureTextPresentation, "After capture"),
             (GeneralSearchTarget.captureTextAutoCopy, "Copy to Clipboard Automatically"),
             (GeneralSearchTarget.saveLocation, "Save Location"),
             (GeneralSearchTarget.playActionSound, "Play Sound"),

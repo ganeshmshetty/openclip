@@ -55,6 +55,8 @@ public struct ResultCardView: View {
     public let onPaste: @MainActor () -> Void
     public let onCopy: @MainActor () -> Void
     public let onSave: (@MainActor () -> Void)?
+    /// Optional fixed card action: search the card's text with the built-in Search action.
+    public let onSearch: (@MainActor () -> Void)?
     /// Reports a drag of the header handle so the owner can move the panel.
     public let onDrag: @MainActor (ResultCardDragPhase) -> Void
     /// The most room the card may take (the user's remembered resize); `nil` caps at the defaults.
@@ -94,6 +96,7 @@ public struct ResultCardView: View {
     @State private var isCloseHovered = false
     @State private var isDiffHovered = false
     @State private var isCopyHovered = false
+    @State private var isSearchHovered = false
     @State private var isPasteHovered = false
     @State private var isSaveHovered = false
     @State private var isDismissHovered = false
@@ -131,6 +134,7 @@ public struct ResultCardView: View {
         onPaste: @escaping @MainActor () -> Void,
         onCopy: @escaping @MainActor () -> Void,
         onSave: (@MainActor () -> Void)? = nil,
+        onSearch: (@MainActor () -> Void)? = nil,
         onDrag: @escaping @MainActor (ResultCardDragPhase) -> Void = { _ in },
         onResize: @escaping @MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void = { _, _ in },
         onPin: @escaping @MainActor () -> Void = {},
@@ -148,6 +152,7 @@ public struct ResultCardView: View {
         self.onPaste = onPaste
         self.onCopy = onCopy
         self.onSave = onSave
+        self.onSearch = onSearch
         self.onDrag = onDrag
         self.onResize = onResize
         self.onPin = onPin
@@ -1547,6 +1552,26 @@ public struct ResultCardView: View {
     @ViewBuilder
     private var resultButtons: some View {
         HStack(spacing: 4) {
+            if let onSearch {
+                Button {
+                    onSearch()
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(PopupThemeModel.restForeground(for: effectiveTheme).opacity(0.85))
+                        .frame(width: 26, height: 26)
+                        .popupFooterButtonChrome(
+                            effectiveTheme: effectiveTheme,
+                            colorScheme: colorScheme,
+                            isHovered: isSearchHovered
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "Search the text"))
+                .accessibilityLabel("Search the text")
+                .onHover { isSearchHovered = $0 }
+            }
+
             Button {
                 onCopy()
             } label: {
