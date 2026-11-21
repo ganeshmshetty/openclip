@@ -126,6 +126,7 @@ public extension SettingKey where Value == Bool {
     /// Plays a short system sound when an action copies to the clipboard.
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
     static var captureTextAutoCopy: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoCopy", defaultValue: true) }
+    static var captureTextAutoTranslate: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoTranslate", defaultValue: false) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
     /// When true, Word Completion appears only if the word is misspelled in every enabled keyboard input language.
     static var completionOnlyMisspelled: SettingKey<Bool> { SettingKey<Bool>("completionOnlyMisspelled", defaultValue: true) }

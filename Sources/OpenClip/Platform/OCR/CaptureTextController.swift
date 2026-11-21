@@ -36,11 +36,26 @@ final class CaptureTextController {
         }
         try Task.checkCancellation()
         guard isCurrent() else { return }
-        showPopup(StatusFeedback(
+        let feedback = StatusFeedback(
             message: autoCopy ? String(localized: "Text copied") : String(localized: "Text captured"),
             style: .success,
             symbolName: "checkmark.circle.fill"
-        ))
+        )
+        // One-step OCR + Translate: show the popup (which sets currentActionContext) then
+        // immediately fire the translate AI preset so the result card appears without a second click.
+        let autoTranslate = settingsStore.get(.captureTextAutoTranslate)
+        if autoTranslate {
+            if AIServiceManager.shared.isAIEnabled,
+               let preset = AIServiceManager.shared.presets.first(where: { $0.id == "translate" && $0.isEnabled }) {
+                showPopup(feedback)
+                let prompt = AIServiceManager.shared.promptForPreset(preset)
+                popupController?.runAIPreset(prompt: prompt, title: preset.title, presetID: preset.id)
+                return
+            } else {
+                Log.ai.warning("OCR auto-translate skipped: AI or Translate preset is disabled")
+            }
+        }
+        showPopup(feedback)
     }
 
     var isCapturing: Bool { requestID != nil }

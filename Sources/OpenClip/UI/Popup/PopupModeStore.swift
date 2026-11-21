@@ -60,9 +60,11 @@ public struct ResultCardPayload: Sendable, Equatable {
     /// Position among the session's results (1-based) and how many exist, for the undo/redo switcher.
     public let versionIndex: Int
     public let versionCount: Int
+    /// True for translations that can display both the original source text and the translated text.
+    public let isTranslation: Bool
 
     /// Builds the card content, including an optional native file.
-    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, presentation: ResultPresentation? = nil, file: FileOutputPayload? = nil, color: InlineColor? = nil, versionIndex: Int = 1, versionCount: Int = 1) {
+    public init(text: String, isError: Bool, title: String = String(localized: "AI Tools"), icon: ActionIcon? = nil, isStreaming: Bool = false, original: String? = nil, isRefining: Bool = false, canFollowUp: Bool = true, presentation: ResultPresentation? = nil, file: FileOutputPayload? = nil, color: InlineColor? = nil, versionIndex: Int = 1, versionCount: Int = 1, isTranslation: Bool = false) {
         self.text = text
         self.isError = isError
         self.title = title
@@ -76,6 +78,7 @@ public struct ResultCardPayload: Sendable, Equatable {
         self.color = color
         self.versionIndex = versionIndex
         self.versionCount = versionCount
+        self.isTranslation = isTranslation
     }
 }
 
