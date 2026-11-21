@@ -403,6 +403,7 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.commandPalette, "Command Palette"),
             (GeneralSearchTarget.captureText, "Capture Text"),
             (GeneralSearchTarget.captureTextAutoCopy, "Copy to Clipboard Automatically"),
+            (GeneralSearchTarget.captureTextAutoTranslate, "Translate Automatically"),
             (GeneralSearchTarget.saveLocation, "Save Location"),
             (GeneralSearchTarget.playActionSound, "Play Sound"),
             (GeneralSearchTarget.showMenuBarIcon, "Show Menu Bar Icon"),

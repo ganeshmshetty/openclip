@@ -530,10 +530,21 @@ public struct ResultCardView: View {
 
     // MARK: - Dynamic Dimensions
 
+    private var showsSplitTranslation: Bool {
+        payload.isTranslation &&
+        !payload.isError &&
+        payload.file == nil &&
+        payload.color == nil &&
+        (payload.original?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+    }
+
     /// What the body renders; a diff is longer than the result, so measure what is shown.
     private var measuredText: String {
         if showsDiff, hasDiff {
             return diffSegments.map(\.text).joined()
+        }
+        if showsSplitTranslation, let original = payload.original {
+            return original + "\n\n" + payload.text
         }
         return payload.text
     }
@@ -732,6 +743,18 @@ public struct ResultCardView: View {
     private static let baseBottomInset: CGFloat = 46.0
     private static let followUpFieldHeight: CGFloat = 28.0
 
+    /// Height needed for the Original text section, divider, and section headings in split translation view.
+    private var originalSectionHeight: CGFloat {
+        guard showsSplitTranslation, let original = payload.original?.trimmingCharacters(in: .whitespacesAndNewlines), !original.isEmpty else { return 0 }
+        let availableWidth = dynamicCardWidth - 2 * Self.horizontalTextInset
+        let rect = (original as NSString).boundingRect(
+            with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: Self.bodyFont, .paragraphStyle: Self.bodyParagraphStyle]
+        )
+        return ceil(rect.height) + 65.0
+    }
+
     /// The height the body needs when wrapped at the card's actual width.
     private var naturalContentHeight: CGFloat {
         if isTypedVisualResult {
@@ -740,7 +763,7 @@ public struct ResultCardView: View {
         // Rendered Markdown is shorter than its source (markers vanish, lists compact); use the
         // measured layout height once reported, falling back to the source estimate before that.
         if rendersMarkdown, !showsDiff, let measured = renderedBodyHeight, measured > 0 {
-            return ceil(measured) + Self.headerTotalHeight + Self.baseBottomInset + 16.0
+            return ceil(measured) + originalSectionHeight + Self.headerTotalHeight + Self.baseBottomInset + 16.0
         }
         let textToMeasure = measuredText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToMeasure.isEmpty else { return PopupMetrics.aiCardMinHeight }
@@ -811,6 +834,41 @@ public struct ResultCardView: View {
             } else if let color = payload.color {
                 colorPreviewContent(color)
                     .frame(maxWidth: .infinity)
+            } else if showsSplitTranslation, let original = payload.original {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(String(localized: "Original"))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                            Text(original)
+                                .font(.system(size: 13.5, weight: .regular))
+                                .lineSpacing(3.5)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .textSelection(.enabled)
+                                .draggable(original)
+                        }
+
+                        Divider()
+                            .opacity(0.35)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(String(localized: "Translation"))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(PopupThemeModel.restSecondary(for: effectiveTheme))
+                            bodyText
+                                .font(.system(size: 13.5, weight: .regular))
+                                .lineSpacing(3.5)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .textSelection(.enabled)
+                                .draggable(payload.text)
+                        }
+                    }
+                    .padding(.horizontal, Self.horizontalTextInset)
+                    .padding(.vertical, 8)
+                }
             } else {
                 ScrollView {
                     bodyText

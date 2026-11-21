@@ -18,17 +18,23 @@ struct GeneralTab: View {
     @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
     @Setting(SettingKey.captureTextAutoCopy) private var captureTextAutoCopy
+    @Setting(SettingKey.captureTextAutoTranslate) private var captureTextAutoTranslate
     @Setting(SettingKey.playActionSound) private var playActionSound
     @Setting(SettingKey.actionSoundName) private var actionSoundName
     @State private var fileSaveLocation: String
     @ObservedObject private var launchManager = LaunchAtLoginManager.shared
     @ObservedObject private var permissionManager = PermissionManager.shared
     @ObservedObject private var router = SettingsRouter.shared
+    @ObservedObject private var aiManager = AIServiceManager.shared
     @State private var highlightedControlID: String?
     @Setting(SettingKey.actionSoundCustomName) private var actionSoundCustomName
     @State private var isShowingSoundActions = false
     @State private var soundImportError: String?
     private static let chooseSoundTag = "__choose-file__"
+    private var isTranslateAvailable: Bool {
+        aiManager.isAIEnabled &&
+        aiManager.presets.first(where: { $0.id == "translate" && $0.isEnabled }) != nil
+    }
 
     /// Initializes preference state from the shared settings store.
     init() {
@@ -114,6 +120,21 @@ struct GeneralTab: View {
                             .padding(.bottom, SettingsDesignTokens.sectionCardPaddingV)
                             .id(GeneralSearchTarget.captureTextAutoCopy)
                             .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextAutoCopy))
+
+                        Toggle("Translate Automatically", isOn: $captureTextAutoTranslate)
+                            .toggleStyle(.checkbox)
+                            .controlSize(.small)
+                            .font(.system(size: 12))
+                            .foregroundStyle(SettingsDesignTokens.secondaryText)
+                            .help(isTranslateAvailable
+                                  ? String(localized: "After OCR capture, automatically translate the recognized text using the AI Translate preset.")
+                                  : String(localized: "Requires AI and the Translate preset to be enabled in Settings → AI."))
+                            .padding(.leading, SettingsDesignTokens.dividerInsetLeading + 4)
+                            .padding(.trailing, SettingsDesignTokens.sectionCardPaddingH)
+                            .padding(.bottom, SettingsDesignTokens.sectionCardPaddingV)
+                            .disabled(!isTranslateAvailable)
+                            .id(GeneralSearchTarget.captureTextAutoTranslate)
+                            .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextAutoTranslate))
                     }
                 }
 

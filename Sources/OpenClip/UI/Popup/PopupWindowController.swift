@@ -248,6 +248,7 @@ public class PopupWindowController {
             activeLoadingTask?.cancel()
             activeLoadingTask = nil
             evaluator.cancelSession(aiSessionID)
+            activeAIPresetID = nil
             aiSession = UUID()
             aiSessionID = aiSession
         }
@@ -760,7 +761,8 @@ public class PopupWindowController {
         canFollowUp: Bool = true,
         presentation: ResultPresentation? = nil,
         file: FileOutputPayload? = nil,
-        color: InlineColor? = nil
+        color: InlineColor? = nil,
+        isTranslation: Bool = false
     ) {
         guard session == aiSessionID else { return }
         let showsVersions = canFollowUp && !isError && !isStreaming && file == nil && color == nil
@@ -784,7 +786,8 @@ public class PopupWindowController {
             file: file,
             color: color,
             versionIndex: versionIndex,
-            versionCount: versionCount
+            versionCount: versionCount,
+            isTranslation: isTranslation
         )
         if !isStreaming {
             // A settled card takes keyboard focus without requiring a click. The follow-up field
@@ -2004,7 +2007,7 @@ public class PopupWindowController {
         }
         cardConversation = conversation
         guard let shown = conversation.steps.last?.result else { return }
-        showResultCard(text: shown, isError: false, title: card.title, icon: card.icon, isStreaming: false, session: aiSessionID, originalText: card.original, overrideOriginal: true)
+        showResultCard(text: shown, isError: false, title: card.title, icon: card.icon, isStreaming: false, session: aiSessionID, originalText: card.original, overrideOriginal: true, isTranslation: card.isTranslation)
     }
 
     /// Runs a follow-up inside the card: nothing hides, and the previous answer stays dimmed until the first chunk. Esc cancels;
@@ -2026,7 +2029,8 @@ public class PopupWindowController {
             icon: nil,
             isStreaming: true,
             original: previous.original,
-            isRefining: true
+            isRefining: true,
+            isTranslation: previous.isTranslation
         )
 
         let task = Task { @MainActor in
@@ -2052,7 +2056,7 @@ public class PopupWindowController {
                     accumulated += chunk
                     let cleaned = AIRequestSupport.extractResultText(accumulated)
                     if !cleaned.isEmpty {
-                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session, originalText: previous.original, overrideOriginal: true)
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session, originalText: previous.original, overrideOriginal: true, isTranslation: previous.isTranslation)
                     }
                 }
                 guard stillRefining() else { return }
@@ -2064,7 +2068,7 @@ public class PopupWindowController {
                     self.refiningPrevious = nil
                     self.redoSteps = []
                     self.cardConversation = conversation.appending(instruction: prompt, result: finalResponse)
-                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session, originalText: previous.original, overrideOriginal: true)
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session, originalText: previous.original, overrideOriginal: true, isTranslation: previous.isTranslation)
                 }
             } catch is CancellationError {
                 // cancelFollowUp / hide already put the card back or took it down.
@@ -2100,7 +2104,7 @@ public class PopupWindowController {
         guard let previous = refiningPrevious else { return }
         refiningPrevious = nil
         modeStore.isProcessingAI = false
-        showResultCard(text: previous.text, isError: previous.isError, title: previous.title, icon: previous.icon, isStreaming: false, session: aiSessionID, originalText: previous.original, overrideOriginal: true, canFollowUp: previous.canFollowUp)
+        showResultCard(text: previous.text, isError: previous.isError, title: previous.title, icon: previous.icon, isStreaming: false, session: aiSessionID, originalText: previous.original, overrideOriginal: true, canFollowUp: previous.canFollowUp, isTranslation: previous.isTranslation)
     }
 
     /// Esc while a follow-up streams: stop it and keep the previous answer on screen.
@@ -2149,6 +2153,7 @@ public class PopupWindowController {
 
     func runAIPreset(prompt: String, title: String, presetID: String? = nil, loadingMessage: String? = nil, inputText: String? = nil, onGeneratedTitle: ((String) -> Void)? = nil) {
         activeAIPresetID = presetID
+        let isPresetTranslation = presetID == "translate" || title == String(localized: "Translate")
         guard let context = currentActionContext else {
             Log.ai.error("Cannot run AI preset: currentActionContext is nil")
             return
@@ -2206,7 +2211,7 @@ public class PopupWindowController {
                             guard !Task.isCancelled, session == self.aiSessionID else { return }
                             self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                         }
-                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
+                        self.showResultCard(text: cleaned, isError: false, title: activeTitle, isStreaming: true, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal, isTranslation: isPresetTranslation)
                     }
                 }
 
@@ -2225,7 +2230,7 @@ public class PopupWindowController {
                         let canPaste = targetCanPaste
                         guard !Task.isCancelled, session == self.aiSessionID else { return }
                         self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
-                        self.showResultCard(text: "No response generated", isError: true, title: activeTitle, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
+                        self.showResultCard(text: "No response generated", isError: true, title: activeTitle, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal, isTranslation: isPresetTranslation)
                     }
                 } else {
                     if !hasYielded {
@@ -2240,7 +2245,7 @@ public class PopupWindowController {
                     } else {
                         self.cardConversation = AIConversation(original: finalResponse, steps: [.init(instruction: prompt, result: finalResponse)])
                     }
-                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
+                    self.showResultCard(text: finalResponse, isError: false, title: activeTitle, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal, isTranslation: isPresetTranslation)
                     ActionSoundPolicy.play(owner: presetID.map { AIAction(presetID: $0, title: "").id })
                 }
             } catch is CancellationError {
@@ -2259,7 +2264,7 @@ public class PopupWindowController {
                     self.show(for: selection, pasteAvailable: canPaste, preservingSessionID: session, streamingTask: self.activeStreamingTask)
                 }
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                self.showResultCard(text: message, isError: true, title: title, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal)
+                self.showResultCard(text: message, isError: true, title: title, isStreaming: false, session: session, originalText: originalForCard, overrideOriginal: overrideOriginal, isTranslation: isPresetTranslation)
             }
         }
         activeStreamingTask = task

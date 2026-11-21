@@ -44,6 +44,14 @@ final class SettingsStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testCaptureTextAutoTranslateDefaultsToFalse() {
+        let settings = MemorySettingsStore()
+        XCTAssertFalse(settings.get(.captureTextAutoTranslate))
+        settings.set(.captureTextAutoTranslate, value: true)
+        XCTAssertTrue(settings.get(.captureTextAutoTranslate))
+    }
+
+    @MainActor
     func testDisabledActionIDsDefault() {
         XCTAssertTrue(store.get(.disabledActionIDs).isEmpty)
         store.set(.disabledActionIDs, value: ["builtin.search"])

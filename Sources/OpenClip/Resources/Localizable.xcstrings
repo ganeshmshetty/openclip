@@ -1653,6 +1653,34 @@
         }
       }
     },
+    "After OCR capture, automatically translate the recognized text using the AI Translate preset.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OCR 捕获后，使用 AI 翻译预设自动翻译识别出的文本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OCR 擷取後，使用 AI 翻譯預設自動翻譯辨識出的文字。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après la capture OCR, traduire automatiquement le texte reconnu à l’aide du préréglage Traduire de l’IA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OCR キャプチャ後、AI 翻訳プリセットを使用して認識されたテキストを自動的に翻訳します。"
+          }
+        }
+      }
+    },
     "Alias": {
       "localizations": {
         "zh-Hans": {
@@ -14645,6 +14673,34 @@
         }
       }
     },
+    "Original": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文"
+          }
+        }
+      }
+    },
     "Output": {
       "localizations": {
         "zh-Hans": {
@@ -17049,6 +17105,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "必要なオプションが設定されていません。"
+          }
+        }
+      }
+    },
+    "Requires AI and the Translate preset to be enabled in Settings → AI.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要在“设置 → AI”中启用 AI 和“翻译”预设。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要在「設定 → AI」中啟用 AI 與「翻譯」預設。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nécessite que l’IA et le préréglage Traduire soient activés dans Réglages → IA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「設定 → AI」で AI と「翻訳」プリセットを有効にする必要があります。"
           }
         }
       }
@@ -22205,6 +22289,34 @@
         }
       }
     },
+    "Translate Automatically": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动翻译"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動翻譯"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traduire automatiquement"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動的に翻訳"
+          }
+        }
+      }
+    },
     "Translate Target Language": {
       "localizations": {
         "zh-Hans": {
@@ -22257,6 +22369,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキストを自然な日本語に正確に翻訳し、元の意味、トーン、書式を保持してください。テキストがすでに日本語の場合は、自然な英語に翻訳してください"
+          }
+        }
+      }
+    },
+    "Translation": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "译文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "譯文"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traduction"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "訳文"
           }
         }
       }

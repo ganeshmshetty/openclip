@@ -383,7 +383,9 @@ areas; stale debt notes are worse than none.
   content renders inside the single panel via `.content` mode (`PopupModeStore`) as a native
   SwiftUI `ResultCardView`. The card is general, not AI-specific: any text-returning action lands
   there with its customization-resolved icon (`DeliveryContext.actionIcon`, snapshotted by the same
-  perform paths as `actionTitle`); AI streaming deliveries pass no icon and keep the sparkles glyph. `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis
+  perform paths as `actionTitle`); AI streaming deliveries pass no icon and keep the sparkles glyph.
+  Translation results render a split card showing both the original input text and the translated output
+  separated by a subtle divider when the original text is preserved on the result payload. `StatusBadgeModel` and the old `.info`/`.result`/`.menu` emphasis
   model are gone, and the inline status banner is gone too: every `StatusFeedback` renders as a
   floating toast (`ToastPanelController`) with no queue, statuses appear near the cursor, and
   `showsLoading` actions (manifest `"loading"`) use the early-close spinner toast.
@@ -561,7 +563,10 @@ their effects run. This check does not sandbox scripts or prevent arbitrary side
 inside them. Catalog manifests using the new fields must wait for the first app release that enforces
 them; the current source version (1.7.3) is not a confirmed compatibility floor. The OCR flow automatically copies nonempty recognized text by default, then opens the action
 bar. The “Copy to Clipboard Automatically” checkbox beneath Capture Text in General → Shortcuts
-can disable this behavior. Successful capture shows a content-free “Text copied” toast
+can disable this behavior. The optional “Translate Automatically” toggle in General → Capture Text
+immediately triggers the AI Translate preset upon recognition completion when AI and the preset are enabled,
+presenting the translated result directly in the split card showing both original recognized text and the translation.
+Successful capture shows a content-free “Text copied” toast
 when auto-copy is enabled, or “Text captured” when disabled, in a separate `ToastPanel` near
 the pointer position captured at recognition completion. Placement prefers above the cursor and
 chooses a clear nearby side when the popup, a group bar, or screen edges obstruct it. The position

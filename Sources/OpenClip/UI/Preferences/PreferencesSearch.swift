@@ -6,6 +6,7 @@ enum GeneralSearchTarget {
     static let commandPalette = "general.commandPalette"
     static let captureText = "general.captureText"
     static let captureTextAutoCopy = "general.captureTextAutoCopy"
+    static let captureTextAutoTranslate = "general.captureTextAutoTranslate"
     static let saveLocation = "general.saveLocation"
     static let playActionSound = "general.playActionSound"
     static let showMenuBarIcon = "general.showMenuBarIcon"
@@ -14,7 +15,7 @@ enum GeneralSearchTarget {
     static let screenRecordingAccess = "general.screenRecordingAccess"
     static let all = [
         appearAutomatically, holdMouseToTrigger, commandPalette, captureText,
-        captureTextAutoCopy, saveLocation, playActionSound, showMenuBarIcon, startAtLogin, accessibilityAccess, screenRecordingAccess
+        captureTextAutoCopy, captureTextAutoTranslate, saveLocation, playActionSound, showMenuBarIcon, startAtLogin, accessibilityAccess, screenRecordingAccess
     ]
 }
 
