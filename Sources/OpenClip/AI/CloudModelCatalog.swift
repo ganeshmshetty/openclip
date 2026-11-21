@@ -64,6 +64,16 @@ enum CloudModelCatalog {
         }
     }
 
+    /// Drops one provider's cached list after its endpoint changes, so the picker cannot keep
+    /// showing models fetched from the old base URL.
+    static func invalidate(for provider: CloudServiceProvider, store: SettingsStore = DefaultSettingsStore.shared) {
+        var all = decode(store.get(.aiCloudModelCache))
+        guard all.removeValue(forKey: provider.rawValue) != nil else { return }
+        if let data = try? JSONEncoder().encode(all), let json = String(data: data, encoding: .utf8) {
+            store.set(.aiCloudModelCache, value: json)
+        }
+    }
+
     private static func decode(_ json: String) -> [String: Snapshot] {
         guard let data = json.data(using: .utf8) else { return [:] }
         return (try? JSONDecoder().decode([String: Snapshot].self, from: data)) ?? [:]
