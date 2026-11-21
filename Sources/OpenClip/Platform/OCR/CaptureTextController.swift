@@ -28,19 +28,18 @@ final class CaptureTextController {
     }
 
     /// Shared completion path: never copy empty, cancelled, or superseded recognition results.
-    func deliverRecognizedText(_ text: String, isCurrent: @escaping @MainActor () -> Bool,
-                               showPopup: @MainActor (StatusFeedback) -> Void) async throws {
+    func deliverRecognizedText(_ text: String, copy: Bool, isCurrent: @escaping @MainActor () -> Bool,
+                               show: @MainActor (StatusFeedback) -> Void) async throws {
         try Task.checkCancellation()
         guard isCurrent(), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let autoCopy = settingsStore.get(.captureTextAutoCopy)
-        if autoCopy {
+        if copy {
             guard try await resultHandler.copyText(text, isCurrent: isCurrent) else { return }
             ActionSoundPolicy.play(owner: nil, result: .copy(text))
         }
         try Task.checkCancellation()
         guard isCurrent() else { return }
-        showPopup(StatusFeedback(
-            message: autoCopy ? String(localized: "Text copied") : String(localized: "Text captured"),
+        show(StatusFeedback(
+            message: copy ? String(localized: "Text copied") : String(localized: "Text captured"),
             style: .success,
             symbolName: "checkmark.circle.fill"
         ))
@@ -131,13 +130,30 @@ final class CaptureTextController {
                 isEditable: false,
                 pasteTargetAvailable: false
             )
-            try await deliverRecognizedText(text, isCurrent: { [weak self] in
+            let isCurrent: @MainActor () -> Bool = { [weak self] in
                 guard let self else { return false }
                 return self.requestID == id && self.isSourceAppStillActive
                     && HotkeyManager.triggerAllowed(frontmost: self.sourceApp)
-            }) { feedback in
-                self.popupController?.previousFrontmostApp = self.sourceApp
-                self.popupController?.show(for: context, pasteAvailable: false, captureFeedback: feedback)
+            }
+            switch presentation {
+            case .actionBar:
+                try await deliverRecognizedText(
+                    text,
+                    copy: settingsStore.get(.captureTextAutoCopy),
+                    isCurrent: isCurrent
+                ) { feedback in
+                    self.popupController?.previousFrontmostApp = self.sourceApp
+                    self.popupController?.show(for: context, pasteAvailable: false, captureFeedback: feedback)
+                }
+            case .resultCard:
+                try await deliverRecognizedText(text, copy: false, isCurrent: isCurrent) { _ in
+                    self.popupController?.previousFrontmostApp = self.sourceApp
+                    self.popupController?.showCaptureResultCard(for: context, text: text)
+                }
+            case .copyOnly:
+                try await deliverRecognizedText(text, copy: true, isCurrent: isCurrent) { feedback in
+                    self.popupController?.showToast(feedback, at: NSEvent.mouseLocation)
+                }
             }
         } catch is CancellationError {
             return
@@ -183,6 +199,15 @@ final class CaptureTextController {
         guard let activationObserver else { return }
         NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
         self.activationObserver = nil
+    }
+
+    private static let presentationKey = SettingKey<String>(
+        "captureTextPresentation",
+        defaultValue: CaptureTextPresentation.actionBar.rawValue
+    )
+
+    private var presentation: CaptureTextPresentation {
+        CaptureTextPresentation(rawValue: settingsStore.get(Self.presentationKey)) ?? .actionBar
     }
 
     private var isSourceAppStillActive: Bool {

@@ -43,6 +43,8 @@ public struct PopupView: View {
     public let onPinCard: (@MainActor () -> Void)?
     /// Paste/Copy on the AI result card: explicit requests that bypass the paste-vs-copy re-decision.
     public let onCardEffect: @MainActor (ActionResult) -> Void
+    /// Optional card action: search the card's text with the built-in Search action.
+    public let onSearchCard: (@MainActor () -> Void)?
     /// Called when the hovered action changes (nil when none); drives right-click tracking.
     public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
     /// Opens a scoped palette for a bar row's sub-actions; the controller owns the SearchScope.
@@ -164,6 +166,7 @@ public struct PopupView: View {
         onResize: (@MainActor (PopupResizeEdge, ResultCardDragPhase) -> Void)? = nil,
         onPinCard: (@MainActor () -> Void)? = nil,
         onCardEffect: @escaping @MainActor (ActionResult) -> Void = { _ in },
+        onSearchCard: (@MainActor () -> Void)? = nil,
         onResult: @escaping @MainActor (ActionResult) -> Void,
         onContentSizeChange: (@MainActor (CGSize) -> Void)? = nil,
         onAIStateChange: (@MainActor (Bool, Bool) -> Void)? = nil,
@@ -216,6 +219,7 @@ public struct PopupView: View {
         self.onResize = onResize
         self.onPinCard = onPinCard
         self.onCardEffect = onCardEffect
+        self.onSearchCard = onSearchCard
         self.onHoveredActionChanged = onHoveredActionChanged
         self.onEnteredScopedSearch = onEnteredScopedSearch
         self.onPaginationAnchor = onPaginationAnchor
@@ -473,6 +477,7 @@ public struct PopupView: View {
                         onCardEffect(.saveFile(file.url))
                     }
                 },
+                onSearch: onSearchCard,
                 onDrag: { phase in onCardDrag?(phase) },
                 onResize: { edge, phase in onResize?(edge, phase) },
                 onPin: { onPinCard?() },

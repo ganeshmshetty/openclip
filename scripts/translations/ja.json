@@ -886,5 +886,12 @@
   "A star on GitHub helps more people find it.": "GitHubでのスターがより多くの人に見つけてもらう助けになります。",
   "You can support development with a tip.": "チップで開発を支援することもできます。",
   "Opens the OpenClip repository on GitHub": "GitHubでOpenClipのリポジトリを開きます",
-  "Opens the OpenClip support page": "OpenClipのサポートページを開きます"
+  "Opens the OpenClip support page": "OpenClipのサポートページを開きます",
+  "After capture": "キャプチャ後",
+  "What to do with the recognized text.": "認識したテキストの処理方法。",
+  "Action bar": "アクションバー",
+  "Result card": "結果カード",
+  "Copy only": "コピーのみ",
+  "Captured Text": "キャプチャしたテキスト",
+  "Search the text": "テキストを検索"
 }

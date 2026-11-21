@@ -18,6 +18,7 @@ struct GeneralTab: View {
     @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
     @Setting(SettingKey.captureTextAutoCopy) private var captureTextAutoCopy
+    @Setting(SettingKey.captureTextPresentation) private var captureTextPresentation
     @Setting(SettingKey.playActionSound) private var playActionSound
     @Setting(SettingKey.actionSoundName) private var actionSoundName
     @State private var fileSaveLocation: String
@@ -103,17 +104,39 @@ struct GeneralTab: View {
                         .id(GeneralSearchTarget.captureText)
                         .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureText))
 
-                        Toggle("Copy to Clipboard Automatically", isOn: $captureTextAutoCopy)
-                            .toggleStyle(.checkbox)
-                            .controlSize(.small)
-                            .font(.system(size: 12))
-                            .foregroundStyle(SettingsDesignTokens.secondaryText)
-                            .help(String(localized: "The action popup still opens after capture."))
-                            .padding(.leading, SettingsDesignTokens.dividerInsetLeading + 4)
-                            .padding(.trailing, SettingsDesignTokens.sectionCardPaddingH)
-                            .padding(.bottom, SettingsDesignTokens.sectionCardPaddingV)
-                            .id(GeneralSearchTarget.captureTextAutoCopy)
-                            .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextAutoCopy))
+                        SettingsDivider()
+
+                        SettingsRow(
+                            title: "After capture",
+                            info: "What to do with the recognized text.",
+                            systemImage: "rectangle.and.text.magnifyingglass",
+                            plainIcon: true
+                        ) {
+                            Picker("", selection: $captureTextPresentation) {
+                                Text("Action bar").tag(CaptureTextPresentation.actionBar.rawValue)
+                                Text("Result card").tag(CaptureTextPresentation.resultCard.rawValue)
+                                Text("Copy only").tag(CaptureTextPresentation.copyOnly.rawValue)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 150)
+                        }
+                        .id(GeneralSearchTarget.captureTextPresentation)
+                        .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextPresentation))
+
+                        if captureTextPresentation == CaptureTextPresentation.actionBar.rawValue {
+                            Toggle("Copy to Clipboard Automatically", isOn: $captureTextAutoCopy)
+                                .toggleStyle(.checkbox)
+                                .controlSize(.small)
+                                .font(.system(size: 12))
+                                .foregroundStyle(SettingsDesignTokens.secondaryText)
+                                .help(String(localized: "The action popup still opens after capture."))
+                                .padding(.leading, SettingsDesignTokens.dividerInsetLeading + 4)
+                                .padding(.trailing, SettingsDesignTokens.sectionCardPaddingH)
+                                .padding(.bottom, SettingsDesignTokens.sectionCardPaddingV)
+                                .id(GeneralSearchTarget.captureTextAutoCopy)
+                                .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextAutoCopy))
+                        }
                     }
                 }
 

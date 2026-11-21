@@ -886,5 +886,12 @@
   "A star on GitHub helps more people find it.": "在 GitHub 上加星能讓更多人發現它。",
   "You can support development with a tip.": "你也可以透過打賞支持開發。",
   "Opens the OpenClip repository on GitHub": "在 GitHub 上開啟 OpenClip 儲存庫",
-  "Opens the OpenClip support page": "開啟 OpenClip 支援頁面"
+  "Opens the OpenClip support page": "開啟 OpenClip 支援頁面",
+  "After capture": "擷取後",
+  "What to do with the recognized text.": "如何處理辨識出的文字。",
+  "Action bar": "操作列",
+  "Result card": "結果卡片",
+  "Copy only": "僅複製",
+  "Captured Text": "擷取的文字",
+  "Search the text": "搜尋文字"
 }

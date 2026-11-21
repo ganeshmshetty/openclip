@@ -73,6 +73,13 @@ public enum PopupVerticalPosition: String, Codable, CaseIterable, Sendable {
     case below
 }
 
+/// What Capture Text does after recognition: show the action bar, show the result card, or just copy.
+public enum CaptureTextPresentation: String, Codable, CaseIterable, Sendable {
+    case actionBar = "bar"
+    case resultCard = "card"
+    case copyOnly = "copy"
+}
+
 /// Sparkle update feed. Beta uses a separate appcast, so opting in never affects stable users.
 public enum UpdateChannel: String, Codable, CaseIterable, Sendable {
     case stable
@@ -126,6 +133,7 @@ public extension SettingKey where Value == Bool {
     /// Plays a short system sound when an action copies to the clipboard.
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
     static var captureTextAutoCopy: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoCopy", defaultValue: true) }
+    static var captureTextPresentation: SettingKey<String> { SettingKey<String>("captureTextPresentation", defaultValue: CaptureTextPresentation.actionBar.rawValue) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
     /// When true, Word Completion appears only if the word is misspelled in every enabled keyboard input language.
     static var completionOnlyMisspelled: SettingKey<Bool> { SettingKey<Bool>("completionOnlyMisspelled", defaultValue: true) }

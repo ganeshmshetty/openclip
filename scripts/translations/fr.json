@@ -886,5 +886,12 @@
   "A star on GitHub helps more people find it.": "Une étoile sur GitHub aide plus de personnes à le trouver.",
   "You can support development with a tip.": "Vous pouvez soutenir le développement avec un don.",
   "Opens the OpenClip repository on GitHub": "Ouvre le dépôt OpenClip sur GitHub",
-  "Opens the OpenClip support page": "Ouvre la page de soutien d’OpenClip"
+  "Opens the OpenClip support page": "Ouvre la page de soutien d’OpenClip",
+  "After capture": "Après la capture",
+  "What to do with the recognized text.": "Que faire du texte reconnu.",
+  "Action bar": "Barre d'actions",
+  "Result card": "Carte de résultat",
+  "Copy only": "Copier uniquement",
+  "Captured Text": "Texte capturé",
+  "Search the text": "Rechercher le texte"
 }

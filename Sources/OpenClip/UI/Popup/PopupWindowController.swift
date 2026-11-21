@@ -360,6 +360,7 @@ public class PopupWindowController {
             onCardEffect: { [weak self] result in
                 self?.performCardEffect(result)
             },
+            onSearchCard: { [weak self] in self?.searchCardText() },
             onResult: { [weak self] result in
                 self?.deliverResult(result)
             },
@@ -744,6 +745,37 @@ public class PopupWindowController {
     func setAIProcessing(_ active: Bool, session: UUID) {
         guard session == aiSessionID else { return }
         modeStore.isProcessingAI = active
+    }
+
+    /// Capture Text's card presentation: the recognized text with Copy, Search, and the bar's back chevron.
+    func showCaptureResultCard(for context: SelectionContext, text: String) {
+        show(for: context, pasteAvailable: false)
+        showResultCard(
+            text: text,
+            isError: false,
+            title: String(localized: "Captured Text"),
+            icon: .symbol("text.viewfinder"),
+            isStreaming: false,
+            session: aiSessionID,
+            canFollowUp: false
+        )
+    }
+
+    /// Runs the built-in Search action on whatever text the card currently shows.
+    private func searchCardText() {
+        guard let card = modeStore.resultCard, !card.isError, let context = currentActionContext else { return }
+        let text = card.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        let searchContext = ActionContext(selection: context.selection.with(text: text), modifiers: context.modifiers)
+        Task { @MainActor in
+            do {
+                let result = try await SearchAction().perform(searchContext)
+                _ = self.handleActionResult(result)
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                self.showToast(StatusFeedback(message: message, style: .info, symbolName: "magnifyingglass"))
+            }
+        }
     }
 
     /// Shows an action's text (or error) in the result card and makes the panel key so Esc can collapse it. Paste and Copy are
