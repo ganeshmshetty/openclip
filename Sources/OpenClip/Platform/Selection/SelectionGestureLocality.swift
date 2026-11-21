@@ -27,6 +27,10 @@ internal enum SelectionGestureLocality {
 
     /// Slack for word-boundary snapping and AX line-box rounding around the pointer.
     static let tolerance: CGFloat = 12
+    /// Vertical slack for drags. A press can land in the padding below the first selected line, so
+    /// AX's line box sits outside the drag rectangle by roughly a paragraph gap. Kept far below the
+    /// distance at which a stale selection elsewhere is rejected.
+    static let dragVerticalTolerance: CGFloat = 48
     static let minimumMeaningfulSide: CGFloat = 2
 
     /// - Parameters:
@@ -60,6 +64,10 @@ internal enum SelectionGestureLocality {
                 width: abs(end.x - start.x), height: abs(end.y - start.y)
             )
         }
-        return rect.insetBy(dx: -tolerance, dy: -tolerance)
+        let verticalTolerance: CGFloat = switch gesture {
+        case .multiClick: tolerance
+        case .drag: dragVerticalTolerance
+        }
+        return rect.insetBy(dx: -tolerance, dy: -verticalTolerance)
     }
 }
