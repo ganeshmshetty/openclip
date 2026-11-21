@@ -5,6 +5,14 @@ import XCTest
 @testable import OpenClip
 
 final class SystemRegionSelectorTests: XCTestCase {
+    func testSystemFailureDescriptionUsesScreencaptureMessage() {
+        let reported = SystemRegionSelector.SelectionError.systemFailed(status: 1, message: "cannot write file")
+        XCTAssertEqual(reported.errorDescription, "cannot write file")
+
+        let silent = SystemRegionSelector.SelectionError.systemFailed(status: 1, message: "")
+        XCTAssertEqual(silent.errorDescription, "screencapture exited with status 1")
+    }
+
     func testDecodedSelectionPixelsSurviveTempFileDeletion() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("openclip-region-\(UUID().uuidString).png")

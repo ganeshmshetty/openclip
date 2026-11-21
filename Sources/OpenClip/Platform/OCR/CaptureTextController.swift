@@ -18,6 +18,7 @@ final class CaptureTextController {
     private var selectionTask: Task<Void, Never>?
     private var requestID: UUID?
     private var sourceApp: NSRunningApplication?
+    private var activationObserver: NSObjectProtocol?
 
     init(popupController: PopupWindowController, settingsStore: SettingsStore = DefaultSettingsStore.shared,
          resultHandler: DefaultActionResultHandler = DefaultActionResultHandler()) {
@@ -86,6 +87,7 @@ final class CaptureTextController {
                 popupController?.hideCaptureProgress()
                 requestID = nil
                 selectionTask = nil
+                removeActivationObserver()
                 HotkeyManager.shared.disableCaptureCancellation()
             }
         }
@@ -93,6 +95,7 @@ final class CaptureTextController {
             guard let selection = try await selector.select() else { return }
             try Task.checkCancellation()
             guard requestID == id else { return }
+            observeSourceAppActivation()
             popupController?.showCaptureProgress(at: selection.releasePoint) { [weak self] in self?.cancel() }
             let recognitionStart = Date()
             let text = try await VisionTextRecognizer.recognize(selection.image)
@@ -152,7 +155,34 @@ final class CaptureTextController {
         selectionTask?.cancel()
         selectionTask = nil
         selector.cancel()
+        removeActivationObserver()
         HotkeyManager.shared.disableCaptureCancellation()
+    }
+
+    /// A capture must not survive a switch away from the source app: checking only which app is
+    /// active at completion cannot catch a switch away and back. Starts after the system selection
+    /// ends so its own window transitions are not treated as a switch.
+    private func observeSourceAppActivation() {
+        removeActivationObserver()
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let activated = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            MainActor.assumeIsolated {
+                guard let self, let activated else { return }
+                let isOpenClip = activated.bundleIdentifier == Bundle.main.bundleIdentifier
+                let isSource = activated.processIdentifier == self.sourceApp?.processIdentifier
+                if !isOpenClip && !isSource { self.cancel() }
+            }
+        }
+    }
+
+    private func removeActivationObserver() {
+        guard let activationObserver else { return }
+        NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
+        self.activationObserver = nil
     }
 
     private var isSourceAppStillActive: Bool {

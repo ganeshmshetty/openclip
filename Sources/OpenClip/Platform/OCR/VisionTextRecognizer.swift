@@ -8,10 +8,7 @@ import Foundation
 import Core
 import Vision
 
-/// The first accurate Vision recognition after macOS evicts its text model can take tens of
-/// seconds while the system loads model assets; later requests take roughly 100 ms. A warm-up
-/// runs a real request on a small text image in the background so a capture does not pay for
-/// that load. A blank image is not enough: it does not load the text model.
+/// Loads the Vision text model ahead of Capture Text; see `docs/architecture/known-debt.md`.
 final class VisionTextRecognizer: @unchecked Sendable {
     static let shared = VisionTextRecognizer()
 

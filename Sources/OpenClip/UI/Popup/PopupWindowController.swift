@@ -253,9 +253,9 @@ public class PopupWindowController {
         }
 
         isMenuTracking = false
-        let selectionContext = context.with(
+        let selectionContext = Self.anchoredContext(context.with(
             pasteTargetAvailable: PasteAvailability.effective(policy: context.appPolicy, probe: pasteAvailable)
-        )
+        ))
         currentContext = selectionContext
         if isCaptureToastCurrent { toastController.hide() }
         captureToastPresentationID = nil
@@ -294,14 +294,12 @@ public class PopupWindowController {
         let verticalPosition = PopupVerticalPosition(rawValue: rawVertical) ?? .auto
 
         // Card direction from the real screen position. A shortcut-opened palette anchors on the selection and honors the same placement prefs as the bar.
-        let screen = PopupPositioner.screen(containing: context.cursorPosition)
-            ?? PopupPositioner.screen(containing: NSEvent.mouseLocation)
-            ?? NSScreen.main
+        let screen = PopupPositioner.screen(containing: selectionContext.cursorPosition) ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         panel.heightCap = initialMode == .search ? screenBounds.height : PopupMetrics.popupMaxHeight
         let probeWidth = initialMode == .search ? currentSearchPanelWidth : 320
         let tempFrame = PopupPositioner.calculateFrame(
-            for: context,
+            for: selectionContext,
             popupSize: CGSize(width: probeWidth, height: 50),
             in: screenBounds,
             alignment: alignment,
@@ -312,7 +310,7 @@ public class PopupWindowController {
         modeStore.mode = initialMode
         PaletteRowShortcuts.setActive(initialMode == .search)
         modeStore.searchResultsAbove = cardAbove
-        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: tempFrame, releasePoint: context.cursorPosition)
+        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: tempFrame, releasePoint: selectionContext.cursorPosition)
         // Probed before this frame so Paste/Cut are gated on the first render; nil keeps them visible.
         modeStore.canPaste = pasteAvailable
 
@@ -451,18 +449,18 @@ public class PopupWindowController {
 
         // Card direction from the real screen position and the rendered panel size.
         let calculatedFrame = PopupPositioner.calculateFrame(
-            for: context, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
-        positionPanel(panel, size: size, for: context, alignment: alignment, verticalPosition: verticalPosition)
+            for: selectionContext, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
+        positionPanel(panel, size: size, for: selectionContext, alignment: alignment, verticalPosition: verticalPosition)
         cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
         modeStore.searchResultsAbove = cardAbove
-        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: calculatedFrame, releasePoint: context.cursorPosition)
+        modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: calculatedFrame, releasePoint: selectionContext.cursorPosition)
         lastPopupFrame = panel.frame
         // Placement is fixed; content-driven width changes must re-center rather than drift off the cursor.
         panel.horizontalAnchor = .center
         // Content-driven growth keeps the bottom edge fixed when the popup sits low. A directly opened palette is not pinned, so its top edge stays fixed.
         panel.pinBottomEdgeOnResize = initialMode == .search ? false : cardAbove
         if context.source == .ocr, let captureFeedback {
-            toastController.show(captureFeedback, anchorFrame: panel.frame, placement: .nearCursor(context.cursorPosition))
+            toastController.show(captureFeedback, anchorFrame: panel.frame, placement: .nearCursor(selectionContext.cursorPosition))
             captureToastPresentationID = toastController.presentationID
             updateToastPlacement()
         }
@@ -565,9 +563,9 @@ public class PopupWindowController {
         presentationAttemptID = UUID()
         didAttemptSpaceRecovery = false
         isMenuTracking = false
-        let selectionContext = context.with(
+        let selectionContext = Self.anchoredContext(context.with(
             pasteTargetAvailable: PasteAvailability.effective(policy: context.appPolicy, probe: pasteAvailable)
-        )
+        ))
         currentContext = selectionContext
         captureFrontmostAppIfNeeded()
         let actionContext = ActionContext(selection: selectionContext, modifiers: [])
@@ -1081,9 +1079,8 @@ public class PopupWindowController {
     }
 
     private func positionPanel(_ panel: PopupPanel, size: CGSize, for context: SelectionContext, alignment: PopupBarAlignment = .left, verticalPosition: PopupVerticalPosition = .auto) {
-        let screen = PopupPositioner.screen(containing: context.cursorPosition)
-            ?? PopupPositioner.screen(containing: NSEvent.mouseLocation)
-            ?? NSScreen.main
+        let context = Self.anchoredContext(context)
+        let screen = PopupPositioner.screen(containing: context.cursorPosition) ?? NSScreen.main
         let screenBounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let frame = PopupPositioner.calculateFrame(
             for: context,
@@ -1093,6 +1090,13 @@ public class PopupWindowController {
             verticalPosition: verticalPosition
         )
         panel.setFrame(frame, display: true)
+    }
+
+    /// An off-screen anchor means the saved point belongs to a display or Space that is gone.
+    /// Fall back to the real pointer so the popup is placed near the mouse, not clamped to an edge.
+    private static func anchoredContext(_ context: SelectionContext) -> SelectionContext {
+        guard PopupPositioner.screen(containing: context.cursorPosition) == nil else { return context }
+        return context.with(cursorPosition: NSEvent.mouseLocation)
     }
 
     public func hide(reason: String = #function, callerLine: Int = #line) {

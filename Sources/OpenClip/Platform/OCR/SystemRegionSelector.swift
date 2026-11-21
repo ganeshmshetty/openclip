@@ -17,13 +17,14 @@ final class SystemRegionSelector {
         let releasePoint: CGPoint
     }
 
-    enum SelectionError: Error {
+    enum SelectionError: Error, Equatable {
+        case systemFailed(status: Int32, message: String)
         case unreadableImage
     }
 
     private var process: Process?
 
-    /// Returns nil when the user cancels (the system tool exits non-zero).
+    /// Returns nil when the user cancels (the system tool exits zero without writing a file).
     func select() async throws -> Selection? {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("openclip-capture-\(UUID().uuidString).png")
@@ -32,16 +33,26 @@ final class SystemRegionSelector {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         process.arguments = ["-i", "-x", "-t", "png", url.path]
+        let errorPipe = Pipe()
+        process.standardError = errorPipe
         self.process = process
         defer { self.process = nil }
         let status = try await run(process)
-        guard status == 0 else { return nil }
+        let errorMessage = Self.errorMessage(from: errorPipe)
 
-        let releasePoint = NSEvent.mouseLocation
+        guard status == 0 else {
+            throw SelectionError.systemFailed(status: status, message: errorMessage)
+        }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            guard errorMessage.isEmpty else {
+                throw SelectionError.systemFailed(status: status, message: errorMessage)
+            }
+            return nil
+        }
         guard let image = Self.loadImage(url) else {
             throw SelectionError.unreadableImage
         }
-        return Selection(image: image, releasePoint: releasePoint)
+        return Selection(image: image, releasePoint: NSEvent.mouseLocation)
     }
 
     func cancel() {
@@ -90,6 +101,22 @@ final class SystemRegionSelector {
         context.interpolationQuality = .none
         context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         return context.makeImage()
+    }
+
+    private nonisolated static func errorMessage(from pipe: Pipe) -> String {
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+extension SystemRegionSelector.SelectionError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .systemFailed(let status, let message):
+            return message.isEmpty ? "screencapture exited with status \(status)" : message
+        case .unreadableImage:
+            return "The selected image could not be read"
+        }
     }
 }
 
