@@ -196,6 +196,25 @@ public struct GroupSubActionBarView: View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
         let foregroundColor: Color = (isHovered && !action.chrome.displayOnly) ? .white : restForeground
         let backgroundColor: Color = (isHovered && !action.chrome.displayOnly) ? PopupThemeModel.barHoverFill : Color.clear
+        let outerInset = 3 - PopupMetrics.subBarEndInset
+        let leadingEdge = index == 0
+        let trailingEdge = index == pagedSubActions.count - 1 && !hasLeftChevron && !hasRightChevron
+        let isTextIcon: Bool = {
+            if case .text = action.displayIcon(using: presenter) { return true }
+            return false
+        }()
+        let iconHighlightInsets = PopupBarHighlightInsets.resolve(
+            isText: isTextIcon,
+            leadingEdge: leadingEdge,
+            trailingEdge: trailingEdge,
+            outerInset: outerInset
+        )
+        let inlineHighlightInsets = PopupBarHighlightInsets.resolve(
+            isText: true,
+            leadingEdge: leadingEdge,
+            trailingEdge: trailingEdge,
+            outerInset: outerInset
+        )
 
         // Inline results replace the icon once InlineResultEvaluator publishes a typed value.
         let labelView = Group {
@@ -207,8 +226,9 @@ public struct GroupSubActionBarView: View {
                     foreground: (isHovered && !action.chrome.displayOnly) ? .white : restForeground
                 )
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
+                    .offset(x: inlineHighlightInsets.contentOffset * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
-                    .popupBarHighlight(backgroundColor, scale: scale, isText: true, leadingEdge: index == 0, trailingEdge: index == pagedSubActions.count - 1 && !hasLeftChevron && !hasRightChevron, outerInset: 3 - PopupMetrics.subBarEndInset, isHovered: isHovered, namespace: hoverHighlightNamespace)
+                    .popupBarHighlight(backgroundColor, scale: scale, isText: true, leadingEdge: leadingEdge, trailingEdge: trailingEdge, outerInset: outerInset, isHovered: isHovered, namespace: hoverHighlightNamespace)
                     .helpIfPresent(action.chrome.displayOnly ? resolved.rawValue : nil)
                     .transition(.opacity)
             } else {
@@ -218,8 +238,9 @@ public struct GroupSubActionBarView: View {
                         if case .text = action.displayIcon(using: presenter) { return 11.5 * scale }
                         return 0.0
                     }())
+                    .offset(x: iconHighlightInsets.contentOffset * scale)
                     .frame(minWidth: buttonWidth, maxWidth: 150 * scale, minHeight: barButtonHeight)
-                    .popupBarHighlight(backgroundColor, scale: scale, isText: { if case .text = action.displayIcon(using: presenter) { return true }; return false }(), leadingEdge: index == 0, trailingEdge: index == pagedSubActions.count - 1 && !hasLeftChevron && !hasRightChevron, outerInset: 3 - PopupMetrics.subBarEndInset, isHovered: isHovered, namespace: hoverHighlightNamespace)
+                    .popupBarHighlight(backgroundColor, scale: scale, isText: isTextIcon, leadingEdge: leadingEdge, trailingEdge: trailingEdge, outerInset: outerInset, isHovered: isHovered, namespace: hoverHighlightNamespace)
                     .transition(.opacity)
             }
         }

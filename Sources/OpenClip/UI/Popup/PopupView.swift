@@ -822,6 +822,11 @@ public struct PopupView: View {
     @ViewBuilder
     private func completionButton(word: String, index: Int, isHovered: Bool) -> some View {
         let restForeground = PopupThemeModel.restForeground(for: effectiveTheme)
+        let highlightInsets = PopupBarHighlightInsets.resolve(
+            isText: true,
+            leadingEdge: false,
+            trailingEdge: index == cachedCompletions.count - 1
+        )
 
         Button {
             onResult(.paste(word))
@@ -833,6 +838,7 @@ public struct PopupView: View {
                 .foregroundColor(isHovered ? .white : restForeground)
                 .frame(maxWidth: 177 * scale)
                 .padding(.horizontal, 12.5 * scale)
+                .offset(x: highlightInsets.contentOffset * scale)
                 .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                 .popupBarHighlight(isHovered ? PopupThemeModel.barHoverFill : .clear, scale: scale, isText: true, trailingEdge: index == cachedCompletions.count - 1, isHovered: isHovered, namespace: hoverHighlightNamespace)
                 .contentShape(Rectangle())
@@ -868,6 +874,20 @@ public struct PopupView: View {
 
         let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
         let subBarAbove = modeStore.subBarAbove
+        let isTextIcon: Bool = {
+            if case .text = action.displayIcon(using: presenter) { return true }
+            return false
+        }()
+        let iconHighlightInsets = PopupBarHighlightInsets.resolve(
+            isText: isTextIcon,
+            leadingEdge: leadingEdge,
+            trailingEdge: trailingEdge
+        )
+        let inlineHighlightInsets = PopupBarHighlightInsets.resolve(
+            isText: true,
+            leadingEdge: leadingEdge,
+            trailingEdge: trailingEdge
+        )
 
         let labelView = Group {
             if action.chrome.isInlineResult, let resolved = modeStore.inlineResults[action.id] {
@@ -878,6 +898,7 @@ public struct PopupView: View {
                     foreground: foregroundColor
                 )
                     .padding(.horizontal, PopupMetrics.inlineResultHorizontalPadding * scale)
+                    .offset(x: inlineHighlightInsets.contentOffset * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
                     .popupBarHighlight(backgroundColor, scale: scale, isText: true, leadingEdge: leadingEdge, trailingEdge: trailingEdge, isHovered: isHovered, namespace: hoverHighlightNamespace)
                     .transition(.opacity)
@@ -888,8 +909,9 @@ public struct PopupView: View {
                         if case .text = action.displayIcon(using: presenter) { return 7.0 * scale }
                         return 0.0
                     }())
+                    .offset(x: iconHighlightInsets.contentOffset * scale)
                     .frame(minWidth: buttonWidth, minHeight: barButtonHeight)
-                    .popupBarHighlight(backgroundColor, scale: scale, isText: { if case .text = action.displayIcon(using: presenter) { return true }; return false }(), leadingEdge: leadingEdge, trailingEdge: trailingEdge, isHovered: isHovered, namespace: hoverHighlightNamespace)
+                    .popupBarHighlight(backgroundColor, scale: scale, isText: isTextIcon, leadingEdge: leadingEdge, trailingEdge: trailingEdge, isHovered: isHovered, namespace: hoverHighlightNamespace)
                     .overlay(alignment: subBarAbove ? .top : .bottom) {
                         // Triangle shows only while the sub-bar is closed and the button isn't hovered.
                         if isGroup && !isHovered && modeStore.activeSubGroupID != action.id {

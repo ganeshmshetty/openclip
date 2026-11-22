@@ -314,7 +314,7 @@ areas; stale debt notes are worse than none.
   check idle stability and fading at the panel boundary but cannot reproduce WindowServer's
   delayed compositing by themselves.
 
-- **Action bar hover chrome** uses a rounded highlight in the system accent color softened 8% toward white, with no horizontal inset for interior text buttons and 2 scaled points for end text buttons; icon buttons retain 2 points for interiors and 3 for ends. All highlights are inset by 3 scaled points vertically, shared by the main and sub-action bars. Interior corners use a 7-point radius; outer edge corners use 10 points (both scaled). Foregrounds and full button hit areas stay unchanged; hovered buttons use a white foreground and the highlight snaps between them with no transition; search chrome is unchanged.
+- **Action bar hover chrome** uses a rounded highlight in the system accent color softened 8% toward white. Text buttons keep their full-width pill: at an exposed island edge the pill takes the 3-point edge inset on that side only, and the label is nudged by half that inset so the word stays centered in the pill rather than the pill being moved or narrowed. Icon buttons keep 2 scaled points for interiors and `outerInset` (3 points on the main bar, 2 inside the sub-bar's 1-point row padding) at an exposed island edge. All highlights are inset by 3 scaled points vertically, shared by the main and sub-action bars. Interior corners use a 7-point radius; outer edge corners use 10 points (both scaled). Foregrounds and full button hit areas stay unchanged; hovered buttons use a white foreground and the highlight snaps between them with no transition; search chrome is unchanged.
 
 - AI presets can leave AI Tools. `SettingKey.standaloneAIActionIDs` records presets dragged
   to the Actions list's root. Their canonical IDs participate in `action.order`, survive preset
@@ -1000,9 +1000,11 @@ Its stable preview viewport pins the contextual island at a left inset as the ma
 Per-action contextual exclusions do not change the static sample. The main bar's Actions Per Page setting
 and width budget apply to the standard island independently of the contextual island.
 
-Outer bar hover insets are 3 pt on each exposed edge, matching the vertical inset; sub-bars
-account for their existing 1 pt row padding. Contextual edge rounding uses island-local offsets
-independently of the global hover index, including when the contextual island is on the right.
+Outer bar hover insets are 3 pt at each exposed edge, matching the vertical inset; sub-bars
+account for their existing 1 pt row padding. Text buttons take that inset on the exposed side
+only and offset the label by half of it, so the pill keeps its width and the word stays centered.
+Contextual edge rounding uses island-local offsets independently of the global hover index,
+including when the contextual island is on the right.
 
 ## Actions per page ([#148](https://github.com/ganeshmshetty/openclip/issues/148))
 
