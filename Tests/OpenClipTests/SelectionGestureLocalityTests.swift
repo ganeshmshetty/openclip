@@ -56,6 +56,25 @@ final class SelectionGestureLocalityTests: XCTestCase {
             screens: screens))
     }
 
+    /// Rex: dragging upward from just below a wide block anchors on the first selected line, so
+    /// AX reports only that line's box, sitting ~29pt above the drag start. The selection is real
+    /// and spans the drag; the line box must not be rejected for missing the drag rectangle.
+    func testDragAdmitsSelectionWhoseFirstLineSitsJustAboveTheStart() {
+        let firstLine = ax(CGRect(x: 315, y: 680, width: 1036, height: 14))
+        XCTAssertTrue(SelectionGestureLocality.admits(
+            axBounds: firstLine,
+            gesture: .drag(from: CGPoint(x: 317.35, y: 639.27), to: CGPoint(x: 709.99, y: 267.50)),
+            screens: screens))
+    }
+
+    func testDragStillRejectsSelectionWellAboveTheLineSnapSlack() {
+        let staleLine = ax(CGRect(x: 120, y: 450, width: 300, height: 14))
+        XCTAssertFalse(SelectionGestureLocality.admits(
+            axBounds: staleLine,
+            gesture: .drag(from: CGPoint(x: 120, y: 350), to: CGPoint(x: 480, y: 310)),
+            screens: screens))
+    }
+
     func testUnusableBoundsFailOpen() {
         let gesture = SelectionGestureLocality.Gesture.multiClick(at: CGPoint(x: 200, y: 200))
         for bounds in [nil, CGRect.zero, CGRect(x: 10, y: 10, width: 0, height: 18), .null,
