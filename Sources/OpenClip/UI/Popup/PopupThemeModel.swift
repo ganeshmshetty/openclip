@@ -469,6 +469,28 @@ public extension View {
 
 // MARK: - Action Bar Highlight
 
+/// Horizontal insets for an action button's hover pill. The pill is inset only at an exposed
+/// island edge; `contentOffset` shifts the label by half the difference so it stays centered in
+/// the pill without moving or resizing the pill itself.
+struct PopupBarHighlightInsets {
+    let leading: CGFloat
+    let trailing: CGFloat
+
+    var contentOffset: CGFloat { (leading - trailing) / 2 }
+
+    static func resolve(
+        isText: Bool,
+        leadingEdge: Bool,
+        trailingEdge: Bool,
+        outerInset: CGFloat = 3
+    ) -> Self {
+        Self(
+            leading: leadingEdge ? outerInset : (isText ? 0 : 2),
+            trailing: trailingEdge ? outerInset : (isText ? 0 : 2)
+        )
+    }
+}
+
 extension View {
     /// Search-style neutral highlight; inset chrome preserves the full button hit area.
     func popupBarHighlight(
@@ -488,6 +510,12 @@ extension View {
             topTrailingRadius: (trailingEdge ? 10 : 7) * scale,
             style: .continuous
         )
+        let insets = PopupBarHighlightInsets.resolve(
+            isText: isText,
+            leadingEdge: leadingEdge,
+            trailingEdge: trailingEdge,
+            outerInset: outerInset
+        )
         return background {
             Group {
                 if isHovered {
@@ -497,8 +525,8 @@ extension View {
                     shape.fill(fill)
                 }
             }
-            .padding(.leading, (leadingEdge ? outerInset : (isText ? 0 : 2)) * scale)
-            .padding(.trailing, (trailingEdge ? outerInset : (isText ? 0 : 2)) * scale)
+            .padding(.leading, insets.leading * scale)
+            .padding(.trailing, insets.trailing * scale)
             .padding(.vertical, 3 * scale)
         }
     }
