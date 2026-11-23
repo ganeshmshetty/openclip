@@ -92,18 +92,6 @@ struct GeneralTab: View {
 
                     SettingsDivider()
 
-                    SettingsToggleRow(
-                        title: "Show Command Palette",
-                        info: "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.",
-                        systemImage: "magnifyingglass",
-                        plainIcon: true,
-                        isOn: $showSearchAllActions
-                    )
-                    .id(GeneralSearchTarget.showCommandPalette)
-                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.showCommandPalette))
-
-                    SettingsDivider()
-
                     VStack(alignment: .leading, spacing: 0) {
                         SettingsRow(
                             title: "Capture Text",
@@ -248,6 +236,18 @@ struct GeneralTab: View {
                             object: newValue
                         )
                     }
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        title: "Show Command Palette Icon in Popup",
+                        info: "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.",
+                        systemImage: "magnifyingglass",
+                        plainIcon: true,
+                        isOn: $showSearchAllActions
+                    )
+                    .id(GeneralSearchTarget.showCommandPalette)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.showCommandPalette))
 
                     SettingsDivider()
 

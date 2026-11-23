@@ -14,8 +14,8 @@ enum GeneralSearchTarget {
     static let accessibilityAccess = "general.accessibilityAccess"
     static let screenRecordingAccess = "general.screenRecordingAccess"
     static let all = [
-        appearAutomatically, holdMouseToTrigger, commandPalette, showCommandPalette, captureText,
-        captureTextAutoCopy, saveLocation, playActionSound, showMenuBarIcon, startAtLogin, accessibilityAccess, screenRecordingAccess
+        appearAutomatically, holdMouseToTrigger, commandPalette, captureText,
+        captureTextAutoCopy, saveLocation, playActionSound, showMenuBarIcon, showCommandPalette, startAtLogin, accessibilityAccess, screenRecordingAccess
     ]
 }
 
@@ -70,7 +70,7 @@ struct PreferencesSearchEntry: Identifiable, Hashable, Sendable {
         Self(
             id: "appearance-control:\(id)",
             title: title,
-            breadcrumb: String(localized: "Appearance"),
+            breadcrumb: String(localized: "Customize"),
             aliases: aliases,
             target: .appearanceControl(id: id),
             section: .settings

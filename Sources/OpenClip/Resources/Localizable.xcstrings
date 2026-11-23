@@ -19937,30 +19937,30 @@
         }
       }
     },
-    "Show Command Palette": {
+    "Show Command Palette Icon in Popup": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "显示命令面板"
+            "value": "在弹出窗口中显示命令面板图标"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "顯示命令面板"
+            "value": "在彈出視窗中顯示命令面板圖示"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Afficher la palette de commandes"
+            "value": "Afficher l’icône de la palette de commandes dans le popup"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "コマンドパレットを表示"
+            "value": "ポップアップにコマンドパレットのアイコンを表示"
           }
         }
       }
@@ -20413,6 +20413,34 @@
         }
       }
     },
+    "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在弹出栏末尾显示命令面板图标。隐藏后键盘快捷键仍然有效。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在彈出列結尾顯示命令面板圖示。隱藏後鍵盤快速鍵仍然有效。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher l’icône de la palette de commandes à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’elle est masquée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップアップバーの末尾にコマンドパレットのアイコンを表示します。非表示でもキーボードショートカットは使用できます。"
+          }
+        }
+      }
+    },
     "Show the plain result (⌘D)": {
       "localizations": {
         "zh-Hans": {
@@ -20605,34 +20633,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ポップアップバーの末尾に検索ボタンを表示します。"
-          }
-        }
-      }
-    },
-    "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在弹出栏末尾显示搜索按钮。隐藏后键盘快捷键仍然有效。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在彈出列結尾顯示搜尋按鈕。隱藏後鍵盤快速鍵仍然有效。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher le bouton de recherche à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’il est masqué."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ポップアップバーの末尾に検索ボタンを表示します。非表示でもキーボードショートカットは使用できます。"
           }
         }
       }

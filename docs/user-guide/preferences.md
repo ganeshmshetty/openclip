@@ -31,7 +31,7 @@ The settings window uses the macOS Liquid Glass look.
 - Each page and action has its own colored rounded-square icon.
 - Settings details appear in an inset rounded card. Its header has back and forward buttons (`⌘[` and `⌘]`), breadcrumbs, and buttons for the current page.
 - To record a shortcut, click its field. A popover shows the modifier keys as you press them and listens for the key combination.
-- The sidebar lists the core pages (General, Appearance, Actions, AI, App Rules, Store, About), then built-in actions, custom actions, and installed extensions.
+- The sidebar lists the core pages (General, Customize, Actions, AI, App Rules, Store, About), then built-in actions, custom actions, and installed extensions.
 - **About** holds the version, links, and update controls, including an **Update Channel** picker for the **Stable** and **Beta** feeds.
 
 ## Actions: the popup bar's layout
@@ -102,9 +102,9 @@ When an action produces text, such as a transformation, a dictionary definition,
 
 ## Popup appearance and theme
 
-Under **General > Shortcuts**, turn off **Show Command Palette** to hide the ⌘ search button at the end of the popup bar. The search shortcut (⌥⌘C by default) still works.
+Under **General > App**, turn off **Show Command Palette Icon in Popup** to hide the command palette icon at the end of the popup bar. The Command Palette shortcut (⌥⌘C by default) still works.
 
-The **Appearance** page shows a static preview of the popup bar and lets you style it. The preview is a fixed mock of the standard actions (Search, Copy, Cut, Paste, and the AI Tools action). It doesn't reflect your configured actions, their order, or your overrides, and hovering over it never affects the real popup.
+The **Customize** page shows a static preview of the popup bar and lets you style it. The preview is a fixed mock of the standard actions (Search, Copy, Cut, Paste, and the AI Tools action). It doesn't reflect your configured actions, their order, or your overrides, and hovering over it never affects the real popup.
 
 ### Popup theme
 
@@ -120,7 +120,7 @@ The preview always shows the active combination. A pinned appearance sets the po
 
 ## Actions per page
 
-In Appearance, use the minus and plus stepper to choose 2 to 24 actions per page (default 6). This applies to the main bar and to group bars. Wide actions and smaller displays can still cause pagination before the chosen count is reached.
+In Customize, use the minus and plus stepper to choose 2 to 24 actions per page (default 6). This applies to the main bar and to group bars. Wide actions and smaller displays can still cause pagination before the chosen count is reached.
 
 ## AI provider setup
 

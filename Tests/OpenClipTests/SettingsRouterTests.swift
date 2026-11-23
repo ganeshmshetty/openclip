@@ -145,12 +145,14 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertNil(router.appearanceRevealRequest)
     }
 
-    func testAppearancePageIsNamedAppearanceAndSearchControlTargetsAreStable() {
-        XCTAssertEqual(SettingsPage.appearance.staticTitle, "Appearance")
-        XCTAssertEqual(PreferencesSearchEntry.appearanceControl(
+    func testAppearancePageIsTitledCustomizeAndSearchControlTargetsAreStable() {
+        XCTAssertEqual(SettingsPage.appearance.staticTitle, "Customize")
+        let contextualActions = PreferencesSearchEntry.appearanceControl(
             id: AppearanceSearchTarget.contextualActions,
             title: "Contextual Actions"
-        ).target, .appearanceControl(id: "appearance.contextualActions"))
+        )
+        XCTAssertEqual(contextualActions.target, .appearanceControl(id: "appearance.contextualActions"))
+        XCTAssertEqual(contextualActions.breadcrumb, "Customize")
         XCTAssertEqual(GeneralSearchTarget.all.count, 12)
     }
 

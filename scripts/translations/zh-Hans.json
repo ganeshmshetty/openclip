@@ -716,7 +716,6 @@
   "Paste from Clipboard": "从剪贴板粘贴",
   "Show Search All Actions": "显示搜索所有操作",
   "Show the search button at the end of the popup bar.": "在弹出工具栏末尾显示搜索按钮。",
-  "Show Command Palette": "显示命令面板",
   "Show the command palette button at the end of the popup bar.": "在弹出工具栏末尾显示命令面板按钮。",
   "Show Contextual Actions": "显示上下文操作",
   "Show relevant actions first based on what you select.": "根据选中文本优先显示相关操作。",
@@ -897,5 +896,6 @@
   "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "上下文栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。",
   "Matching actions appear in a separate bar beside the popup and rank first in search.": "匹配的操作会显示在弹出窗口旁的独立栏中，并在搜索中优先显示。",
   "Reset appearance": "重置外观",
-  "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.": "在弹出栏末尾显示搜索按钮。隐藏后键盘快捷键仍然有效。"
+  "Show Command Palette Icon in Popup": "在弹出窗口中显示命令面板图标",
+  "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "在弹出栏末尾显示命令面板图标。隐藏后键盘快捷键仍然有效。"
 }

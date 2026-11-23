@@ -412,12 +412,12 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.appearAutomatically, "Appear Automatically"),
             (GeneralSearchTarget.holdMouseToTrigger, "Hold Mouse to Trigger"),
             (GeneralSearchTarget.commandPalette, "Command Palette"),
-            (GeneralSearchTarget.showCommandPalette, "Show Command Palette"),
             (GeneralSearchTarget.captureText, "Capture Text"),
             (GeneralSearchTarget.captureTextAutoCopy, "Copy to Clipboard Automatically"),
             (GeneralSearchTarget.saveLocation, "Save Location"),
             (GeneralSearchTarget.playActionSound, "Play Sound"),
             (GeneralSearchTarget.showMenuBarIcon, "Show Menu Bar Icon"),
+            (GeneralSearchTarget.showCommandPalette, "Show Command Palette Icon in Popup"),
             (GeneralSearchTarget.startAtLogin, "Start at Login"),
             (GeneralSearchTarget.accessibilityAccess, "Accessibility Access"),
             (GeneralSearchTarget.screenRecordingAccess, "Screen Recording Access")
@@ -519,7 +519,7 @@ public struct PreferencesView: View {
     private func englishTitle(for page: SettingsPage) -> String {
         switch page {
         case .general: return "General"
-        case .appearance: return "Appearance"
+        case .appearance: return "Customize"
         case .customize: return "Actions"
         case .ai: return "AI"
         case .appRules: return "App Rules"

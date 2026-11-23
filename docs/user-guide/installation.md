@@ -50,4 +50,4 @@ The first time you open OpenClip it shows a four-step setup:
 3. **Extensions** offers a few useful ones, such as translation, word count, and speech, each with a one-click install.
 4. **Try it** is a small sandbox where you can select text and see the real action bar.
 
-You can skip any step. Finishing setup starts text-selection monitoring. After that you can open the popup at any time with the global shortcut (**⌥⌘C** by default), set up AI providers in **Preferences > AI**, and change the popup's look in **Preferences > Appearance**.
+You can skip any step. Finishing setup starts text-selection monitoring. After that you can open the popup at any time with the global shortcut (**⌥⌘C** by default), set up AI providers in **Preferences > AI**, and change the popup's look in **Preferences > Customize**.

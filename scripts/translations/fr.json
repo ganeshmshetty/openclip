@@ -716,7 +716,6 @@
   "Paste from Clipboard": "Coller depuis le presse-papiers",
   "Show Search All Actions": "Afficher la recherche de toutes les actions",
   "Show the search button at the end of the popup bar.": "Afficher le bouton de recherche à la fin de la barre contextuelle.",
-  "Show Command Palette": "Afficher la palette de commandes",
   "Show the command palette button at the end of the popup bar.": "Afficher le bouton de la palette de commandes à la fin de la barre contextuelle.",
   "Show Contextual Actions": "Afficher les actions contextuelles",
   "Show relevant actions first based on what you select.": "Afficher d’abord les actions pertinentes en fonction de votre sélection.",
@@ -897,5 +896,6 @@
   "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "Emplacement de la barre contextuelle par rapport à la barre principale. Auto suit l’alignement horizontal du popup.",
   "Matching actions appear in a separate bar beside the popup and rank first in search.": "Les actions correspondantes apparaissent dans une barre séparée à côté du popup et sont prioritaires dans la recherche.",
   "Reset appearance": "Réinitialiser l’apparence",
-  "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.": "Afficher le bouton de recherche à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’il est masqué."
+  "Show Command Palette Icon in Popup": "Afficher l’icône de la palette de commandes dans le popup",
+  "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "Afficher l’icône de la palette de commandes à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’elle est masquée."
 }

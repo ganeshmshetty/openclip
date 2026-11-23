@@ -87,7 +87,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     public var staticTitle: String? {
         switch self {
         case .general: return String(localized: "General")
-        case .appearance: return String(localized: "Appearance")
+        case .appearance: return String(localized: "Customize")
         case .customize: return String(localized: "Actions")
         case .shortcuts: return String(localized: "Shortcuts")
         case .appRules: return String(localized: "App Rules")
