@@ -1065,6 +1065,34 @@
         }
       }
     },
+    "Action Suggestions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動作建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggestions d’actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクション候補"
+          }
+        }
+      }
+    },
     "Action Title": {
       "localizations": {
         "zh-Hans": {
@@ -3049,6 +3077,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "百度 (Baidu)"
+          }
+        }
+      }
+    },
+    "Bar Position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "栏位置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列位置"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position de la barre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バーの位置"
           }
         }
       }
@@ -15345,34 +15401,6 @@
         }
       }
     },
-    "Placement": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "位置"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "位置"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Emplacement"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配置"
-          }
-        }
-      }
-    },
     "Play Sound": {
       "localizations": {
         "zh-Hans": {
@@ -20045,34 +20073,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "シークレットを表示"
-          }
-        }
-      }
-    },
-    "Show Suggestions": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示建议"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "顯示建議"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher les suggestions"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "候補を表示"
           }
         }
       }

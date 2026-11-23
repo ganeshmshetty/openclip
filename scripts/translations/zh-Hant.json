@@ -885,7 +885,6 @@
   "Opens the OpenClip repository on GitHub": "在 GitHub 上開啟 OpenClip 儲存庫",
   "Opens the OpenClip support page": "開啟 OpenClip 支援頁面",
   "Off in Actions": "已在動作中關閉",
-  "Placement": "位置",
   "Reset appearance": "重設外觀",
   "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "在彈出列結尾顯示命令面板圖示。隱藏後鍵盤快速鍵仍然有效。",
   "No actions can be suggested yet. Extensions can add them.": "目前沒有可建議的動作。擴充功能可以加入。",
@@ -893,8 +892,9 @@
   "As suggested action": "作為建議動作",
   "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "內嵌會在列中顯示建議。作為建議動作會顯示 Word Completion 群組，供懸停或搜尋使用。",
   "Actions suggested when they match your selection. They appear first in the popup and search.": "與選取內容相符時建議的動作。它們會在彈出視窗和搜尋中優先顯示。",
-  "Show Suggestions": "顯示建議",
   "Choose Suggestions": "選擇建議",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建議列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。",
-  "Show Palette Icon": "顯示命令面板圖示"
+  "Show Palette Icon": "顯示命令面板圖示",
+  "Action Suggestions": "動作建議",
+  "Bar Position": "列位置"
 }

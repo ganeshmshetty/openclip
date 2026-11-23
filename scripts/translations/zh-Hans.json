@@ -885,7 +885,6 @@
   "Opens the OpenClip repository on GitHub": "在 GitHub 上打开 OpenClip 仓库",
   "Opens the OpenClip support page": "打开 OpenClip 支持页面",
   "Off in Actions": "已在操作中关闭",
-  "Placement": "位置",
   "Reset appearance": "重置外观",
   "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "在弹出栏末尾显示命令面板图标。隐藏后键盘快捷键仍然有效。",
   "No actions can be suggested yet. Extensions can add them.": "暂无可建议的操作。扩展可以添加。",
@@ -893,8 +892,9 @@
   "As suggested action": "作为建议操作",
   "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "内联会在栏中显示建议。作为建议操作会显示 Word Completion 组，供悬停或搜索使用。",
   "Actions suggested when they match your selection. They appear first in the popup and search.": "与所选内容匹配时建议的操作。它们会在弹出窗口和搜索中优先显示。",
-  "Show Suggestions": "显示建议",
   "Choose Suggestions": "选择建议",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建议栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。",
-  "Show Palette Icon": "显示命令面板图标"
+  "Show Palette Icon": "显示命令面板图标",
+  "Action Suggestions": "操作建议",
+  "Bar Position": "栏位置"
 }

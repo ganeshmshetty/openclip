@@ -181,7 +181,7 @@ struct PopupThemeSelector: View {
 
             SettingsCard("Suggestions") {
                 appearanceControlRow(
-                    title: "Show Suggestions",
+                    title: "Action Suggestions",
                     info: "Actions suggested when they match your selection. They appear first in the popup and search."
                 ) {
                     HStack(spacing: 8) {
@@ -206,14 +206,14 @@ struct PopupThemeSelector: View {
                         Toggle("", isOn: $contextualActionsEnabled)
                             .labelsHidden()
                             .toggleStyle(.switch)
-                            .accessibilityLabel(String(localized: "Show Suggestions"))
+                            .accessibilityLabel(String(localized: "Action Suggestions"))
                     }
                 }
 
                 SettingsDivider()
 
                 appearanceControlRow(
-                    title: "Placement",
+                    title: "Bar Position",
                     info: "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment."
                 ) {
                     segmentedPicker(
@@ -223,7 +223,7 @@ struct PopupThemeSelector: View {
                             AppearanceOption(label: "Left", value: ContextualPillPosition.left.rawValue),
                             AppearanceOption(label: "Right", value: ContextualPillPosition.right.rawValue),
                         ],
-                        label: "Placement",
+                        label: "Bar Position",
                         width: 170
                     )
                     .disabled(!contextualActionsEnabled)

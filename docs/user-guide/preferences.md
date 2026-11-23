@@ -38,7 +38,7 @@ The settings window uses the macOS Liquid Glass look.
 
 **Actions** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
 
-Suggestions are not a separate section. They stay in the list at their normal position. Their show toggle, placement, and per-action list live on the **Customize** page. Matching actions appear first in the popup and search.
+Suggestions are not a separate section. They stay in the list at their normal position. Their toggle, bar position, and per-action list live on the **Customize** page. Matching actions appear first in the popup and search.
 
 ```
 Settings > Actions
@@ -123,7 +123,7 @@ The preview always shows the active combination. A pinned appearance sets the po
 
 ### Suggestions
 
-The **Suggestions** card controls the separate bar that offers matching actions first. Turn on **Show Suggestions** to enable it. **Placement** chooses whether the bar sits to the left, right, or follows the popup alignment. The button beside the switch opens the list of actions that can be suggested; turn one off to keep it in the main bar only.
+The **Suggestions** card controls the separate bar that offers matching actions first. Turn on **Action Suggestions** to enable it. **Bar Position** chooses whether the bar sits to the left, right, or follows the popup alignment. The button beside the switch opens the list of actions that can be suggested; turn one off to keep it in the main bar only.
 
 ## Actions per page
 
