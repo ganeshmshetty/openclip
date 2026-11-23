@@ -18,6 +18,29 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertFalse(MacSelectionMonitor.isSelectionTrigger(keyCode: 0x00, flags: []))
     }
 
+    func testWebsiteRuleOnlyBlocksMatchingPages() {
+        let monitor = MacSelectionMonitor(settingsStore: MemorySettingsStore())
+        let app = NSRunningApplication.current
+        monitor.documentURLProvider = { _ in URL(string: "https://www.google.com/maps/@37.7,-122.4,15z") }
+
+        XCTAssertTrue(monitor.isBlockedWebsite(
+            AppPolicyContext(blockedWebsitePatterns: ["google.com/maps*"]), app: app
+        ))
+        XCTAssertFalse(monitor.isBlockedWebsite(
+            AppPolicyContext(blockedWebsitePatterns: ["google.com/search*"]), app: app
+        ))
+        XCTAssertFalse(monitor.isBlockedWebsite(.default, app: app))
+    }
+
+    func testWebsiteRuleFailsOpenWhenThePageIsUnknown() {
+        let monitor = MacSelectionMonitor(settingsStore: MemorySettingsStore())
+        monitor.documentURLProvider = { _ in nil }
+
+        XCTAssertFalse(monitor.isBlockedWebsite(
+            AppPolicyContext(blockedWebsitePatterns: ["google.com"]), app: .current
+        ))
+    }
+
     func testKeyboardSelectionInvalidatesCachedInputBeforeDebounce() {
         let monitor = MacSelectionMonitor(settingsStore: MemorySettingsStore())
         let source = AppIdentity(bundleIdentifier: "com.apple.TextEdit", localizedName: "TextEdit")

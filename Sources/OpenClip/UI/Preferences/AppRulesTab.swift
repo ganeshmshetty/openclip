@@ -1,9 +1,7 @@
 // AppRulesTab.swift
 // OpenClip
 //
-// Renders the application rules preferences tab for managing app exclusion rules and application-specific settings.
-// Styled with inset SettingsCards.
-
+// Renders the Rules preferences tab: application rules and blocked websites.
 import SwiftUI
 import AppKit
 import Core
@@ -11,41 +9,17 @@ import Core
 @MainActor
 public struct AppRulesTab: View {
     @ObservedObject private var ruleEngine = RuleEngine.shared
+    @State private var isAddingWebsite = false
 
     public init() {}
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                SettingsCard("Application Rules") {
-                    if ruleEngine.userRules.isEmpty {
-                        ContentUnavailableView {
-                            Label("No App Rules Configured", systemImage: "shield")
-                        } description: {
-                            Text("OpenClip works in all applications by default. Add an application to configure per-app rules or exclusions.")
-                                .multilineTextAlignment(.center)
-                        } actions: {
-                            Button("Add Application") { SettingsRouter.shared.push(.addApplication) }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                    } else {
-                        ForEach(Array(ruleEngine.userRules.enumerated()), id: \.element.id) { index, rule in
-                            if index > 0 {
-                                SettingsDivider(insetLeading: 56)
-                            }
-                            AppRuleRowView(rule: rule) { updatedRule in
-                                RuleEngine.shared.addOrUpdateRule(updatedRule)
-                            } onDelete: {
-                                RuleEngine.shared.removeRule(id: rule.id)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
-                        }
-                    }
-                }
+                applicationsCard
+                websitesCard
 
-                Text("Configure per-app trigger and paste behavior.")
+                Text("Application rules control triggers and paste behavior. Website rules keep the popup off on the sites you add.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.leading, 4)
@@ -54,6 +28,116 @@ public struct AppRulesTab: View {
             .padding(.vertical, 16)
         }
         .scrollIndicators(.hidden)
+        .sheet(isPresented: $isAddingWebsite) {
+            WebsiteRuleEditor { patterns in
+                patterns.forEach { RuleEngine.shared.addWebsite($0) }
+            }
+        }
+    }
+
+    private var applicationsCard: some View {
+        SettingsCard("Applications") {
+            if ruleEngine.userRules.isEmpty {
+                ContentUnavailableView {
+                    Label("No App Rules Configured", systemImage: "shield")
+                } description: {
+                    Text("OpenClip works in all applications by default. Add an application to configure per-app rules or exclusions.")
+                        .multilineTextAlignment(.center)
+                } actions: {
+                    Button("Add Application") { SettingsRouter.shared.push(.addApplication) }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                ForEach(Array(ruleEngine.userRules.enumerated()), id: \.element.id) { index, rule in
+                    if index > 0 {
+                        SettingsDivider(insetLeading: 56)
+                    }
+                    AppRuleRowView(rule: rule) { updatedRule in
+                        RuleEngine.shared.addOrUpdateRule(updatedRule)
+                    } onDelete: {
+                        RuleEngine.shared.removeRule(id: rule.id)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+                SettingsDivider(insetLeading: 56)
+                addRow("Add Application", systemImage: "app.badge.checkmark") {
+                    SettingsRouter.shared.push(.addApplication)
+                }
+            }
+        }
+    }
+
+    private var websitesCard: some View {
+        SettingsCard("Websites") {
+            if ruleEngine.websitePatterns.isEmpty {
+                ContentUnavailableView {
+                    Label("No Websites Blocked", systemImage: "globe")
+                } description: {
+                    Text("The popup stays off on these sites. The keyboard shortcut still works.")
+                        .multilineTextAlignment(.center)
+                } actions: {
+                    Button("Add Website") { isAddingWebsite = true }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                ForEach(Array(ruleEngine.websitePatterns.enumerated()), id: \.element) { index, pattern in
+                    if index > 0 {
+                        SettingsDivider(insetLeading: 56)
+                    }
+                    WebsiteRowView(pattern: pattern) {
+                        RuleEngine.shared.removeWebsite(pattern)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+                SettingsDivider(insetLeading: 56)
+                addRow("Add Website", systemImage: "globe.badge.chevron.backward") {
+                    isAddingWebsite = true
+                }
+            }
+        }
+    }
+
+    private func addRow(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(Color.accentColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+}
+
+@MainActor
+private struct WebsiteRowView: View {
+    let pattern: String
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "globe")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 28)
+            Text(pattern)
+                .font(.system(.body, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            Button(role: .destructive, action: onRemove) {
+                Image(systemName: "minus.circle")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Remove Website")
+            .accessibilityLabel("Remove Website")
+        }
+        .padding(.vertical, 4)
     }
 }
 

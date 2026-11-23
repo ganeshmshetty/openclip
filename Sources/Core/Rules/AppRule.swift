@@ -19,6 +19,8 @@ public struct AppPolicyContext: Sendable {
     public let retrievalMode: SelectionRetrievalMode
     /// Gate rules (skip roles / allowed cursors / selection requirement) applied before retrieval.
     public let gate: SelectionGatePolicy
+    /// Page patterns where the automatic popup stays off. The explicit hotkey path ignores these.
+    public let blockedWebsitePatterns: [String]
 
     public static let `default` = AppPolicyContext()
 
@@ -28,7 +30,8 @@ public struct AppPolicyContext: Sendable {
         denyPaste: Bool = false,
         useMenuCopy: Bool = false,
         retrievalMode: SelectionRetrievalMode = .axTextControl,
-        gate: SelectionGatePolicy = .default
+        gate: SelectionGatePolicy = .default,
+        blockedWebsitePatterns: [String] = []
     ) {
         self.disabled = disabled
         self.hotkeyOnly = hotkeyOnly
@@ -36,6 +39,7 @@ public struct AppPolicyContext: Sendable {
         self.useMenuCopy = useMenuCopy
         self.retrievalMode = retrievalMode
         self.gate = gate
+        self.blockedWebsitePatterns = blockedWebsitePatterns
     }
 }
 
@@ -48,7 +52,7 @@ public struct AppRule: Codable, Sendable, Equatable, Identifiable {
     public let denyPaste: Bool?
     public let retrievalMode: SelectionRetrievalMode?
     public let gate: SelectionGatePolicy?
-    
+
     public init(
         bundleIdentifiers: [String],
         disabled: Bool? = nil,

@@ -896,5 +896,15 @@
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建议栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。",
   "Action Suggestions": "操作建议",
   "Suggestion Position": "建议位置",
-  "Show Command Palette": "显示命令面板"
+  "Show Command Palette": "显示命令面板",
+  "The popup stays off on these sites. The keyboard shortcut still works.": "在这些网站上不会自动显示弹出栏。键盘快捷键仍然有效。",
+  "One pattern per line, for example google.com/maps*. Use * as a wildcard.": "每行一个模式，例如 google.com/maps*。使用 * 作为通配符。",
+  "Rules": "规则",
+  "Websites": "网站",
+  "No Websites Blocked": "没有屏蔽的网站",
+  "Add Website": "添加网站",
+  "Remove Website": "移除网站",
+  "Application rules control triggers and paste behavior. Website rules keep the popup off on the sites you add.": "应用规则控制触发和粘贴行为。网站规则会在你添加的网站上隐藏弹出栏。",
+  "Disable on %@": "在 %@ 上停用",
+  "Enable on %@": "在 %@ 上启用"
 }

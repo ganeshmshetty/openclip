@@ -281,6 +281,42 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(controller.disableAppItem?.state, .off)
         XCTAssertEqual(controller.disableAppItem?.title, "Disable in UTM")
     }
+
+    func testWebsiteItemDisablesAndEnablesTheCurrentPage() {
+        let controller = StatusBarController(
+            settingsStore: MemorySettingsStore(),
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+        controller.currentTargetApp = MockStatusBarApp(bundleID: "com.google.Chrome", localizedName: "Chrome")
+        controller.documentURLProvider = { _ in URL(string: "https://www.google.com/maps/@37.7,-122.4,15z") }
+
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.disableWebsiteItem?.isHidden, false)
+        XCTAssertEqual(controller.disableWebsiteItem?.title, "Disable on google.com/maps")
+
+        controller.toggleCurrentWebsiteDisabled()
+        XCTAssertEqual(RuleEngine.shared.websitePatterns, ["google.com/maps"])
+        XCTAssertEqual(controller.disableWebsiteItem?.title, "Enable on google.com/maps")
+
+        controller.toggleCurrentWebsiteDisabled()
+        XCTAssertTrue(RuleEngine.shared.websitePatterns.isEmpty)
+        XCTAssertEqual(controller.disableWebsiteItem?.title, "Disable on google.com/maps")
+    }
+
+    func testWebsiteItemHidesWithoutAPageURL() {
+        let controller = StatusBarController(
+            settingsStore: MemorySettingsStore(),
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+        controller.currentTargetApp = MockStatusBarApp(bundleID: "com.apple.TextEdit", localizedName: "TextEdit")
+        controller.documentURLProvider = { _ in nil }
+
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(controller.disableWebsiteItem?.isHidden, true)
+        XCTAssertEqual(controller.disableWebsiteSeparatorItem?.isHidden, true)
+    }
 }
 
 private final class MockStatusBarApp: NSRunningApplication {

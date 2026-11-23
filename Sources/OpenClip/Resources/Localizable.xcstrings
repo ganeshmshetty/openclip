@@ -1597,6 +1597,34 @@
         }
       }
     },
+    "Add Website": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加网站"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入網站"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un site web"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウェブサイトを追加"
+          }
+        }
+      }
+    },
     "Add a rule for %@": {
       "localizations": {
         "zh-Hans": {
@@ -2573,6 +2601,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アプリケーションルール"
+          }
+        }
+      }
+    },
+    "Application rules control triggers and paste behavior. Website rules keep the popup off on the sites you add.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用规则控制触发和粘贴行为。网站规则会在你添加的网站上隐藏弹出栏。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "應用程式規則控制觸發與貼上行為。網站規則會在你加入的網站上隱藏彈出列。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les règles d’application contrôlent les déclencheurs et le comportement du collage. Les règles de site gardent le popup masqué sur les sites que vous ajoutez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリのルールは表示のきっかけとペーストの動作を設定します。ウェブサイトのルールは、追加したサイトでポップアップを表示しません。"
           }
         }
       }
@@ -7057,6 +7113,34 @@
         }
       }
     },
+    "Disable on %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %@ 上停用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %@ 上停用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver sur %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ で無効にする"
+          }
+        }
+      }
+    },
     "Disabled": {
       "localizations": {
         "zh-Hans": {
@@ -8313,6 +8397,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "このアプリで有効にする"
+          }
+        }
+      }
+    },
+    "Enable on %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %@ 上启用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %@ 上啟用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer sur %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ で有効にする"
           }
         }
       }
@@ -12741,6 +12853,34 @@
         }
       }
     },
+    "No Websites Blocked": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有屏蔽的网站"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有封鎖的網站"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun site web bloqué"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロック中のウェブサイトはありません"
+          }
+        }
+      }
+    },
     "No actions can be suggested yet. Extensions can add them.": {
       "localizations": {
         "zh-Hans": {
@@ -13577,6 +13717,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキスト選択時"
+          }
+        }
+      }
+    },
+    "One pattern per line, for example google.com/maps*. Use * as a wildcard.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每行一个模式，例如 google.com/maps*。使用 * 作为通配符。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每行一個模式，例如 google.com/maps*。使用 * 作為萬用字元。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un motif par ligne, par exemple google.com/maps*. Utilisez * comme joker."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 行に 1 つのパターン（例: google.com/maps*）。* はワイルドカードとして使えます。"
           }
         }
       }
@@ -16717,6 +16885,34 @@
         }
       }
     },
+    "Remove Website": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除网站"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除網站"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer le site web"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウェブサイトを削除"
+          }
+        }
+      }
+    },
     "Remove from Group": {
       "localizations": {
         "zh-Hans": {
@@ -17889,6 +18085,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "右クリックまたは⇧クリック"
+          }
+        }
+      }
+    },
+    "Rules": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规则"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "規則"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Règles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルール"
           }
         }
       }
@@ -21869,6 +22093,34 @@
         }
       }
     },
+    "The popup stays off on these sites. The keyboard shortcut still works.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在这些网站上不会自动显示弹出栏。键盘快捷键仍然有效。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在這些網站上不會自動顯示彈出列。鍵盤快速鍵仍然有效。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le popup reste masqué sur ces sites. Le raccourci clavier continue de fonctionner."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これらのサイトではポップアップは自動で表示されません。キーボードショートカットは引き続き使えます。"
+          }
+        }
+      }
+    },
     "The resolved file is not a valid image.": {
       "localizations": {
         "zh-Hans": {
@@ -24273,6 +24525,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "WebサイトのURL（例: github.com）"
+          }
+        }
+      }
+    },
+    "Websites": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网站"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "網站"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sites web"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウェブサイト"
           }
         }
       }

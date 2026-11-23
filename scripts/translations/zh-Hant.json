@@ -896,5 +896,15 @@
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建議列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。",
   "Action Suggestions": "動作建議",
   "Suggestion Position": "建議位置",
-  "Show Command Palette": "顯示命令面板"
+  "Show Command Palette": "顯示命令面板",
+  "The popup stays off on these sites. The keyboard shortcut still works.": "在這些網站上不會自動顯示彈出列。鍵盤快速鍵仍然有效。",
+  "One pattern per line, for example google.com/maps*. Use * as a wildcard.": "每行一個模式，例如 google.com/maps*。使用 * 作為萬用字元。",
+  "Rules": "規則",
+  "Websites": "網站",
+  "No Websites Blocked": "沒有封鎖的網站",
+  "Add Website": "加入網站",
+  "Remove Website": "移除網站",
+  "Application rules control triggers and paste behavior. Website rules keep the popup off on the sites you add.": "應用程式規則控制觸發與貼上行為。網站規則會在你加入的網站上隱藏彈出列。",
+  "Disable on %@": "在 %@ 上停用",
+  "Enable on %@": "在 %@ 上啟用"
 }
