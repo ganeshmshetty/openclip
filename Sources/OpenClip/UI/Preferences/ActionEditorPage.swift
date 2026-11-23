@@ -838,7 +838,7 @@ public struct ActionEditorPage: View {
                         SettingsDivider()
                         SettingsRow(
                             title: "Show completions",
-                            info: "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search."
+                            info: "Inline shows suggestions in the bar. As suggested action shows them as the Word Completion group on hover or search."
                         ) {
                             Picker("Show completions", selection: $completionDisplayMode) {
                                 Text("Inline").tag(CompletionDisplayMode.inline.rawValue)
@@ -1002,6 +1002,14 @@ public struct ActionEditorPage: View {
         .onDisappear {
             if isLoaded && !isDeleting {
                 autoSave()
+                if let saveErrorMessage {
+                    // The page is going away, so a failed final save has to surface where the window
+                    // can still show it instead of on the removed page.
+                    router.notifyError(
+                        title: String(localized: "Unable to Save Changes"),
+                        message: saveErrorMessage
+                    )
+                }
             }
             router.clearConfigurationRequest(for: action.id)
         }

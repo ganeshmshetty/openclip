@@ -890,7 +890,7 @@
   "No actions can be suggested yet. Extensions can add them.": "目前沒有可建議的動作。擴充功能可以加入。",
   "Suggest %@ when it matches": "相符時建議 %@",
   "As suggested action": "作為建議動作",
-  "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "內嵌會在列中顯示建議。作為建議動作會顯示 Word Completion 群組，供懸停或搜尋使用。",
+  "Inline shows suggestions in the bar. As suggested action shows them as the Word Completion group on hover or search.": "「內嵌」會在列中顯示建議。「作為建議動作」會以「單字自動完成」群組的形式，在懸停或搜尋時顯示這些建議。",
   "Actions suggested when they match your selection. They appear first in the popup and search.": "與選取內容相符時建議的動作。它們會在彈出視窗和搜尋中優先顯示。",
   "Choose Suggestions": "選擇建議",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建議列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。",

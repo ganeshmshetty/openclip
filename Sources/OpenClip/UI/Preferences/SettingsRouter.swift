@@ -136,7 +136,9 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
     var searchKeywords: [String] {
         switch self {
         case .general: return ["startup", "launch", "login", "menu bar", "trigger", "hotkey", "permission", "accessibility", "paste", "copy", "preview", "command palette", "show command palette", "search button"]
-        case .appearance: return ["appearance", "theme", "dark", "light", "glass", "popup", "preview", "customize", "behavior", "scale", "position", "suggested", "suggested actions", "action suggestions", "suggestions", "contextual", "contextual actions", "placement", "bar position", "suggestion position", "pill"]
+        case .appearance:
+            return ["appearance", "theme", "dark", "light", "glass", "popup", "preview", "customize", "behavior", "scale", "position", "suggested", "suggested actions", "action suggestions", "suggestions", "contextual", "contextual actions", "placement", "bar position", "suggestion position", "pill"]
+                + Self.localizedLabels(["Suggestions", "Action Suggestions", "Suggestion Position"])
         case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install", "shortcuts", "hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .shortcuts: return ["hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .appRules: return ["apps", "exclude", "allow", "block", "rules", "disable", "per-app"]
@@ -152,6 +154,12 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .extensionPackage, .builtinAction, .action, .newCustomAction, .newGroup, .iconPicker, .aiPreset, .aiNewPreset, .addApplication:
             return []
         }
+    }
+
+    /// The labels the page shows, in the reader's language, so search matches the words on screen
+    /// instead of only the English aliases.
+    private static func localizedLabels(_ labels: [String]) -> [String] {
+        labels.map { String(localized: String.LocalizationValue($0)) }
     }
 }
 

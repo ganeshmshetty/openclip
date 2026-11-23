@@ -890,7 +890,7 @@
   "No actions can be suggested yet. Extensions can add them.": "まだおすすめできるアクションはありません。拡張機能で追加できます。",
   "Suggest %@ when it matches": "一致したときに%@をおすすめ",
   "As suggested action": "おすすめアクションとして",
-  "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "インラインはバーに候補を表示します。「おすすめアクション」はホバーまたは検索用の Word Completion グループを表示します。",
+  "Inline shows suggestions in the bar. As suggested action shows them as the Word Completion group on hover or search.": "「インライン」はバーに候補を表示します。「おすすめアクションとして」は、ホバーまたは検索時に「単語補完」グループとして表示します。",
   "Actions suggested when they match your selection. They appear first in the popup and search.": "選択内容に一致したときにおすすめされるアクションです。ポップアップと検索で優先的に表示されます。",
   "Choose Suggestions": "候補を選択",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "メインバーに対する候補バーの位置。自動はポップアップの水平方向の配置に従います。",

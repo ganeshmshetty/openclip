@@ -10529,30 +10529,30 @@
         }
       }
     },
-    "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": {
+    "Inline shows suggestions in the bar. As suggested action shows them as the Word Completion group on hover or search.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "内联会在栏中显示建议。作为建议操作会显示 Word Completion 组，供悬停或搜索使用。"
+            "value": "“内联”在栏中显示建议。“作为建议操作”会以“单词补全”分组的形式在悬停或搜索时显示这些建议。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "內嵌會在列中顯示建議。作為建議動作會顯示 Word Completion 群組，供懸停或搜尋使用。"
+            "value": "「內嵌」會在列中顯示建議。「作為建議動作」會以「單字自動完成」群組的形式，在懸停或搜尋時顯示這些建議。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inline affiche les suggestions dans la barre. « Action suggérée » affiche le groupe Word Completion au survol ou dans la recherche."
+            "value": "« Dans la barre » affiche les suggestions dans la barre. « Comme action suggérée » les affiche sous forme de groupe « Complétion de mots » au survol ou dans la recherche."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "インラインはバーに候補を表示します。「おすすめアクション」はホバーまたは検索用の Word Completion グループを表示します。"
+            "value": "「インライン」はバーに候補を表示します。「おすすめアクションとして」は、ホバーまたは検索時に「単語補完」グループとして表示します。"
           }
         }
       }

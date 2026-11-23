@@ -890,7 +890,7 @@
   "No actions can be suggested yet. Extensions can add them.": "Aucune action ne peut encore être suggérée. Les extensions peuvent en ajouter.",
   "Suggest %@ when it matches": "Suggérer %@ lorsqu’elle correspond",
   "As suggested action": "Comme action suggérée",
-  "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "Inline affiche les suggestions dans la barre. « Action suggérée » affiche le groupe Word Completion au survol ou dans la recherche.",
+  "Inline shows suggestions in the bar. As suggested action shows them as the Word Completion group on hover or search.": "« Dans la barre » affiche les suggestions dans la barre. « Comme action suggérée » les affiche sous forme de groupe « Complétion de mots » au survol ou dans la recherche.",
   "Actions suggested when they match your selection. They appear first in the popup and search.": "Actions suggérées lorsqu’elles correspondent à votre sélection. Elles apparaissent en premier dans le popup et la recherche.",
   "Choose Suggestions": "Choisir les suggestions",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "Emplacement de la barre de suggestions par rapport à la barre principale. Auto suit l’alignement horizontal du popup.",
