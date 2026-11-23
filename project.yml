@@ -23,7 +23,12 @@ targets:
     type: application
     platform: macOS
     deploymentTarget: "14.0"
-    sources: [Sources/OpenClip]
+    sources:
+      - path: Sources/OpenClip
+        excludes:
+          - AppIcon.icon
+      - path: Sources/OpenClip/AppIcon.icon
+        type: file
     info:
       path: Sources/OpenClip/Info.plist
       properties:

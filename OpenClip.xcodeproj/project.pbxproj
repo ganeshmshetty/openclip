@@ -449,6 +449,7 @@
 		E453F32D7A7554D4A1180065 /* DefaultCustomActionJSRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE181CF145B045A773B2E3FC /* DefaultCustomActionJSRunner.swift */; };
 		E4CB48BC0B86980657AD96F0 /* PopupPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F86844851929D68343D9230 /* PopupPreview.swift */; };
 		E4E9D257A248FF4238EFC61C /* ExtensionManifestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042DA17A2486356DBB307B2F /* ExtensionManifestTests.swift */; };
+		E52EF8813D63A6B81CBC7AF4 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3798F9F00A529059C2507268 /* AppIcon.icon */; };
 		E54FEEF49C42E14CA90BCD23 /* ContextualPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F98D4F7325D8DCABDBDB79 /* ContextualPolicy.swift */; };
 		E61E4C2DC3230E70EA105D27 /* InstalledAppsScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86C9A6B8F1602DED59E0237E /* InstalledAppsScanner.swift */; };
 		E633AA96EC390407FA06DDC2 /* AboutTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36016F74951C9B2E0CAA6894 /* AboutTabView.swift */; };
@@ -650,6 +651,7 @@
 		36074506EE28161A7C12C456 /* FileOutputKindTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOutputKindTests.swift; sourceTree = "<group>"; };
 		36133B73DCCD88C8E9E54FDE /* VisibilityPredicateRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisibilityPredicateRuntime.swift; sourceTree = "<group>"; };
 		3675FDD7BC06CF3B3CBDA003 /* DynamicActionConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicActionConfigView.swift; sourceTree = "<group>"; };
+		3798F9F00A529059C2507268 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		37C5B4BFF2D115C64916D6E9 /* CustomActionManifestWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomActionManifestWriter.swift; sourceTree = "<group>"; };
 		37E5F9E5FBBD5B5621D7C663 /* NativeContentDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeContentDetectorTests.swift; sourceTree = "<group>"; };
 		382F45A3CA8BFDC01E3132BD /* LogCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogCoreTests.swift; sourceTree = "<group>"; };
@@ -1297,6 +1299,7 @@
 			isa = PBXGroup;
 			children = (
 				287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */,
+				3798F9F00A529059C2507268 /* AppIcon.icon */,
 				2582277236A4342581920E66 /* Assets.xcassets */,
 				8B521F6AE4BA6FD8516E8A1B /* Info.plist */,
 				4C6012F951674D4CC529611B /* OpenClip.entitlements */,
@@ -2021,6 +2024,7 @@
 			files = (
 				8FECBFBC57C5A3A6B1799A8D /* ActionClick.caf in Resources */,
 				40BA561C40828737E8F9C6C0 /* ActionDrop.caf in Resources */,
+				E52EF8813D63A6B81CBC7AF4 /* AppIcon.icon in Resources */,
 				701B65DCD6E9E9A69A6C7C13 /* Assets.xcassets in Resources */,
 				6EB7274B6001EBEA959A65C2 /* Localizable.xcstrings in Resources */,
 				D125FD5A45279574BF101F18 /* StoreIcon.svg in Resources */,
