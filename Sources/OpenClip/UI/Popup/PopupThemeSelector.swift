@@ -18,6 +18,10 @@ struct PopupThemeSelector: View {
     @Setting(SettingKey.popupPageSize) private var pageSize
     @Setting(SettingKey.popupAlignment) private var popupAlignment
     @Setting(SettingKey.popupVerticalPosition) private var popupVerticalPosition
+    @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
+    @Setting(SettingKey.contextualPillPosition) private var contextualPillPosition
+
+    @State private var isShowingContextualPopover = false
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -173,6 +177,57 @@ struct PopupThemeSelector: View {
                     pageSizeStepper
                 }
 
+            }
+
+            SettingsCard("Suggestions") {
+                appearanceControlRow(
+                    title: "Show Suggestions",
+                    info: "Actions suggested when they match your selection. They appear first in the popup and search."
+                ) {
+                    HStack(spacing: 8) {
+                        Button {
+                            isShowingContextualPopover.toggle()
+                        } label: {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(contextualActionsEnabled ? SettingsDesignTokens.primaryText : SettingsDesignTokens.tertiaryText)
+                                .frame(width: 24, height: 24)
+                                .settingsGlassCircle()
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!contextualActionsEnabled)
+                        .help(String(localized: "Choose Suggestions"))
+                        .accessibilityLabel(String(localized: "Choose Suggestions"))
+                        .popover(isPresented: $isShowingContextualPopover, arrowEdge: .top) {
+                            ContextualActionsPopoverView()
+                        }
+
+                        Toggle("", isOn: $contextualActionsEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .accessibilityLabel(String(localized: "Show Suggestions"))
+                    }
+                }
+
+                SettingsDivider()
+
+                appearanceControlRow(
+                    title: "Placement",
+                    info: "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment."
+                ) {
+                    segmentedPicker(
+                        selection: $contextualPillPosition,
+                        options: [
+                            AppearanceOption(label: "Auto", value: ContextualPillPosition.auto.rawValue),
+                            AppearanceOption(label: "Left", value: ContextualPillPosition.left.rawValue),
+                            AppearanceOption(label: "Right", value: ContextualPillPosition.right.rawValue),
+                        ],
+                        label: "Placement",
+                        width: 170
+                    )
+                    .disabled(!contextualActionsEnabled)
+                }
             }
 
             HStack {

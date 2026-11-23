@@ -887,13 +887,14 @@
   "Off in Actions": "Désactivée dans Actions",
   "Placement": "Emplacement",
   "Reset appearance": "Réinitialiser l’apparence",
-  "Show Command Palette Icon in Popup": "Afficher l’icône de la palette de commandes dans le popup",
   "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "Afficher l’icône de la palette de commandes à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’elle est masquée.",
-  "Suggested Actions": "Actions suggérées",
-  "Show Suggested Actions": "Afficher les actions suggérées",
-  "Actions suggested when they match your selection.": "Actions suggérées lorsqu’elles correspondent à votre sélection.",
   "No actions can be suggested yet. Extensions can add them.": "Aucune action ne peut encore être suggérée. Les extensions peuvent en ajouter.",
   "Suggest %@ when it matches": "Suggérer %@ lorsqu’elle correspond",
   "As suggested action": "Comme action suggérée",
-  "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "Inline affiche les suggestions dans la barre. « Action suggérée » affiche le groupe Word Completion au survol ou dans la recherche."
+  "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "Inline affiche les suggestions dans la barre. « Action suggérée » affiche le groupe Word Completion au survol ou dans la recherche.",
+  "Actions suggested when they match your selection. They appear first in the popup and search.": "Actions suggérées lorsqu’elles correspondent à votre sélection. Elles apparaissent en premier dans le popup et la recherche.",
+  "Show Suggestions": "Afficher les suggestions",
+  "Choose Suggestions": "Choisir les suggestions",
+  "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "Emplacement de la barre de suggestions par rapport à la barre principale. Auto suit l’alignement horizontal du popup.",
+  "Show Palette Icon": "Afficher l’icône de la palette"
 }

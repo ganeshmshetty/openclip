@@ -304,7 +304,7 @@ areas; stale debt notes are worse than none.
   reordered. Typing still uses the existing alias/title/fuzzy/keyword ranking and usage tie-breaks;
   clearing the query restores contextual-first order. Scoped palettes keep their explicit child order.
 
-- Suggested actions are managed from the Actions toolbar's **Suggested Actions** popover: the show
+- Suggestions are managed from the Customize page's **Suggestions** card: the show
   toggle, placement, and per-action opt-outs. The Actions page stays one flat list; membership is
   capability-based (`isContextual`) and participation is `disabledContextualActionIDs`. The popup
   promotes matching suggested actions when the feature is on. There is no section split or

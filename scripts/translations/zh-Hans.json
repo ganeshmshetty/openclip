@@ -887,13 +887,14 @@
   "Off in Actions": "已在操作中关闭",
   "Placement": "位置",
   "Reset appearance": "重置外观",
-  "Show Command Palette Icon in Popup": "在弹出窗口中显示命令面板图标",
   "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "在弹出栏末尾显示命令面板图标。隐藏后键盘快捷键仍然有效。",
-  "Suggested Actions": "建议操作",
-  "Show Suggested Actions": "显示建议操作",
-  "Actions suggested when they match your selection.": "与所选内容匹配时建议的操作。",
   "No actions can be suggested yet. Extensions can add them.": "暂无可建议的操作。扩展可以添加。",
   "Suggest %@ when it matches": "匹配时建议 %@",
   "As suggested action": "作为建议操作",
-  "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "内联会在栏中显示建议。作为建议操作会显示 Word Completion 组，供悬停或搜索使用。"
+  "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": "内联会在栏中显示建议。作为建议操作会显示 Word Completion 组，供悬停或搜索使用。",
+  "Actions suggested when they match your selection. They appear first in the popup and search.": "与所选内容匹配时建议的操作。它们会在弹出窗口和搜索中优先显示。",
+  "Show Suggestions": "显示建议",
+  "Choose Suggestions": "选择建议",
+  "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建议栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。",
+  "Show Palette Icon": "显示命令面板图标"
 }

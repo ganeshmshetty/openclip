@@ -38,7 +38,7 @@ The settings window uses the macOS Liquid Glass look.
 
 **Actions** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
 
-Suggested actions are not a separate section. They stay in the list at their normal position. The slider button in the Actions toolbar opens **Suggested Actions**, with the show toggle, placement, and the list of actions that can be suggested. Suggested actions appear first in the popup and search when they match the selection.
+Suggestions are not a separate section. They stay in the list at their normal position. Their show toggle, placement, and per-action list live on the **Customize** page. Matching actions appear first in the popup and search.
 
 ```
 Settings > Actions
@@ -105,7 +105,7 @@ When an action produces text, such as a transformation, a dictionary definition,
 
 ## Popup appearance and theme
 
-Under **General > App**, turn off **Show Command Palette Icon in Popup** to hide the command palette icon at the end of the popup bar. The Command Palette shortcut (⌥⌘C by default) still works.
+Under **General > App**, turn off **Show Palette Icon** to hide the command palette icon at the end of the popup bar. The Command Palette shortcut (⌥⌘C by default) still works.
 
 The **Customize** page shows a static preview of the popup bar and lets you style it. The preview is a fixed mock of the standard actions (Search, Copy, Cut, Paste, and the AI Tools action). It doesn't reflect your configured actions, their order, or your overrides, and hovering over it never affects the real popup.
 
@@ -120,6 +120,10 @@ The preview always shows the active combination. A pinned appearance sets the po
 
 > [!NOTE]
 > The Liquid Glass effect needs macOS 26 or later. On macOS 14 and 15 the Glass option uses an `.ultraThinMaterial` frosted surface.
+
+### Suggestions
+
+The **Suggestions** card controls the separate bar that offers matching actions first. Turn on **Show Suggestions** to enable it. **Placement** chooses whether the bar sits to the left, right, or follows the popup alignment. The button beside the switch opens the list of actions that can be suggested; turn one off to keep it in the main bar only.
 
 ## Actions per page
 

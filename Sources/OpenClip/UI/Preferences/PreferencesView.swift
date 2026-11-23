@@ -54,7 +54,6 @@ public struct PreferencesView: View {
     @State private var packageReloadToken = 0
     @State private var systemColorsToken = 0
     @State private var isSearchExpanded = false
-    @State private var isShowingContextualSettings = false
     @FocusState private var isSearchFocused: Bool
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
@@ -407,7 +406,7 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.saveLocation, "Save Location"),
             (GeneralSearchTarget.playActionSound, "Play Sound"),
             (GeneralSearchTarget.showMenuBarIcon, "Show Menu Bar Icon"),
-            (GeneralSearchTarget.showCommandPalette, "Show Command Palette Icon in Popup"),
+            (GeneralSearchTarget.showCommandPalette, "Show Palette Icon"),
             (GeneralSearchTarget.startAtLogin, "Start at Login"),
             (GeneralSearchTarget.accessibilityAccess, "Accessibility Access"),
             (GeneralSearchTarget.screenRecordingAccess, "Screen Recording Access")
@@ -784,25 +783,6 @@ public struct PreferencesView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-            }
-
-            if router.currentPage == .customize {
-                Button {
-                    isShowingContextualSettings.toggle()
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
-                        .frame(width: 28, height: 28)
-                        .settingsGlassCircle()
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .help(String(localized: "Suggested Actions"))
-                .accessibilityLabel(String(localized: "Suggested Actions"))
-                .popover(isPresented: $isShowingContextualSettings, arrowEdge: .bottom) {
-                    ContextualActionsPopoverView()
-                }
             }
 
             if !toolbarModel.pageMenuItems.isEmpty {

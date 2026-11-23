@@ -7,8 +7,6 @@ import Core
 
 @MainActor
 struct ContextualActionsPopoverView: View {
-    @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
-    @Setting(SettingKey.contextualPillPosition) private var contextualPillPosition
     @Setting(SettingKey.disabledContextualActionIDs) private var disabledActionIDs
     @Setting(SettingKey.disabledActionIDs) private var globallyDisabledActionIDs
     @Setting(SettingKey.disabledPackages) private var disabledPackages
@@ -27,42 +25,9 @@ struct ContextualActionsPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "Suggested Actions"))
+            Text(String(localized: "Suggestions"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(SettingsDesignTokens.rowTitleColor)
-
-            Text(String(localized: "Actions suggested when they match your selection."))
-                .font(.caption)
-                .foregroundStyle(SettingsDesignTokens.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 8) {
-                Text(String(localized: "Show Suggested Actions"))
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(SettingsDesignTokens.rowTitleColor)
-                Spacer(minLength: 8)
-                Toggle("", isOn: $contextualActionsEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .accessibilityLabel(String(localized: "Show Suggested Actions"))
-            }
-
-            HStack(spacing: 8) {
-                Text(String(localized: "Placement"))
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(SettingsDesignTokens.rowTitleColor)
-                Spacer(minLength: 8)
-                Picker("", selection: $contextualPillPosition) {
-                    Text("Auto").tag(ContextualPillPosition.auto.rawValue)
-                    Text("Left").tag(ContextualPillPosition.left.rawValue)
-                    Text("Right").tag(ContextualPillPosition.right.rawValue)
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(width: 150)
-                .disabled(!contextualActionsEnabled)
-            }
 
             Divider()
 

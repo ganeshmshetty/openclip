@@ -1233,30 +1233,30 @@
         }
       }
     },
-    "Actions suggested when they match your selection.": {
+    "Actions suggested when they match your selection. They appear first in the popup and search.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "与所选内容匹配时建议的操作。"
+            "value": "与所选内容匹配时建议的操作。它们会在弹出窗口和搜索中优先显示。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "與選取內容相符時建議的動作。"
+            "value": "與選取內容相符時建議的動作。它們會在彈出視窗和搜尋中優先顯示。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Actions suggérées lorsqu’elles correspondent à votre sélection."
+            "value": "Actions suggérées lorsqu’elles correspondent à votre sélection. Elles apparaissent en premier dans le popup et la recherche."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "選択内容に一致したときにおすすめされるアクションです。"
+            "value": "選択内容に一致したときにおすすめされるアクションです。ポップアップと検索で優先的に表示されます。"
           }
         }
       }
@@ -4085,6 +4085,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アイコンを選択"
+          }
+        }
+      }
+    },
+    "Choose Suggestions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisir les suggestions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補を選択"
           }
         }
       }
@@ -19853,34 +19881,6 @@
         }
       }
     },
-    "Show Command Palette Icon in Popup": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在弹出窗口中显示命令面板图标"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在彈出視窗中顯示命令面板圖示"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher l’icône de la palette de commandes dans le popup"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ポップアップにコマンドパレットのアイコンを表示"
-          }
-        }
-      }
-    },
     "Show Icon": {
       "localizations": {
         "zh-Hans": {
@@ -19965,6 +19965,34 @@
         }
       }
     },
+    "Show Palette Icon": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示命令面板图标"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示命令面板圖示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher l’icône de la palette"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パレットアイコンを表示"
+          }
+        }
+      }
+    },
     "Show Search All Actions": {
       "localizations": {
         "zh-Hans": {
@@ -20021,30 +20049,30 @@
         }
       }
     },
-    "Show Suggested Actions": {
+    "Show Suggestions": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "显示建议操作"
+            "value": "显示建议"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "顯示建議動作"
+            "value": "顯示建議"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Afficher les actions suggérées"
+            "value": "Afficher les suggestions"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "おすすめアクションを表示"
+            "value": "候補を表示"
           }
         }
       }
@@ -21053,34 +21081,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "一致したときに%@をおすすめ"
-          }
-        }
-      }
-    },
-    "Suggested Actions": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "建议操作"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "建議動作"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Actions suggérées"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "おすすめアクション"
           }
         }
       }
@@ -24329,6 +24329,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipへようこそ"
+          }
+        }
+      }
+    },
+    "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emplacement de la barre de suggestions par rapport à la barre principale. Auto suit l’alignement horizontal du popup."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メインバーに対する候補バーの位置。自動はポップアップの水平方向の配置に従います。"
           }
         }
       }
