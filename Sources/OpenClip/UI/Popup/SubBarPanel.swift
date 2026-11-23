@@ -104,13 +104,20 @@ public class SubBarPanel: NSPanel {
         }
 
         public override func cursorUpdate(with event: NSEvent) {
+            guard isOverCard(event) else { return }
             NSCursor.arrow.set()
         }
 
         public override func mouseEntered(with event: NSEvent) {
             super.mouseEntered(with: event)
-            NSCursor.arrow.set()
+            if isOverCard(event) {
+                NSCursor.arrow.set()
+            }
             onMouseMoved?()
+        }
+
+        private func isOverCard(_ event: NSEvent) -> Bool {
+            Self.isInsideClickableRegion(point: convert(event.locationInWindow, from: nil), bounds: bounds)
         }
 
         public override func mouseMoved(with event: NSEvent) {

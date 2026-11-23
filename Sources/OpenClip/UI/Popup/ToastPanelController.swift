@@ -350,7 +350,14 @@ public final class ToastPanelController {
 
 /// Plain container view hosting the toast view. Excludes the shadow ring from view hit-testing.
 final class ToastContainerView: NSView {
-    override func hitTest(_ point: NSPoint) -> NSView? {
+    /// Accessibility hit-testing resolves elements on a helper thread, so this override must not
+    /// assert the main actor: a background caller gets no view instead of trapping.
+    override nonisolated func hitTest(_ point: NSPoint) -> NSView? {
+        guard Thread.isMainThread else { return nil }
+        return MainActor.assumeIsolated { self.hitTestOnMainThread(point) }
+    }
+
+    private func hitTestOnMainThread(_ point: NSPoint) -> NSView? {
         let view = super.hitTest(point)
         // A hit on the container itself (the shadow ring) must not activate the toast.
         if view === self {

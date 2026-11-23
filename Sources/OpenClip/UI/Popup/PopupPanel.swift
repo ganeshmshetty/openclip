@@ -81,15 +81,26 @@ public class PopupPanel: NSPanel {
         var onMouseMoved: (() -> Void)?
 
         /// Only the area inside the shadow ring belongs to the popup. Pure, so it is unit-testable.
-        public static func isInsideClickableRegion(point: NSPoint, bounds: NSRect) -> Bool {
+        public nonisolated static func isInsideClickableRegion(point: NSPoint, bounds: NSRect) -> Bool {
             bounds.insetBy(dx: PopupMetrics.popupShadowInset, dy: PopupMetrics.popupShadowInset).contains(point)
         }
 
-        public override func isMousePoint(_ point: NSPoint, in rect: NSRect) -> Bool {
-            Self.isInsideClickableRegion(point: point, bounds: bounds)
+        public nonisolated override func isMousePoint(_ point: NSPoint, in rect: NSRect) -> Bool {
+            guard Thread.isMainThread else { return false }
+            return MainActor.assumeIsolated {
+                Self.isInsideClickableRegion(point: point, bounds: self.bounds)
+            }
         }
 
-        public override func hitTest(_ point: NSPoint) -> NSView? {
+        /// Accessibility hit-testing resolves elements on a helper thread, so this override must not
+        /// assert the main actor: a background caller gets no view, which keeps the overlay out of the
+        /// AX tree instead of trapping.
+        public nonisolated override func hitTest(_ point: NSPoint) -> NSView? {
+            guard Thread.isMainThread else { return nil }
+            return MainActor.assumeIsolated { self.hitTestOnMainThread(point) }
+        }
+
+        private func hitTestOnMainThread(_ point: NSPoint) -> NSView? {
             guard Self.isInsideClickableRegion(point: point, bounds: bounds) else {
                 return nil
             }
@@ -112,13 +123,22 @@ public class PopupPanel: NSPanel {
         }
 
         public override func cursorUpdate(with event: NSEvent) {
+            // The tracking area spans the shadow ring; only the card owns the arrow. Leaving the
+            // cursor alone over the ring keeps the app's I-beam while selecting.
+            guard isOverCard(event) else { return }
             NSCursor.arrow.set()
         }
 
         public override func mouseEntered(with event: NSEvent) {
             super.mouseEntered(with: event)
-            NSCursor.arrow.set()
+            if isOverCard(event) {
+                NSCursor.arrow.set()
+            }
             onMouseMoved?()
+        }
+
+        private func isOverCard(_ event: NSEvent) -> Bool {
+            Self.isInsideClickableRegion(point: convert(event.locationInWindow, from: nil), bounds: bounds)
         }
 
         public override func mouseMoved(with event: NSEvent) {

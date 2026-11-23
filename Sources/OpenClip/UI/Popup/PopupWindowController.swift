@@ -464,6 +464,11 @@ public class PopupWindowController {
         }
         
         setupMonitors()
+        // Start inert unless the pointer is already over the card. An interactive transparent window
+        // under a stationary pointer hands AppKit the cursor for the shadow ring, which turns the
+        // app's I-beam into an arrow the moment the bar appears. The global monitor keeps this in
+        // step afterwards; without it the panel must stay interactive so clicks still land.
+        updatePopupHover(at: NSEvent.mouseLocation)
         // Two bounded snapshots catch delayed AppKit hiding/Space changes without polling.
         Task { @MainActor [weak self] in
             for delay in [150_000_000, 600_000_000] {

@@ -880,8 +880,10 @@ lines by height interleaved multi-column text.
   which drive the same `updatePopupHover`/`updateSubBarHover` pipeline. That path deliberately passes
   `toggleClickThrough: false`: with no monitor to notice pointer re-entry, toggling
   `ignoresMouseEvents` would strand the panel under the cursor. The monitors remain the source of
-  click/scroll/key dismissal. Panel `mouseExited` updates hover and sub-bar grace; it does not
-  dismiss the main popup. Group and AI Tools buttons route SwiftUI `.onHover` solely through
+  click/scroll/key dismissal. A freshly shown panel syncs click-through from the live pointer when a
+  global monitor exists, so a card that opens with the pointer on its shadow ring is inert from the
+  first frame instead of resolving the cursor for an interactive transparent window. Panel
+  `mouseExited` updates hover and sub-bar grace; it does not dismiss the main popup. Group and AI Tools buttons route SwiftUI `.onHover` solely through
   the local fallback; it cannot start or cancel dwell while cursor tracking owns hover. Both
   paths use the same target-transition handler, so duplicate entries and stale local exits cannot
   restart dwell or cancel a different group's timer. Pointer-distance dismissal in fullscreen remains dependent on monitor
