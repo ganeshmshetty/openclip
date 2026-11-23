@@ -217,7 +217,7 @@ Sources/
         │   ├── PopupPageLayout.swift         # Pagination metrics & chunking
         │   ├── PopupPanel.swift              # NSPanel subclass (scoped allowsKey + bottom-edge pin on content-driven resize)
         │   ├── PopupPositioner.swift         # Frame math & screen clamping (pure static, no singletons)
-        │   ├── PopupPreview.swift            # Static popup bar preview (fixed canonical actions; Preferences Appearance tab)
+        │   ├── PopupPreview.swift            # Static popup bar preview (fixed canonical actions; Preferences Customize tab)
         │   ├── PopupSearchView.swift         # Action-search palette: field + ranked results as one surface with the bar
         │   ├── PaletteAIPrompt.swift         # Palette AI rows: "Ask AI" / "Save as AI tool", the ⏎/⇧⏎ hint, instruction + tool-title rules
         │   ├── PopupThemeModel.swift         # Theme resolution: category (classic/glass) + shared appearance → tokens/colorScheme
@@ -243,7 +243,7 @@ Sources/
             ├── AIActionsSection.swift        # AI prompt library section (reorderable, rows drill into a prompt)
             ├── AIConfigureForm.swift         # Shared AI engine/provider form (embedded in AIPage and onboarding)
             ├── AIPage.swift                  # AI page (toggle + engine + prompts) and the prompt edit/new pages
-            ├── AppearanceTabView.swift       # Appearance page: popup preview + theme selector
+            ├── AppearanceTabView.swift       # Customize page: popup preview + theme selector
             ├── AppRulesTab.swift             # Application rules page
             ├── CustomActionsPage.swift       # The user's custom actions: list, switches, add
             ├── CustomizePage.swift           # Customize page: popup bar order + custom groups (outline + plain rows)

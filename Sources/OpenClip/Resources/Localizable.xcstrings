@@ -1065,6 +1065,34 @@
         }
       }
     },
+    "Action Suggestions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動作建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggestions d’actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクション候補"
+          }
+        }
+      }
+    },
     "Action Title": {
       "localizations": {
         "zh-Hans": {
@@ -1229,6 +1257,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "1ページあたりのアクション数"
+          }
+        }
+      }
+    },
+    "Actions suggested when they match your selection. They appear first in the popup and search.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "与所选内容匹配时建议的操作。它们会在弹出窗口和搜索中优先显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "與選取內容相符時建議的動作。它們會在彈出視窗和搜尋中優先顯示。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions suggérées lorsqu’elles correspondent à votre sélection. Elles apparaissent en premier dans le popup et la recherche."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択内容に一致したときにおすすめされるアクションです。ポップアップと検索で優先的に表示されます。"
           }
         }
       }
@@ -2549,30 +2605,30 @@
         }
       }
     },
-    "As contextual action": {
+    "As suggested action": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "作为上下文操作"
+            "value": "作为建议操作"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "作為情境操作"
+            "value": "作為建議動作"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Comme action contextuelle"
+            "value": "Comme action suggérée"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "コンテキストアクションとして"
+            "value": "おすすめアクションとして"
           }
         }
       }
@@ -4057,6 +4113,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "アイコンを選択"
+          }
+        }
+      }
+    },
+    "Choose Suggestions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇建議"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisir les suggestions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補を選択"
           }
         }
       }
@@ -10445,30 +10529,30 @@
         }
       }
     },
-    "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": {
+    "Inline shows suggestions in the bar. As suggested action shows them as the Word Completion group on hover or search.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "内联会在操作栏中显示建议。上下文操作会显示“单词补全”组，可悬停查看或搜索。"
+            "value": "“内联”在栏中显示建议。“作为建议操作”会以“单词补全”分组的形式在悬停或搜索时显示这些建议。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
+            "value": "「內嵌」會在列中顯示建議。「作為建議動作」會以「單字自動完成」群組的形式，在懸停或搜尋時顯示這些建議。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
+            "value": "« Dans la barre » affiche les suggestions dans la barre. « Comme action suggérée » les affiche sous forme de groupe « Complétion de mots » au survol ou dans la recherche."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。"
+            "value": "「インライン」はバーに候補を表示します。「おすすめアクションとして」は、ホバーまたは検索時に「単語補完」グループとして表示します。"
           }
         }
       }
@@ -12657,6 +12741,34 @@
         }
       }
     },
+    "No actions can be suggested yet. Extensions can add them.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无可建议的操作。扩展可以添加。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前沒有可建議的動作。擴充功能可以加入。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune action ne peut encore être suggérée. Les extensions peuvent en ajouter."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだおすすめできるアクションはありません。拡張機能で追加できます。"
+          }
+        }
+      }
+    },
     "No actions in this group.": {
       "localizations": {
         "zh-Hans": {
@@ -13353,6 +13465,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "オフにするとポップアップバーとパレットから隠れます。"
+          }
+        }
+      }
+    },
+    "Off in Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在操作中关闭"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在動作中關閉"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivée dans Actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションでオフ"
           }
         }
       }
@@ -17137,6 +17277,34 @@
         }
       }
     },
+    "Reset appearance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置外观"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重設外觀"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser l’apparence"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外観をリセット"
+          }
+        }
+      }
+    },
     "Reset to Default": {
       "localizations": {
         "zh-Hans": {
@@ -19741,34 +19909,6 @@
         }
       }
     },
-    "Show Contextual Actions": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示上下文操作"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "顯示情境動作"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher les actions contextuelles"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "コンテキストアクションを表示"
-          }
-        }
-      }
-    },
     "Show Icon": {
       "localizations": {
         "zh-Hans": {
@@ -20185,6 +20325,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ポップアップバーの末尾にコマンドパレットボタンを表示します。"
+          }
+        }
+      }
+    },
+    "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在弹出栏末尾显示命令面板图标。隐藏后键盘快捷键仍然有效。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在彈出列結尾顯示命令面板圖示。隱藏後鍵盤快速鍵仍然有效。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher l’icône de la palette de commandes à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’elle est masquée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップアップバーの末尾にコマンドパレットのアイコンを表示します。非表示でもキーボードショートカットは使用できます。"
           }
         }
       }
@@ -20857,6 +21025,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "ストア"
+          }
+        }
+      }
+    },
+    "Suggest %@ when it matches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匹配时建议 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相符時建議 %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggérer %@ lorsqu’elle correspond"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致したときに%@をおすすめ"
+          }
+        }
+      }
+    },
+    "Suggestion Position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议位置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議位置"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position des suggestions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補の位置"
           }
         }
       }
@@ -24105,6 +24329,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipへようこそ"
+          }
+        }
+      }
+    },
+    "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emplacement de la barre de suggestions par rapport à la barre principale. Auto suit l’alignement horizontal du popup."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メインバーに対する候補バーの位置。自動はポップアップの水平方向の配置に従います。"
           }
         }
       }

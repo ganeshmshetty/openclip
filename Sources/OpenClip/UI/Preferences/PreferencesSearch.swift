@@ -4,6 +4,7 @@ enum GeneralSearchTarget {
     static let appearAutomatically = "general.appearAutomatically"
     static let holdMouseToTrigger = "general.holdMouseToTrigger"
     static let commandPalette = "general.commandPalette"
+    static let showCommandPalette = "general.showCommandPalette"
     static let captureText = "general.captureText"
     static let captureTextAutoCopy = "general.captureTextAutoCopy"
     static let saveLocation = "general.saveLocation"
@@ -14,7 +15,7 @@ enum GeneralSearchTarget {
     static let screenRecordingAccess = "general.screenRecordingAccess"
     static let all = [
         appearAutomatically, holdMouseToTrigger, commandPalette, captureText,
-        captureTextAutoCopy, saveLocation, playActionSound, showMenuBarIcon, startAtLogin, accessibilityAccess, screenRecordingAccess
+        captureTextAutoCopy, saveLocation, playActionSound, showMenuBarIcon, showCommandPalette, startAtLogin, accessibilityAccess, screenRecordingAccess
     ]
 }
 
@@ -57,6 +58,7 @@ struct PreferencesSearchEntry: Identifiable, Hashable, Sendable {
             section: .settings
         )
     }
+
 }
 
 enum PreferencesSearch {

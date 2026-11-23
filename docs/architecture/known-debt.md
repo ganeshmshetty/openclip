@@ -304,6 +304,12 @@ areas; stale debt notes are worse than none.
   reordered. Typing still uses the existing alias/title/fuzzy/keyword ranking and usage tie-breaks;
   clearing the query restores contextual-first order. Scoped palettes keep their explicit child order.
 
+- Suggestions are managed from the Customize page's **Suggestions** card: the
+  toggle, suggestion position, and per-action opt-outs. The Actions page stays one flat list; membership is
+  capability-based (`isContextual`) and participation is `disabledContextualActionIDs`. The popup
+  promotes matching suggested actions when the feature is on. There is no section split or
+  cross-section reorder.
+
 - Classic popup shadows use a separate padded rendering buffer. `PopupCardChromeModifier`
   rasterizes only the solid rounded surface and its contact/ambient shadows, with
   `popupShadowInset` inside the buffer. The buttons and other live content remain outside that
@@ -477,8 +483,8 @@ areas; stale debt notes are worse than none.
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 - The Search all actions button is optional. `SettingKey.showSearchAllActions` defaults to
-  true and is exposed under Customize → Behavior. Hiding it removes its width reservation
-  from popup pagination and updates the Appearance preview. The search hotkey stays available.
+  true and is exposed under General → App. Hiding it removes its width reservation
+  from popup pagination and updates the popup preview in Customize. The search hotkey stays available.
 
 - AI result bodies render Markdown once settled. `MarkdownPresence`
   (`Core/Utils/MarkdownPresence.swift`) is a detection-only scan (no parsing): line-anchored

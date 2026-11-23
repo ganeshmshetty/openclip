@@ -392,7 +392,7 @@ public struct PreferencesView: View {
                 id: "page:\(page.id)",
                 title: page.staticTitle ?? page.id,
                 breadcrumb: String(localized: "Settings"),
-                aliases: [englishTitle(for: page)],
+                aliases: [englishTitle(for: page)] + page.searchKeywords,
                 path: [page]
             )
         }
@@ -406,6 +406,7 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.saveLocation, "Save Location"),
             (GeneralSearchTarget.playActionSound, "Play Sound"),
             (GeneralSearchTarget.showMenuBarIcon, "Show Menu Bar Icon"),
+            (GeneralSearchTarget.showCommandPalette, "Show Command Palette"),
             (GeneralSearchTarget.startAtLogin, "Start at Login"),
             (GeneralSearchTarget.accessibilityAccess, "Accessibility Access"),
             (GeneralSearchTarget.screenRecordingAccess, "Screen Recording Access")
@@ -675,6 +676,14 @@ public struct PreferencesView: View {
                 .settingsGlassCapsule(interactive: false)
             }
 
+            if router.currentPage == .customize || router.currentPage == .shortcuts {
+                searchField(
+                    text: $customizeQuery,
+                    placeholder: String(localized: "Search actions..."),
+                    help: String(localized: "Search Actions")
+                )
+            }
+
             let plusItems = PreferencesPlusMenu.items(for: router.currentPage)
             if !plusItems.isEmpty {
                 if plusItems.count == 1, let only = plusItems.first {
@@ -776,14 +785,6 @@ public struct PreferencesView: View {
                 .buttonStyle(.plain)
             }
 
-            if router.currentPage == .customize || router.currentPage == .shortcuts {
-                searchField(
-                    text: $customizeQuery,
-                    placeholder: String(localized: "Search actions..."),
-                    help: String(localized: "Search Actions")
-                )
-            }
-
             if !toolbarModel.pageMenuItems.isEmpty {
                 Menu {
                     ForEach(toolbarModel.pageMenuItems) { item in
@@ -810,6 +811,7 @@ public struct PreferencesView: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .help(String(localized: "More"))
             }
         }
     }

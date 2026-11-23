@@ -129,7 +129,7 @@ struct ActionSettingsRow: View {
                 case .accepted, .cleared:
                     onAliasMessage(nil)
                 case .invalid:
-                    onAliasMessage(String(localized: "Aliases can only contain letters and numbers."))
+                    onAliasMessage(String(localized: "Letters, numbers, and hyphens only"))
                 case .collision:
                     onAliasMessage(String(localized: "That alias is already used."))
                 }

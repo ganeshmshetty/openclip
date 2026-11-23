@@ -31,7 +31,7 @@ flowchart TD
 
 - **Shared hover state**: the real popup observes `PopupHoverState.shared`, a `@MainActor` `ObservableObject` (`location`, `usesGlobalMouseMonitoring`) fed by `PopupWindowController`'s global mouse monitor.
 - **Injected, not hardcoded**: `PopupView` receives `hoverState: PopupHoverState = .shared` and `isStatic: Bool = false` in its initializer. When `isStatic` is `true`, `updateHoveredTarget`/`useLocalHoverFallback` early-return, so hover tracking is fully inert.
-- **Static previews opt in**: [`PopupPreview`](../../Sources/OpenClip/UI/Popup/PopupPreview.swift) (Preferences Appearance tab and onboarding Finish) is a static visual with a fixed canonical action set. It passes its own `PopupHoverState()` and `isStatic: true`, so hovering the preview never reacts to, or leaks into, the real popup's shared state.
+- **Static previews opt in**: [`PopupPreview`](../../Sources/OpenClip/UI/Popup/PopupPreview.swift) (Preferences Customize tab and onboarding Finish) is a static visual with a fixed canonical action set. It passes its own `PopupHoverState()` and `isStatic: true`, so hovering the preview never reacts to, or leaks into, the real popup's shared state.
 
 ## Positioning math: [`PopupPositioner`](../../Sources/OpenClip/UI/Popup/PopupPositioner.swift)
 

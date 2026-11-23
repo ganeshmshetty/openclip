@@ -5,7 +5,6 @@
 // Styled to match the modern settings cards.
 
 import SwiftUI
-import Core
 
 @MainActor
 struct AppearanceTab: View {

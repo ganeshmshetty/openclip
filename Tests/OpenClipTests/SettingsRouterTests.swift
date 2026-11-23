@@ -129,6 +129,13 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertNil(router.generalRevealRequest)
     }
 
+    func testAppearancePageIsTitledCustomizeAndSearchFindsSuggestedControls() {
+        XCTAssertEqual(SettingsPage.appearance.staticTitle, "Customize")
+        XCTAssertTrue(SettingsPage.appearance.searchKeywords.contains("suggestions"))
+        XCTAssertTrue(SettingsPage.appearance.searchKeywords.contains("suggestion position"))
+        XCTAssertEqual(GeneralSearchTarget.all.count, 12)
+    }
+
     func testShowingTheCurrentPathAgainRecordsNothing() {
         let router = SettingsRouter()
         router.select(.customize)
@@ -315,7 +322,6 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(results.map(\.id), ["action"])
         XCTAssertEqual(results[0].target, .page([.extensionPackage(id: "language-tools"), .action(id: "translate")]))
         XCTAssertEqual(generalControl.target, .generalControl(id: "general.accessibilityAccess"))
-        XCTAssertEqual(GeneralSearchTarget.all.count, 11)
         XCTAssertEqual(Set(GeneralSearchTarget.all).count, GeneralSearchTarget.all.count)
     }
 

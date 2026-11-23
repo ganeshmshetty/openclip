@@ -8,6 +8,8 @@ import Core
 @MainActor
 struct ContextualActionsPopoverView: View {
     @Setting(SettingKey.disabledContextualActionIDs) private var disabledActionIDs
+    @Setting(SettingKey.disabledActionIDs) private var globallyDisabledActionIDs
+    @Setting(SettingKey.disabledPackages) private var disabledPackages
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
 
@@ -23,14 +25,14 @@ struct ContextualActionsPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "Toggle Actions"))
+            Text(String(localized: "Suggestions"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(SettingsDesignTokens.rowTitleColor)
 
             Divider()
 
             if eligibleActions.isEmpty {
-                Text(String(localized: "No actions with detection rules found."))
+                Text(String(localized: "No actions can be suggested yet. Extensions can add them."))
                     .font(.caption)
                     .foregroundStyle(SettingsDesignTokens.secondaryText)
                     .padding(.vertical, 8)
@@ -66,6 +68,8 @@ struct ContextualActionsPopoverView: View {
         )
 
         let presentation = customizationManager.presented(action, surface: .table)
+        let isGloballyDisabled = globallyDisabledActionIDs.contains(action.id)
+            || (ActionIdentity.extensionPackageID(of: action).map { disabledPackages.contains($0) } ?? false)
 
         return HStack(alignment: .center, spacing: 10) {
             ActionIconView(icon: presentation.icon, size: 15)
@@ -76,6 +80,7 @@ struct ContextualActionsPopoverView: View {
                 .font(.system(size: 12.5, weight: .regular))
                 .foregroundStyle(SettingsDesignTokens.rowTitleColor)
                 .lineLimit(1)
+                .help(presentation.title)
 
             Spacer(minLength: 8)
 
@@ -83,7 +88,10 @@ struct ContextualActionsPopoverView: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .accessibilityLabel(String(localized: "Prioritize \(presentation.title)"))
+                .disabled(isGloballyDisabled)
+                .help(isGloballyDisabled ? String(localized: "Off in Actions") : "")
+                .accessibilityLabel(String(format: String(localized: "Suggest %@ when it matches"), presentation.title))
         }
+        .opacity(isGloballyDisabled ? 0.65 : 1)
     }
 }

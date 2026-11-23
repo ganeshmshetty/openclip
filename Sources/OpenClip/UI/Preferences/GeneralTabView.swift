@@ -18,6 +18,7 @@ struct GeneralTab: View {
     @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
     @Setting(SettingKey.captureTextAutoCopy) private var captureTextAutoCopy
+    @Setting(SettingKey.showSearchAllActions) private var showSearchAllActions
     @Setting(SettingKey.playActionSound) private var playActionSound
     @Setting(SettingKey.actionSoundName) private var actionSoundName
     @State private var fileSaveLocation: String
@@ -52,7 +53,7 @@ struct GeneralTab: View {
                         isOn: $isAppEnabled
                     )
                     .id(GeneralSearchTarget.appearAutomatically)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.appearAutomatically))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.appearAutomatically))
                     .onChange(of: isAppEnabled) { _, newValue in
                         DefaultSettingsStore.shared.set(.isAppEnabled, value: newValue)
                         NotificationCenter.default.post(name: Notification.Name("OpenClipEnabledStateChanged"), object: newValue)
@@ -68,7 +69,7 @@ struct GeneralTab: View {
                         isOn: $isMouseHoldEnabled
                     )
                     .id(GeneralSearchTarget.holdMouseToTrigger)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.holdMouseToTrigger))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.holdMouseToTrigger))
                     .onChange(of: isMouseHoldEnabled) { _, newValue in
                         DefaultSettingsStore.shared.set(.isMouseHoldEnabled, value: newValue)
                     }
@@ -87,7 +88,7 @@ struct GeneralTab: View {
                         Shortcut(for: .togglePopup)
                     }
                     .id(GeneralSearchTarget.commandPalette)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.commandPalette))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.commandPalette))
 
                     SettingsDivider()
 
@@ -101,7 +102,7 @@ struct GeneralTab: View {
                             Shortcut(for: .captureText)
                         }
                         .id(GeneralSearchTarget.captureText)
-                        .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureText))
+                        .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureText))
 
                         Toggle("Copy to Clipboard Automatically", isOn: $captureTextAutoCopy)
                             .toggleStyle(.checkbox)
@@ -113,7 +114,7 @@ struct GeneralTab: View {
                             .padding(.trailing, SettingsDesignTokens.sectionCardPaddingH)
                             .padding(.bottom, SettingsDesignTokens.sectionCardPaddingV)
                             .id(GeneralSearchTarget.captureTextAutoCopy)
-                            .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextAutoCopy))
+                            .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextAutoCopy))
                     }
                 }
 
@@ -153,7 +154,7 @@ struct GeneralTab: View {
                         }
                     }
                     .id(GeneralSearchTarget.saveLocation)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.saveLocation))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.saveLocation))
                 }
 
                 SettingsCard("App") {
@@ -216,7 +217,7 @@ struct GeneralTab: View {
                         }
                     }
                     .id(GeneralSearchTarget.playActionSound)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.playActionSound))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.playActionSound))
 
                     SettingsDivider()
 
@@ -227,7 +228,7 @@ struct GeneralTab: View {
                         isOn: $showMenuBarIcon
                     )
                     .id(GeneralSearchTarget.showMenuBarIcon)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.showMenuBarIcon))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.showMenuBarIcon))
                     .onChange(of: showMenuBarIcon) { _, newValue in
                         DefaultSettingsStore.shared.set(.showMenuBarIcon, value: newValue)
                         NotificationCenter.default.post(
@@ -239,13 +240,25 @@ struct GeneralTab: View {
                     SettingsDivider()
 
                     SettingsToggleRow(
+                        title: "Show Command Palette",
+                        info: "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.",
+                        systemImage: "magnifyingglass",
+                        plainIcon: true,
+                        isOn: $showSearchAllActions
+                    )
+                    .id(GeneralSearchTarget.showCommandPalette)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.showCommandPalette))
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
                         title: "Start at Login",
                         systemImage: "arrow.clockwise.circle",
                         plainIcon: true,
                         isOn: $launchManager.isEnabled
                     )
                     .id(GeneralSearchTarget.startAtLogin)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.startAtLogin))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.startAtLogin))
 
                     if launchManager.requiresApproval {
                         SettingsDivider()
@@ -299,7 +312,7 @@ struct GeneralTab: View {
                         }
                     }
                     .id(GeneralSearchTarget.accessibilityAccess)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.accessibilityAccess))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.accessibilityAccess))
 
                     SettingsDivider()
 
@@ -332,7 +345,7 @@ struct GeneralTab: View {
                         }
                     }
                     .id(GeneralSearchTarget.screenRecordingAccess)
-                    .modifier(GeneralSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.screenRecordingAccess))
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.screenRecordingAccess))
                 }
                 }
                 .padding(.horizontal, 24)
@@ -415,24 +428,5 @@ struct GeneralTab: View {
             fileSaveLocation = chosenURL.path
             DefaultSettingsStore.shared.set(.fileSaveLocation, value: chosenURL.path)
         }
-    }
-}
-
-private struct GeneralSearchHighlight: ViewModifier {
-    let isHighlighted: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .background {
-                if isHighlighted {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.13))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                .strokeBorder(Color.accentColor.opacity(0.32), lineWidth: 1)
-                        }
-                }
-            }
-            .animation(.easeInOut(duration: 0.18), value: isHighlighted)
     }
 }

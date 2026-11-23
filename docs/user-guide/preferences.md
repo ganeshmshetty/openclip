@@ -31,36 +31,39 @@ The settings window uses the macOS Liquid Glass look.
 - Each page and action has its own colored rounded-square icon.
 - Settings details appear in an inset rounded card. Its header has back and forward buttons (`⌘[` and `⌘]`), breadcrumbs, and buttons for the current page.
 - To record a shortcut, click its field. A popover shows the modifier keys as you press them and listens for the key combination.
-- The sidebar lists the core pages (General, Appearance, Customize, Shortcuts, App Rules, Store, About), then AI, built-in actions, custom actions, and installed extensions.
+- The sidebar lists the core pages (General, Customize, Actions, AI, App Rules, Store, About), then built-in actions, custom actions, and installed extensions.
 - **About** holds the version, links, and update controls, including an **Update Channel** picker for the **Stable** and **Beta** feeds.
 
-## Customize: the popup bar's layout
+## Actions: the popup bar's layout
 
-**Customize** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
+**Actions** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
+
+Suggestions are not a separate section. They stay in the list at their normal position. Their toggle, suggestion position, and per-action list live on the **Customize** page. Matching actions appear first in the popup and search.
 
 ```
-Settings > Customize
+Settings > Actions
 ├── Drag a row to reorder the popup bar
+├── Drop an action onto another action to group them
 ├── Drop an action onto a group to add it; drag it out to remove it
 ├── Select several rows, then + (or right-click › Create Group from Selection…)
 └── Right-click a group › Configure Group… / Ungroup
 ```
 
-Rows have no switches or buttons. Double-click a row to open that action's own page, where its name, icon, shortcut, options, and enable switch live. The toolbar's **+** creates a **New Group** from the selected rows.
+Each row has an enable switch and a **›** to that action's own page, where its name, icon, shortcut, options, and enable switch live. Double-clicking the row opens the same page. The toolbar's **+** creates a **New Group** from the selected rows.
 
 ### Action order
 
-Dragging an action changes its position in the popup bar. [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) saves the order automatically under the key `actionOrder`.
+Dragging an action changes its position in the popup bar. [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) saves the order automatically under the key `actionOrder`; the popup uses each action's suggested classification to build its suggested island and search order.
 
 ## Shortcuts
 
-**Shortcuts** lists every runnable action: built-ins, AI prompts, your custom actions, and then one group for each installed extension. Each row has a switch, an alias (type it in the palette to jump straight to the action), a hotkey, and a **›** that opens the action's own page. Search filters by name, alias, or keyword.
+Each action's own page has its alias and global hotkey. An alias jumps straight to the action when you type it in the palette; a hotkey runs the action from anywhere.
 
 ## Built-in actions
 
 Search, Copy, Cut, Paste, Calculate, Define, Add Event, Open Link, Reveal in Finder, and Word Completion each have a row in the sidebar's second group. The page opens with the same header an extension's page has, showing the action's icon and name. Below it are the name and icon shown in the popup bar, the alias and hotkey, and any options the action declares (Search's engine, for example). The action's switch is in the toolbar. **Revert** discards unsaved edits and **Save Changes** applies them.
 
-Word Completion's page also has **Only suggest for misspelled words** (on by default) and **Show completions**. Both apply as soon as they change. A word counts as spelled correctly when any enabled keyboard input language accepts it. **Inline**, the default, opens the suggestion row in the bar. **As contextual action** shows the Word Completion group in the contextual island: hovering it opens the suggestions sub-bar, and clicking it opens a scoped search palette. Picking a suggestion pastes it. The group stays hidden when there is nothing to suggest.
+Word Completion's page also has **Only suggest for misspelled words** (on by default) and **Show completions**. Both apply as soon as they change. A word counts as spelled correctly when any enabled keyboard input language accepts it. **Inline**, the default, opens the suggestion row in the bar. **As suggested action** shows the Word Completion group in the suggested island: hovering it opens the suggestions sub-bar, and clicking it opens a scoped search palette. Picking a suggestion pastes it. The group stays hidden when there is nothing to suggest.
 
 ## Custom actions
 
@@ -102,9 +105,9 @@ When an action produces text, such as a transformation, a dictionary definition,
 
 ## Popup appearance and theme
 
-Under **Customize > Behavior**, turn off **Show Command Palette** to hide the ⌘ search button at the end of the popup bar. The search shortcut (⌥⌘C by default) still works. **Reset** brings the button back.
+Under **General > App**, turn off **Show Command Palette** to hide the command palette icon at the end of the popup bar. The Command Palette shortcut (⌥⌘C by default) still works.
 
-The **Appearance** page shows a static preview of the popup bar and lets you style it. The preview is a fixed mock of the standard actions (Search, Copy, Cut, Paste, and the AI Tools action). It doesn't reflect your configured actions, their order, or your overrides, and hovering over it never affects the real popup.
+The **Customize** page shows a static preview of the popup bar and lets you style it. The preview is a fixed mock of the standard actions (Search, Copy, Cut, Paste, and the AI Tools action). It doesn't reflect your configured actions, their order, or your overrides, and hovering over it never affects the real popup.
 
 ### Popup theme
 
@@ -118,9 +121,13 @@ The preview always shows the active combination. A pinned appearance sets the po
 > [!NOTE]
 > The Liquid Glass effect needs macOS 26 or later. On macOS 14 and 15 the Glass option uses an `.ultraThinMaterial` frosted surface.
 
+### Suggestions
+
+The **Suggestions** card controls the separate bar that offers matching actions first. Turn on **Action Suggestions** to enable it. **Suggestion Position** chooses whether the bar sits to the left, right, or follows the popup alignment. The button beside the switch opens the list of actions that can be suggested; turn one off to keep it in the main bar only.
+
 ## Actions per page
 
-In Appearance, use the minus and plus stepper to choose 2 to 24 actions per page (default 6). This applies to the main bar and to group bars. Wide actions and smaller displays can still cause pagination before the chosen count is reached.
+In Customize, use the minus and plus stepper to choose 2 to 24 actions per page (default 6). This applies to the main bar and to group bars. Wide actions and smaller displays can still cause pagination before the chosen count is reached.
 
 ## AI provider setup
 

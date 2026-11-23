@@ -214,7 +214,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
 
         switch page {
         case .customize:
-            configureActionButton(symbol: "plus", tooltip: String(localized: "New Group"))
+            configureActionButton(symbol: "plus", tooltip: String(localized: "Add"))
         case .appRules:
             configureActionButton(symbol: "plus", tooltip: String(localized: "Add Application"))
         case .ai:
