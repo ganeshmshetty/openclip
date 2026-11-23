@@ -5041,34 +5041,6 @@
         }
       }
     },
-    "Configure contextual actions": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配置上下文操作"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "設定情境動作"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Configurer les actions contextuelles"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "コンテキストアクションを設定"
-          }
-        }
-      }
-    },
     "Configure per-app trigger and paste behavior.": {
       "localizations": {
         "zh-Hans": {
@@ -11785,34 +11757,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "「%@」に一致"
-          }
-        }
-      }
-    },
-    "Matching actions appear in a separate bar beside the popup and rank first in search.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "匹配的操作会显示在弹出窗口旁的独立栏中，并在搜索中优先显示。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "符合的動作會顯示在彈出視窗旁的獨立列中，並在搜尋中優先顯示。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les actions correspondantes apparaissent dans une barre séparée à côté du popup et sont prioritaires dans la recherche."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "一致するアクションはポップアップ横の独立したバーに表示され、検索でも優先されます。"
           }
         }
       }
@@ -24413,34 +24357,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipへようこそ"
-          }
-        }
-      }
-    },
-    "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "上下文栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "情境列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Emplacement de la barre contextuelle par rapport à la barre principale. Auto suit l’alignement horizontal du popup."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "メインバーに対するコンテキストバーの位置。自動はポップアップの水平方向の配置に従います。"
           }
         }
       }

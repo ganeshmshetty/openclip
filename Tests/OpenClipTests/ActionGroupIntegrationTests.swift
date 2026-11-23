@@ -1356,7 +1356,6 @@ final class ActionsOutlineDropTests: XCTestCase {
         let outline = ActionsOutlineTableView()
         let header = try XCTUnwrap(outlineCoordinator.displayRootNodes.first { $0.isSectionHeader })
 
-        XCTAssertTrue(outlineCoordinator.outlineView(outline, isGroupItem: header))
         XCTAssertFalse(outlineCoordinator.outlineView(outline, shouldSelectItem: header))
         XCTAssertNil(outlineCoordinator.outlineView(outline, pasteboardWriterForItem: header))
     }

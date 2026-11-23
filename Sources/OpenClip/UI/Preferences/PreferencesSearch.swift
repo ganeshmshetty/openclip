@@ -19,12 +19,6 @@ enum GeneralSearchTarget {
     ]
 }
 
-enum AppearanceSearchTarget {
-    static let contextualActions = "appearance.contextualActions"
-    static let contextualPlacement = "appearance.contextualPlacement"
-    static let all = [contextualActions, contextualPlacement]
-}
-
 enum PreferencesSearchSection: Hashable, Sendable {
     case settings
     case actions
@@ -33,7 +27,6 @@ enum PreferencesSearchSection: Hashable, Sendable {
 enum PreferencesSearchTarget: Hashable, Sendable {
     case page([SettingsPage])
     case generalControl(id: String)
-    case appearanceControl(id: String)
 }
 
 struct PreferencesSearchEntry: Identifiable, Hashable, Sendable {
@@ -66,16 +59,6 @@ struct PreferencesSearchEntry: Identifiable, Hashable, Sendable {
         )
     }
 
-    static func appearanceControl(id: String, title: String, aliases: [String] = []) -> Self {
-        Self(
-            id: "appearance-control:\(id)",
-            title: title,
-            breadcrumb: String(localized: "Customize"),
-            aliases: aliases,
-            target: .appearanceControl(id: id),
-            section: .settings
-        )
-    }
 }
 
 enum PreferencesSearch {

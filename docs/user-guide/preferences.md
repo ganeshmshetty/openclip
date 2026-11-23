@@ -41,7 +41,7 @@ The settings window uses the macOS Liquid Glass look.
 - **Contextual Actions** lists top-level actions the popup treats as contextual: standalone contextual actions and extension groups that are themselves contextual.
 - **All Actions** lists everything else, including custom groups, extension packages, and normal actions.
 
-Contextual actions inside a group or package stay with their container in **All Actions**. The info button beside **Contextual Actions** repeats this.
+Contextual actions inside a group or package stay with their container in **All Actions**. The info button beside **Contextual Actions** repeats this. The slider button in the Actions toolbar opens **Contextual Actions**, with the show toggle, placement, and the per-action list.
 
 ```
 Settings > Actions

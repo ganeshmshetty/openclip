@@ -18,11 +18,6 @@ struct PopupThemeSelector: View {
     @Setting(SettingKey.popupPageSize) private var pageSize
     @Setting(SettingKey.popupAlignment) private var popupAlignment
     @Setting(SettingKey.popupVerticalPosition) private var popupVerticalPosition
-    @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
-    @Setting(SettingKey.contextualPillPosition) private var contextualPillPosition
-
-    @State private var isShowingContextualPopover = false
-    var highlightedControlID: String? = nil
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -178,61 +173,6 @@ struct PopupThemeSelector: View {
                     pageSizeStepper
                 }
 
-            }
-
-            SettingsCard("Contextual Actions") {
-                appearanceControlRow(
-                    title: "Show Contextual Actions",
-                    info: "Matching actions appear in a separate bar beside the popup and rank first in search."
-                ) {
-                    HStack(spacing: 8) {
-                        Button {
-                            isShowingContextualPopover.toggle()
-                        } label: {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(contextualActionsEnabled ? SettingsDesignTokens.primaryText : SettingsDesignTokens.tertiaryText)
-                                .frame(width: 24, height: 24)
-                                .settingsGlassCircle()
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!contextualActionsEnabled)
-                        .help(String(localized: "Configure contextual actions"))
-                        .accessibilityLabel(String(localized: "Configure contextual actions"))
-                        .popover(isPresented: $isShowingContextualPopover, arrowEdge: .top) {
-                            ContextualActionsPopoverView()
-                        }
-
-                        Toggle("", isOn: $contextualActionsEnabled)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .accessibilityLabel(String(localized: "Show Contextual Actions"))
-                    }
-                }
-                .id(AppearanceSearchTarget.contextualActions)
-                .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == AppearanceSearchTarget.contextualActions))
-
-                SettingsDivider()
-
-                appearanceControlRow(
-                    title: "Placement",
-                    info: "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment."
-                ) {
-                    segmentedPicker(
-                        selection: $contextualPillPosition,
-                        options: [
-                            AppearanceOption(label: "Auto", value: ContextualPillPosition.auto.rawValue),
-                            AppearanceOption(label: "Left", value: ContextualPillPosition.left.rawValue),
-                            AppearanceOption(label: "Right", value: ContextualPillPosition.right.rawValue),
-                        ],
-                        label: "Placement",
-                        width: 170
-                    )
-                    .disabled(!contextualActionsEnabled)
-                }
-                .id(AppearanceSearchTarget.contextualPlacement)
-                .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == AppearanceSearchTarget.contextualPlacement))
             }
 
             HStack {

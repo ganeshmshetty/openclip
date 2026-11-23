@@ -337,11 +337,10 @@ private struct SectionHeaderRowView: View {
                 .foregroundStyle(SettingsDesignTokens.secondaryText)
 
             if let info = section.info {
-                Image(systemName: "info.circle")
-                    .font(.system(size: 10))
-                    .foregroundStyle(SettingsDesignTokens.tertiaryText)
-                    .help(info)
-                    .accessibilityLabel(info)
+                SettingsInfoButton(
+                    title: LocalizedStringKey(section.title),
+                    info: LocalizedStringKey(info)
+                )
             }
 
             Spacer(minLength: 0)
@@ -610,6 +609,7 @@ struct ActionsOutlineView: NSViewRepresentable {
         outlineView.intercellSpacing = NSSize(width: 0, height: 0)
         outlineView.backgroundColor = .clear
         outlineView.focusRingType = .none
+        outlineView.floatsGroupRows = false
         outlineView.allowsMultipleSelection = true
         outlineView.indentationPerLevel = 18
         outlineView.autoresizingMask = [.width]
@@ -1162,10 +1162,6 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             rowView.identifier = identifier
         }
         return rowView
-    }
-
-    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        (item as? OutlineNode)?.isSectionHeader == true
     }
 
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {

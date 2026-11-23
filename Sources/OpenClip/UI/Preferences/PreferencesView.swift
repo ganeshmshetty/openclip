@@ -54,6 +54,7 @@ public struct PreferencesView: View {
     @State private var packageReloadToken = 0
     @State private var systemColorsToken = 0
     @State private var isSearchExpanded = false
+    @State private var isShowingContextualSettings = false
     @FocusState private var isSearchFocused: Bool
     @StateObject private var storeViewModel = ExtensionsStoreViewModel()
     @ObservedObject private var coordinator = ActionCoordinator.shared
@@ -397,17 +398,6 @@ public struct PreferencesView: View {
             )
         }
 
-        entries.append(.appearanceControl(
-            id: AppearanceSearchTarget.contextualActions,
-            title: String(localized: "Contextual Actions"),
-            aliases: ["contextual", "contextual actions", "pill", "placement"]
-        ))
-        entries.append(.appearanceControl(
-            id: AppearanceSearchTarget.contextualPlacement,
-            title: String(localized: "Placement"),
-            aliases: ["contextual placement", "pill position"]
-        ))
-
         let generalControls: [(String, String)] = [
             (GeneralSearchTarget.appearAutomatically, "Appear Automatically"),
             (GeneralSearchTarget.holdMouseToTrigger, "Hold Mouse to Trigger"),
@@ -575,7 +565,6 @@ public struct PreferencesView: View {
         switch result.target {
         case .page(let path): router.show(path: path)
         case .generalControl(let id): router.revealGeneralControl(id)
-        case .appearanceControl(let id): router.revealAppearanceControl(id)
         }
     }
 
@@ -688,6 +677,14 @@ public struct PreferencesView: View {
                 .settingsGlassCapsule(interactive: false)
             }
 
+            if router.currentPage == .customize || router.currentPage == .shortcuts {
+                searchField(
+                    text: $customizeQuery,
+                    placeholder: String(localized: "Search actions..."),
+                    help: String(localized: "Search Actions")
+                )
+            }
+
             let plusItems = PreferencesPlusMenu.items(for: router.currentPage)
             if !plusItems.isEmpty {
                 if plusItems.count == 1, let only = plusItems.first {
@@ -789,12 +786,23 @@ public struct PreferencesView: View {
                 .buttonStyle(.plain)
             }
 
-            if router.currentPage == .customize || router.currentPage == .shortcuts {
-                searchField(
-                    text: $customizeQuery,
-                    placeholder: String(localized: "Search actions..."),
-                    help: String(localized: "Search Actions")
-                )
+            if router.currentPage == .customize {
+                Button {
+                    isShowingContextualSettings.toggle()
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SettingsDesignTokens.navPillForeground)
+                        .frame(width: 28, height: 28)
+                        .settingsGlassCircle()
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "Contextual Actions"))
+                .accessibilityLabel(String(localized: "Contextual Actions"))
+                .popover(isPresented: $isShowingContextualSettings, arrowEdge: .bottom) {
+                    ContextualActionsPopoverView()
+                }
             }
 
             if !toolbarModel.pageMenuItems.isEmpty {
@@ -823,6 +831,7 @@ public struct PreferencesView: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .help(String(localized: "More"))
             }
         }
     }

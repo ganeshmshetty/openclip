@@ -129,30 +129,10 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertNil(router.generalRevealRequest)
     }
 
-    func testAppearanceRevealRequestsRepeatOnTheSamePageAndIgnoreStaleClears() throws {
-        let router = SettingsRouter()
-        router.revealAppearanceControl(AppearanceSearchTarget.contextualActions)
-        let first = try XCTUnwrap(router.appearanceRevealRequest)
-        XCTAssertEqual(router.path, [.appearance])
-
-        router.revealAppearanceControl(AppearanceSearchTarget.contextualPlacement)
-        let second = try XCTUnwrap(router.appearanceRevealRequest)
-        XCTAssertNotEqual(first.id, second.id)
-        router.clearAppearanceRevealRequest(first.id)
-        XCTAssertEqual(router.appearanceRevealRequest, second)
-
-        router.clearAppearanceRevealRequest(second.id)
-        XCTAssertNil(router.appearanceRevealRequest)
-    }
-
-    func testAppearancePageIsTitledCustomizeAndSearchControlTargetsAreStable() {
+    func testAppearancePageIsTitledCustomizeAndActionsSearchFindsContextualControls() {
         XCTAssertEqual(SettingsPage.appearance.staticTitle, "Customize")
-        let contextualActions = PreferencesSearchEntry.appearanceControl(
-            id: AppearanceSearchTarget.contextualActions,
-            title: "Contextual Actions"
-        )
-        XCTAssertEqual(contextualActions.target, .appearanceControl(id: "appearance.contextualActions"))
-        XCTAssertEqual(contextualActions.breadcrumb, "Customize")
+        XCTAssertTrue(SettingsPage.customize.searchKeywords.contains("contextual"))
+        XCTAssertTrue(SettingsPage.customize.searchKeywords.contains("placement"))
         XCTAssertEqual(GeneralSearchTarget.all.count, 12)
     }
 
