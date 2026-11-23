@@ -894,7 +894,7 @@
   "Actions suggested when they match your selection. They appear first in the popup and search.": "選択内容に一致したときにおすすめされるアクションです。ポップアップと検索で優先的に表示されます。",
   "Choose Suggestions": "候補を選択",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "メインバーに対する候補バーの位置。自動はポップアップの水平方向の配置に従います。",
-  "Show Palette Icon": "パレットアイコンを表示",
   "Action Suggestions": "アクション候補",
-  "Bar Position": "バーの位置"
+  "Suggestion Position": "候補の位置",
+  "Show Command Palette": "コマンドパレットを表示"
 }

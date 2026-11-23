@@ -38,7 +38,7 @@ The settings window uses the macOS Liquid Glass look.
 
 **Actions** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
 
-Suggestions are not a separate section. They stay in the list at their normal position. Their toggle, bar position, and per-action list live on the **Customize** page. Matching actions appear first in the popup and search.
+Suggestions are not a separate section. They stay in the list at their normal position. Their toggle, suggestion position, and per-action list live on the **Customize** page. Matching actions appear first in the popup and search.
 
 ```
 Settings > Actions
@@ -105,7 +105,7 @@ When an action produces text, such as a transformation, a dictionary definition,
 
 ## Popup appearance and theme
 
-Under **General > App**, turn off **Show Palette Icon** to hide the command palette icon at the end of the popup bar. The Command Palette shortcut (⌥⌘C by default) still works.
+Under **General > App**, turn off **Show Command Palette** to hide the command palette icon at the end of the popup bar. The Command Palette shortcut (⌥⌘C by default) still works.
 
 The **Customize** page shows a static preview of the popup bar and lets you style it. The preview is a fixed mock of the standard actions (Search, Copy, Cut, Paste, and the AI Tools action). It doesn't reflect your configured actions, their order, or your overrides, and hovering over it never affects the real popup.
 
@@ -123,7 +123,7 @@ The preview always shows the active combination. A pinned appearance sets the po
 
 ### Suggestions
 
-The **Suggestions** card controls the separate bar that offers matching actions first. Turn on **Action Suggestions** to enable it. **Bar Position** chooses whether the bar sits to the left, right, or follows the popup alignment. The button beside the switch opens the list of actions that can be suggested; turn one off to keep it in the main bar only.
+The **Suggestions** card controls the separate bar that offers matching actions first. Turn on **Action Suggestions** to enable it. **Suggestion Position** chooses whether the bar sits to the left, right, or follows the popup alignment. The button beside the switch opens the list of actions that can be suggested; turn one off to keep it in the main bar only.
 
 ## Actions per page
 

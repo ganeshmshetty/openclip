@@ -406,7 +406,7 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.saveLocation, "Save Location"),
             (GeneralSearchTarget.playActionSound, "Play Sound"),
             (GeneralSearchTarget.showMenuBarIcon, "Show Menu Bar Icon"),
-            (GeneralSearchTarget.showCommandPalette, "Show Palette Icon"),
+            (GeneralSearchTarget.showCommandPalette, "Show Command Palette"),
             (GeneralSearchTarget.startAtLogin, "Start at Login"),
             (GeneralSearchTarget.accessibilityAccess, "Accessibility Access"),
             (GeneralSearchTarget.screenRecordingAccess, "Screen Recording Access")

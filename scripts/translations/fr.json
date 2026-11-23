@@ -894,7 +894,7 @@
   "Actions suggested when they match your selection. They appear first in the popup and search.": "Actions suggérées lorsqu’elles correspondent à votre sélection. Elles apparaissent en premier dans le popup et la recherche.",
   "Choose Suggestions": "Choisir les suggestions",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "Emplacement de la barre de suggestions par rapport à la barre principale. Auto suit l’alignement horizontal du popup.",
-  "Show Palette Icon": "Afficher l’icône de la palette",
   "Action Suggestions": "Suggestions d’actions",
-  "Bar Position": "Position de la barre"
+  "Suggestion Position": "Position des suggestions",
+  "Show Command Palette": "Afficher la palette de commandes"
 }

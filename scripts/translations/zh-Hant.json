@@ -894,7 +894,7 @@
   "Actions suggested when they match your selection. They appear first in the popup and search.": "與選取內容相符時建議的動作。它們會在彈出視窗和搜尋中優先顯示。",
   "Choose Suggestions": "選擇建議",
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建議列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。",
-  "Show Palette Icon": "顯示命令面板圖示",
   "Action Suggestions": "動作建議",
-  "Bar Position": "列位置"
+  "Suggestion Position": "建議位置",
+  "Show Command Palette": "顯示命令面板"
 }

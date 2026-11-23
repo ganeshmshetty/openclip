@@ -305,7 +305,7 @@ areas; stale debt notes are worse than none.
   clearing the query restores contextual-first order. Scoped palettes keep their explicit child order.
 
 - Suggestions are managed from the Customize page's **Suggestions** card: the
-  toggle, bar position, and per-action opt-outs. The Actions page stays one flat list; membership is
+  toggle, suggestion position, and per-action opt-outs. The Actions page stays one flat list; membership is
   capability-based (`isContextual`) and participation is `disabledContextualActionIDs`. The popup
   promotes matching suggested actions when the feature is on. There is no section split or
   cross-section reorder.

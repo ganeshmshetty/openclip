@@ -213,7 +213,7 @@ struct PopupThemeSelector: View {
                 SettingsDivider()
 
                 appearanceControlRow(
-                    title: "Bar Position",
+                    title: "Suggestion Position",
                     info: "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment."
                 ) {
                     segmentedPicker(
@@ -223,7 +223,7 @@ struct PopupThemeSelector: View {
                             AppearanceOption(label: "Left", value: ContextualPillPosition.left.rawValue),
                             AppearanceOption(label: "Right", value: ContextualPillPosition.right.rawValue),
                         ],
-                        label: "Bar Position",
+                        label: "Suggestion Position",
                         width: 170
                     )
                     .disabled(!contextualActionsEnabled)

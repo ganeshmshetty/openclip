@@ -240,7 +240,7 @@ struct GeneralTab: View {
                     SettingsDivider()
 
                     SettingsToggleRow(
-                        title: "Show Palette Icon",
+                        title: "Show Command Palette",
                         info: "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.",
                         systemImage: "magnifyingglass",
                         plainIcon: true,

@@ -3081,34 +3081,6 @@
         }
       }
     },
-    "Bar Position": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "栏位置"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "列位置"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Position de la barre"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "バーの位置"
-          }
-        }
-      }
-    },
     "Base Endpoint URL": {
       "localizations": {
         "zh-Hans": {
@@ -19909,6 +19881,34 @@
         }
       }
     },
+    "Show Command Palette": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示命令面板"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示命令面板"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher la palette de commandes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コマンドパレットを表示"
+          }
+        }
+      }
+    },
     "Show Icon": {
       "localizations": {
         "zh-Hans": {
@@ -19989,34 +19989,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "メニューバーにアイコンを表示"
-          }
-        }
-      }
-    },
-    "Show Palette Icon": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示命令面板图标"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "顯示命令面板圖示"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher l’icône de la palette"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "パレットアイコンを表示"
           }
         }
       }
@@ -21081,6 +21053,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "一致したときに%@をおすすめ"
+          }
+        }
+      }
+    },
+    "Suggestion Position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议位置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議位置"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position des suggestions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補の位置"
           }
         }
       }
