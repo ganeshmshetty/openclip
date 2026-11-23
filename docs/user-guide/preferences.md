@@ -31,22 +31,22 @@ The settings window uses the macOS Liquid Glass look.
 - Each page and action has its own colored rounded-square icon.
 - Settings details appear in an inset rounded card. Its header has back and forward buttons (`⌘[` and `⌘]`), breadcrumbs, and buttons for the current page.
 - To record a shortcut, click its field. A popover shows the modifier keys as you press them and listens for the key combination.
-- The sidebar lists the core pages (General, Appearance, Customize, Shortcuts, App Rules, Store, About), then AI, built-in actions, custom actions, and installed extensions.
+- The sidebar lists the core pages (General, Appearance, Actions, AI, App Rules, Store, About), then built-in actions, custom actions, and installed extensions.
 - **About** holds the version, links, and update controls, including an **Update Channel** picker for the **Stable** and **Beta** feeds.
 
-## Customize: the popup bar's layout
+## Actions: the popup bar's layout
 
-**Customize** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
+**Actions** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
 
 ```
-Settings > Customize
+Settings > Actions
 ├── Drag a row to reorder the popup bar
 ├── Drop an action onto a group to add it; drag it out to remove it
 ├── Select several rows, then + (or right-click › Create Group from Selection…)
 └── Right-click a group › Configure Group… / Ungroup
 ```
 
-Rows have no switches or buttons. Double-click a row to open that action's own page, where its name, icon, shortcut, options, and enable switch live. The toolbar's **+** creates a **New Group** from the selected rows.
+Each row has an enable switch and a **›** to that action's own page, where its name, icon, shortcut, options, and enable switch live. Double-clicking the row opens the same page. The toolbar's **+** creates a **New Group** from the selected rows.
 
 ### Action order
 
@@ -54,7 +54,7 @@ Dragging an action changes its position in the popup bar. [`SettingsStore`](../.
 
 ## Shortcuts
 
-**Shortcuts** lists every runnable action: built-ins, AI prompts, your custom actions, and then one group for each installed extension. Each row has a switch, an alias (type it in the palette to jump straight to the action), a hotkey, and a **›** that opens the action's own page. Search filters by name, alias, or keyword.
+Each action's own page has its alias and global hotkey. An alias jumps straight to the action when you type it in the palette; a hotkey runs the action from anywhere.
 
 ## Built-in actions
 
@@ -102,7 +102,7 @@ When an action produces text, such as a transformation, a dictionary definition,
 
 ## Popup appearance and theme
 
-Under **Customize > Behavior**, turn off **Show Command Palette** to hide the ⌘ search button at the end of the popup bar. The search shortcut (⌥⌘C by default) still works. **Reset** brings the button back.
+Under **General > Shortcuts**, turn off **Show Command Palette** to hide the ⌘ search button at the end of the popup bar. The search shortcut (⌥⌘C by default) still works.
 
 The **Appearance** page shows a static preview of the popup bar and lets you style it. The preview is a fixed mock of the standard actions (Search, Copy, Cut, Paste, and the AI Tools action). It doesn't reflect your configured actions, their order, or your overrides, and hovering over it never affects the real popup.
 

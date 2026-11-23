@@ -392,15 +392,27 @@ public struct PreferencesView: View {
                 id: "page:\(page.id)",
                 title: page.staticTitle ?? page.id,
                 breadcrumb: String(localized: "Settings"),
-                aliases: [englishTitle(for: page)],
+                aliases: [englishTitle(for: page)] + page.searchKeywords,
                 path: [page]
             )
         }
+
+        entries.append(.appearanceControl(
+            id: AppearanceSearchTarget.contextualActions,
+            title: String(localized: "Contextual Actions"),
+            aliases: ["contextual", "contextual actions", "pill", "placement"]
+        ))
+        entries.append(.appearanceControl(
+            id: AppearanceSearchTarget.contextualPlacement,
+            title: String(localized: "Placement"),
+            aliases: ["contextual placement", "pill position"]
+        ))
 
         let generalControls: [(String, String)] = [
             (GeneralSearchTarget.appearAutomatically, "Appear Automatically"),
             (GeneralSearchTarget.holdMouseToTrigger, "Hold Mouse to Trigger"),
             (GeneralSearchTarget.commandPalette, "Command Palette"),
+            (GeneralSearchTarget.showCommandPalette, "Show Command Palette"),
             (GeneralSearchTarget.captureText, "Capture Text"),
             (GeneralSearchTarget.captureTextAutoCopy, "Copy to Clipboard Automatically"),
             (GeneralSearchTarget.saveLocation, "Save Location"),
@@ -507,7 +519,7 @@ public struct PreferencesView: View {
     private func englishTitle(for page: SettingsPage) -> String {
         switch page {
         case .general: return "General"
-        case .appearance: return "Customize"
+        case .appearance: return "Appearance"
         case .customize: return "Actions"
         case .ai: return "AI"
         case .appRules: return "App Rules"
@@ -563,6 +575,7 @@ public struct PreferencesView: View {
         switch result.target {
         case .page(let path): router.show(path: path)
         case .generalControl(let id): router.revealGeneralControl(id)
+        case .appearanceControl(let id): router.revealAppearanceControl(id)
         }
     }
 

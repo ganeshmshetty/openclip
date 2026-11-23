@@ -4,6 +4,7 @@ enum GeneralSearchTarget {
     static let appearAutomatically = "general.appearAutomatically"
     static let holdMouseToTrigger = "general.holdMouseToTrigger"
     static let commandPalette = "general.commandPalette"
+    static let showCommandPalette = "general.showCommandPalette"
     static let captureText = "general.captureText"
     static let captureTextAutoCopy = "general.captureTextAutoCopy"
     static let saveLocation = "general.saveLocation"
@@ -13,9 +14,15 @@ enum GeneralSearchTarget {
     static let accessibilityAccess = "general.accessibilityAccess"
     static let screenRecordingAccess = "general.screenRecordingAccess"
     static let all = [
-        appearAutomatically, holdMouseToTrigger, commandPalette, captureText,
+        appearAutomatically, holdMouseToTrigger, commandPalette, showCommandPalette, captureText,
         captureTextAutoCopy, saveLocation, playActionSound, showMenuBarIcon, startAtLogin, accessibilityAccess, screenRecordingAccess
     ]
+}
+
+enum AppearanceSearchTarget {
+    static let contextualActions = "appearance.contextualActions"
+    static let contextualPlacement = "appearance.contextualPlacement"
+    static let all = [contextualActions, contextualPlacement]
 }
 
 enum PreferencesSearchSection: Hashable, Sendable {
@@ -26,6 +33,7 @@ enum PreferencesSearchSection: Hashable, Sendable {
 enum PreferencesSearchTarget: Hashable, Sendable {
     case page([SettingsPage])
     case generalControl(id: String)
+    case appearanceControl(id: String)
 }
 
 struct PreferencesSearchEntry: Identifiable, Hashable, Sendable {
@@ -54,6 +62,17 @@ struct PreferencesSearchEntry: Identifiable, Hashable, Sendable {
             breadcrumb: String(localized: "General"),
             aliases: aliases,
             target: .generalControl(id: id),
+            section: .settings
+        )
+    }
+
+    static func appearanceControl(id: String, title: String, aliases: [String] = []) -> Self {
+        Self(
+            id: "appearance-control:\(id)",
+            title: title,
+            breadcrumb: String(localized: "Appearance"),
+            aliases: aliases,
+            target: .appearanceControl(id: id),
             section: .settings
         )
     }

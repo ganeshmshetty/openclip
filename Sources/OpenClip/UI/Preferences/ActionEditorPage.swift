@@ -600,6 +600,35 @@ public struct ActionEditorPage: View {
                     )
                 }
 
+                if let saveErrorMessage {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .font(.system(size: 13))
+                        Text(saveErrorMessage)
+                            .font(.callout)
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 0)
+                        Button {
+                            self.saveErrorMessage = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 20, height: 20)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(String(localized: "Dismiss"))
+                    }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.red.opacity(0.12))
+                    )
+                    .transition(.opacity)
+                }
+
                 SettingsCard("Appearance") {
                     SettingsRow(
                         title: "Icon",
@@ -1437,6 +1466,7 @@ public struct ActionEditorPage: View {
     private func autoSave() {
         guard isLoaded, !isDeleting, !manifestMissing else { return }
         guard coordinator.actions.contains(where: { $0.id == action.id }) else { return }
+        saveErrorMessage = nil
         saveAlias()
         if appearanceResetPending {
             ActionCustomizationManager.shared.resetOverride(for: action.id)

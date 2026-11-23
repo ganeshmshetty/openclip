@@ -887,5 +887,15 @@
   "A star on GitHub helps more people find it.": "GitHubでのスターがより多くの人に見つけてもらう助けになります。",
   "You can support development with a tip.": "チップで開発を支援することもできます。",
   "Opens the OpenClip repository on GitHub": "GitHubでOpenClipのリポジトリを開きます",
-  "Opens the OpenClip support page": "OpenClipのサポートページを開きます"
+  "Opens the OpenClip support page": "OpenClipのサポートページを開きます",
+  "Contextual Actions": "コンテキストアクション",
+  "No actions declare detection rules. Extensions can add them.": "検出ルールを宣言しているアクションはありません。拡張機能で追加できます。",
+  "Off in Actions": "アクションでオフ",
+  "Show %@ in contextual bar": "%@をコンテキストバーに表示",
+  "Configure contextual actions": "コンテキストアクションを設定",
+  "Placement": "配置",
+  "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "メインバーに対するコンテキストバーの位置。自動はポップアップの水平方向の配置に従います。",
+  "Matching actions appear in a separate bar beside the popup and rank first in search.": "一致するアクションはポップアップ横の独立したバーに表示され、検索でも優先されます。",
+  "Reset appearance": "外観をリセット",
+  "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.": "ポップアップバーの末尾に検索ボタンを表示します。非表示でもキーボードショートカットは使用できます。"
 }

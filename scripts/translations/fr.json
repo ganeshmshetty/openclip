@@ -887,5 +887,15 @@
   "A star on GitHub helps more people find it.": "Une étoile sur GitHub aide plus de personnes à le trouver.",
   "You can support development with a tip.": "Vous pouvez soutenir le développement avec un don.",
   "Opens the OpenClip repository on GitHub": "Ouvre le dépôt OpenClip sur GitHub",
-  "Opens the OpenClip support page": "Ouvre la page de soutien d’OpenClip"
+  "Opens the OpenClip support page": "Ouvre la page de soutien d’OpenClip",
+  "Contextual Actions": "Actions contextuelles",
+  "No actions declare detection rules. Extensions can add them.": "Aucune action ne déclare de règle de détection. Les extensions peuvent en ajouter.",
+  "Off in Actions": "Désactivée dans Actions",
+  "Show %@ in contextual bar": "Afficher %@ dans la barre contextuelle",
+  "Configure contextual actions": "Configurer les actions contextuelles",
+  "Placement": "Emplacement",
+  "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "Emplacement de la barre contextuelle par rapport à la barre principale. Auto suit l’alignement horizontal du popup.",
+  "Matching actions appear in a separate bar beside the popup and rank first in search.": "Les actions correspondantes apparaissent dans une barre séparée à côté du popup et sont prioritaires dans la recherche.",
+  "Reset appearance": "Réinitialiser l’apparence",
+  "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.": "Afficher le bouton de recherche à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’il est masqué."
 }

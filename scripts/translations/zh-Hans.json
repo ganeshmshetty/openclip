@@ -887,5 +887,15 @@
   "A star on GitHub helps more people find it.": "在 GitHub 上加星能让更多人发现它。",
   "You can support development with a tip.": "你也可以通过打赏支持开发。",
   "Opens the OpenClip repository on GitHub": "在 GitHub 上打开 OpenClip 仓库",
-  "Opens the OpenClip support page": "打开 OpenClip 支持页面"
+  "Opens the OpenClip support page": "打开 OpenClip 支持页面",
+  "Contextual Actions": "上下文操作",
+  "No actions declare detection rules. Extensions can add them.": "没有操作声明检测规则。扩展可以添加规则。",
+  "Off in Actions": "已在操作中关闭",
+  "Show %@ in contextual bar": "在上下文栏中显示 %@",
+  "Configure contextual actions": "配置上下文操作",
+  "Placement": "位置",
+  "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "上下文栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。",
+  "Matching actions appear in a separate bar beside the popup and rank first in search.": "匹配的操作会显示在弹出窗口旁的独立栏中，并在搜索中优先显示。",
+  "Reset appearance": "重置外观",
+  "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.": "在弹出栏末尾显示搜索按钮。隐藏后键盘快捷键仍然有效。"
 }

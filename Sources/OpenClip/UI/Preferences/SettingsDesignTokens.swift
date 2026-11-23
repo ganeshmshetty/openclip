@@ -470,3 +470,23 @@ public extension View {
     }
 }
 
+
+/// Highlights the control a search result scrolled to.
+struct SettingsSearchHighlight: ViewModifier {
+    let isHighlighted: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if isHighlighted {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.13))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .strokeBorder(Color.accentColor.opacity(0.32), lineWidth: 1)
+                        }
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: isHighlighted)
+    }
+}

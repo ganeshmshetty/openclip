@@ -16,14 +16,13 @@ struct PopupThemeSelector: View {
     @Setting(SettingKey.popupThemeColor) private var themeColor
     @Setting(SettingKey.popupScale) private var popupScale
     @Setting(SettingKey.popupPageSize) private var pageSize
-    @Setting(SettingKey.showSearchAllActions) private var showSearchAllActions
     @Setting(SettingKey.popupAlignment) private var popupAlignment
     @Setting(SettingKey.popupVerticalPosition) private var popupVerticalPosition
     @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
-    @Setting(SettingKey.disabledContextualActionIDs) private var disabledContextualActionIDs
     @Setting(SettingKey.contextualPillPosition) private var contextualPillPosition
 
     @State private var isShowingContextualPopover = false
+    var highlightedControlID: String? = nil
 
     private struct AppearanceOption: Identifiable {
         let label: String
@@ -74,12 +73,8 @@ struct PopupThemeSelector: View {
         themeColor == SettingKey.popupThemeColor.defaultValue &&
         popupScale == SettingKey.popupScale.defaultValue &&
         pageSize == SettingKey.popupPageSize.defaultValue &&
-        showSearchAllActions == SettingKey.showSearchAllActions.defaultValue &&
         popupAlignment == SettingKey.popupAlignment.defaultValue &&
-        popupVerticalPosition == SettingKey.popupVerticalPosition.defaultValue &&
-        contextualActionsEnabled == SettingKey.contextualActionsEnabled.defaultValue &&
-        disabledContextualActionIDs == SettingKey.disabledContextualActionIDs.defaultValue &&
-        contextualPillPosition == SettingKey.contextualPillPosition.defaultValue
+        popupVerticalPosition == SettingKey.popupVerticalPosition.defaultValue
     }
 
     private func resetToDefaults() {
@@ -87,12 +82,8 @@ struct PopupThemeSelector: View {
         themeColor = SettingKey.popupThemeColor.defaultValue
         popupScale = SettingKey.popupScale.defaultValue
         pageSize = SettingKey.popupPageSize.defaultValue
-        showSearchAllActions = SettingKey.showSearchAllActions.defaultValue
         popupAlignment = SettingKey.popupAlignment.defaultValue
         popupVerticalPosition = SettingKey.popupVerticalPosition.defaultValue
-        contextualActionsEnabled = SettingKey.contextualActionsEnabled.defaultValue
-        disabledContextualActionIDs = SettingKey.disabledContextualActionIDs.defaultValue
-        contextualPillPosition = SettingKey.contextualPillPosition.defaultValue
     }
 
     private var themeSelection: Binding<String> {
@@ -189,22 +180,10 @@ struct PopupThemeSelector: View {
 
             }
 
-            SettingsCard("Behavior") {
-                appearanceControlRow(
-                    title: "Show Command Palette",
-                    info: "Show the command palette button at the end of the popup bar."
-                ) {
-                    Toggle("", isOn: $showSearchAllActions)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .accessibilityLabel("Show Command Palette")
-                }
-
-                SettingsDivider()
-
+            SettingsCard("Contextual Actions") {
                 appearanceControlRow(
                     title: "Show Contextual Actions",
-                    info: "Show relevant actions first based on what you select."
+                    info: "Matching actions appear in a separate bar beside the popup and rank first in search."
                 ) {
                     HStack(spacing: 8) {
                         Button {
@@ -219,7 +198,8 @@ struct PopupThemeSelector: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(!contextualActionsEnabled)
-                        .help(String(localized: "Configure Contextual Actions"))
+                        .help(String(localized: "Configure contextual actions"))
+                        .accessibilityLabel(String(localized: "Configure contextual actions"))
                         .popover(isPresented: $isShowingContextualPopover, arrowEdge: .top) {
                             ContextualActionsPopoverView()
                         }
@@ -227,13 +207,17 @@ struct PopupThemeSelector: View {
                         Toggle("", isOn: $contextualActionsEnabled)
                             .labelsHidden()
                             .toggleStyle(.switch)
-                            .accessibilityLabel(String(localized: "Enable Contextual Actions"))
+                            .accessibilityLabel(String(localized: "Show Contextual Actions"))
                     }
                 }
+                .id(AppearanceSearchTarget.contextualActions)
+                .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == AppearanceSearchTarget.contextualActions))
+
+                SettingsDivider()
 
                 appearanceControlRow(
-                    title: "Contextual Pill",
-                    info: "Show contextual actions to the left or right of the main bar. Auto follows the horizontal position."
+                    title: "Placement",
+                    info: "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment."
                 ) {
                     segmentedPicker(
                         selection: $contextualPillPosition,
@@ -242,11 +226,13 @@ struct PopupThemeSelector: View {
                             AppearanceOption(label: "Left", value: ContextualPillPosition.left.rawValue),
                             AppearanceOption(label: "Right", value: ContextualPillPosition.right.rawValue),
                         ],
-                        label: "Contextual Pill Position",
+                        label: "Placement",
                         width: 170
                     )
                     .disabled(!contextualActionsEnabled)
                 }
+                .id(AppearanceSearchTarget.contextualPlacement)
+                .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == AppearanceSearchTarget.contextualPlacement))
             }
 
             HStack {
@@ -254,7 +240,7 @@ struct PopupThemeSelector: View {
                 Button {
                     resetToDefaults()
                 } label: {
-                    Text(String(localized: "Reset"))
+                    Text(String(localized: "Reset appearance"))
                         .font(.system(size: 11.5, weight: .medium))
                         .padding(.horizontal, 10)
                         .frame(height: 24)
@@ -408,19 +394,25 @@ struct SettingsInfoButton: View {
     @State private var isShowingInfo = false
 
     var body: some View {
-        Image(systemName: "info.circle.fill")
-            .font(.system(size: 12))
-            .foregroundStyle(Color.secondary.opacity(0.7))
-            .contentShape(Circle())
-            .onTapGesture { isShowingInfo.toggle() }
-            .help(title)
-            .accessibilityLabel(title)
-            .popover(isPresented: $isShowingInfo, arrowEdge: .bottom) {
-                Text(info)
-                    .font(.callout)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(width: 240, alignment: .leading)
-                    .padding(14)
-            }
+        Button {
+            isShowingInfo.toggle()
+        } label: {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.secondary.opacity(0.7))
+                .frame(width: 20, height: 20)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(info)
+        .accessibilityLabel(Text(title))
+        .accessibilityHint(Text(info))
+        .popover(isPresented: $isShowingInfo, arrowEdge: .bottom) {
+            Text(info)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 240, alignment: .leading)
+                .padding(14)
+        }
     }
 }

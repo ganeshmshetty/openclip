@@ -5013,6 +5013,34 @@
         }
       }
     },
+    "Configure contextual actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置上下文操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定情境動作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer les actions contextuelles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンテキストアクションを設定"
+          }
+        }
+      }
+    },
     "Configure per-app trigger and paste behavior.": {
       "localizations": {
         "zh-Hans": {
@@ -5065,6 +5093,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "設定済みのAIアクション"
+          }
+        }
+      }
+    },
+    "Contextual Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "情境動作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions contextuelles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンテキストアクション"
           }
         }
       }
@@ -11705,6 +11761,34 @@
         }
       }
     },
+    "Matching actions appear in a separate bar beside the popup and rank first in search.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匹配的操作会显示在弹出窗口旁的独立栏中，并在搜索中优先显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "符合的動作會顯示在彈出視窗旁的獨立列中，並在搜尋中優先顯示。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les actions correspondantes apparaissent dans une barre séparée à côté du popup et sont prioritaires dans la recherche."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致するアクションはポップアップ横の独立したバーに表示され、検索でも優先されます。"
+          }
+        }
+      }
+    },
     "Maximum": {
       "localizations": {
         "zh-Hans": {
@@ -12657,6 +12741,34 @@
         }
       }
     },
+    "No actions declare detection rules. Extensions can add them.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有操作声明检测规则。扩展可以添加规则。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有動作宣告偵測規則。擴充功能可以加入規則。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune action ne déclare de règle de détection. Les extensions peuvent en ajouter."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検出ルールを宣言しているアクションはありません。拡張機能で追加できます。"
+          }
+        }
+      }
+    },
     "No actions in this group.": {
       "localizations": {
         "zh-Hans": {
@@ -13353,6 +13465,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "オフにするとポップアップバーとパレットから隠れます。"
+          }
+        }
+      }
+    },
+    "Off in Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在操作中关闭"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在動作中關閉"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivée dans Actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションでオフ"
           }
         }
       }
@@ -15229,6 +15369,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "海賊言葉"
+          }
+        }
+      }
+    },
+    "Placement": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emplacement"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
           }
         }
       }
@@ -17133,6 +17301,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "デフォルトに戻す"
+          }
+        }
+      }
+    },
+    "Reset appearance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置外观"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重設外觀"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser l’apparence"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外観をリセット"
           }
         }
       }
@@ -19685,6 +19881,34 @@
         }
       }
     },
+    "Show %@ in contextual bar": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在上下文栏中显示 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在情境列中顯示 %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher %@ dans la barre contextuelle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@をコンテキストバーに表示"
+          }
+        }
+      }
+    },
     "Show All": {
       "localizations": {
         "zh-Hans": {
@@ -20381,6 +20605,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ポップアップバーの末尾に検索ボタンを表示します。"
+          }
+        }
+      }
+    },
+    "Show the search button at the end of the popup bar. The keyboard shortcut still works when hidden.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在弹出栏末尾显示搜索按钮。隐藏后键盘快捷键仍然有效。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在彈出列結尾顯示搜尋按鈕。隱藏後鍵盤快速鍵仍然有效。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le bouton de recherche à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’il est masqué."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップアップバーの末尾に検索ボタンを表示します。非表示でもキーボードショートカットは使用できます。"
           }
         }
       }
@@ -24105,6 +24357,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipへようこそ"
+          }
+        }
+      }
+    },
+    "Where the contextual bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "情境列相對於主列的顯示位置。自動會跟隨彈出視窗的水平對齊方式。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emplacement de la barre contextuelle par rapport à la barre principale. Auto suit l’alignement horizontal du popup."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メインバーに対するコンテキストバーの位置。自動はポップアップの水平方向の配置に従います。"
           }
         }
       }

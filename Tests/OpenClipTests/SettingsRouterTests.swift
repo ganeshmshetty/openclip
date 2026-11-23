@@ -129,6 +129,31 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertNil(router.generalRevealRequest)
     }
 
+    func testAppearanceRevealRequestsRepeatOnTheSamePageAndIgnoreStaleClears() throws {
+        let router = SettingsRouter()
+        router.revealAppearanceControl(AppearanceSearchTarget.contextualActions)
+        let first = try XCTUnwrap(router.appearanceRevealRequest)
+        XCTAssertEqual(router.path, [.appearance])
+
+        router.revealAppearanceControl(AppearanceSearchTarget.contextualPlacement)
+        let second = try XCTUnwrap(router.appearanceRevealRequest)
+        XCTAssertNotEqual(first.id, second.id)
+        router.clearAppearanceRevealRequest(first.id)
+        XCTAssertEqual(router.appearanceRevealRequest, second)
+
+        router.clearAppearanceRevealRequest(second.id)
+        XCTAssertNil(router.appearanceRevealRequest)
+    }
+
+    func testAppearancePageIsNamedAppearanceAndSearchControlTargetsAreStable() {
+        XCTAssertEqual(SettingsPage.appearance.staticTitle, "Appearance")
+        XCTAssertEqual(PreferencesSearchEntry.appearanceControl(
+            id: AppearanceSearchTarget.contextualActions,
+            title: "Contextual Actions"
+        ).target, .appearanceControl(id: "appearance.contextualActions"))
+        XCTAssertEqual(GeneralSearchTarget.all.count, 12)
+    }
+
     func testShowingTheCurrentPathAgainRecordsNothing() {
         let router = SettingsRouter()
         router.select(.customize)
@@ -315,7 +340,6 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(results.map(\.id), ["action"])
         XCTAssertEqual(results[0].target, .page([.extensionPackage(id: "language-tools"), .action(id: "translate")]))
         XCTAssertEqual(generalControl.target, .generalControl(id: "general.accessibilityAccess"))
-        XCTAssertEqual(GeneralSearchTarget.all.count, 11)
         XCTAssertEqual(Set(GeneralSearchTarget.all).count, GeneralSearchTarget.all.count)
     }
 
