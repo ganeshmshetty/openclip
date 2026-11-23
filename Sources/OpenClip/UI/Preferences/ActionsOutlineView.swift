@@ -15,6 +15,29 @@ import Combine
 
 private let actionPasteboardType = NSPasteboard.PasteboardType("com.openclip.action-id")
 
+// MARK: - Sections
+
+enum RootSection: String, Sendable {
+    case contextual
+    case all
+
+    var title: String {
+        switch self {
+        case .contextual: return String(localized: "Contextual Actions")
+        case .all: return String(localized: "All Actions")
+        }
+    }
+
+    var info: String? {
+        switch self {
+        case .contextual:
+            return String(localized: "Only top-level contextual actions appear here. Actions inside a group stay with the group.")
+        case .all:
+            return nil
+        }
+    }
+}
+
 // MARK: - Tree Node
 
 @MainActor
@@ -26,6 +49,7 @@ final class OutlineNode: NSObject {
         case packageHeader(packageID: String, title: String, gatedReason: ExtensionGateReason?)
         case groupMember(action: any Action, parentGroupID: String)
         case extensionSubAction(action: any Action, parentGroupID: String)
+        case sectionHeader(RootSection)
     }
 
     let id: String
@@ -78,6 +102,16 @@ final class OutlineNode: NSObject {
         }
     }
 
+    var isSectionHeader: Bool {
+        if case .sectionHeader = kind { return true }
+        return false
+    }
+
+    var section: RootSection? {
+        if case .sectionHeader(let section) = kind { return section }
+        return nil
+    }
+
     var action: (any Action)? {
         switch kind {
         case .customGroup(_, let action): return action
@@ -85,7 +119,7 @@ final class OutlineNode: NSObject {
         case .standaloneAction(let action): return action
         case .groupMember(let action, _): return action
         case .extensionSubAction(let action, _): return action
-        case .packageHeader: return nil
+        case .packageHeader, .sectionHeader: return nil
         }
     }
 
@@ -141,6 +175,8 @@ final class OutlineNode: NSObject {
                 "\(opt.identifier):\(opt.type.rawValue):\(opt.label):\(opt.defaultValue ?? ""):\(opt.options?.joined(separator: "|") ?? "")"
             }.joined(separator: ",")
             sig += "es:\(parentGroupID):\(p.title):\(String(describing: p.icon)):\(optionsSig):dis=\(dis)"
+        case .sectionHeader(let section):
+            sig += "sh:\(section.rawValue)"
         }
         if !children.isEmpty {
             sig += "[" + children.map(\.signature).joined(separator: ";") + "]"
@@ -228,6 +264,7 @@ final class OutlineTableRowView: NSTableRowView {
         if let outline = enclosingScrollView?.documentView as? ActionsOutlineTableView {
             let row = outline.row(for: self)
             guard row < 0 || (outline.hoveredRowIndex != row + 1 && !outline.selectedRowIndexes.contains(row + 1)) else { return }
+            if let next = outline.item(atRow: row + 1) as? OutlineNode, next.isSectionHeader { return }
         }
         let inset: CGFloat = 12
         let y: CGFloat = isFlipped ? bounds.maxY - 0.5 : bounds.minY + 0.5
@@ -275,6 +312,42 @@ final class OutlineTableRowView: NSTableRowView {
     override var isEmphasized: Bool {
         get { false }
         set { }
+    }
+}
+
+@MainActor
+private final class SectionHeaderTableRowView: NSTableRowView {
+    override var isEmphasized: Bool {
+        get { false }
+        set { }
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {}
+    override func drawSelection(in dirtyRect: NSRect) {}
+    override func drawSeparator(in dirtyRect: NSRect) {}
+}
+
+private struct SectionHeaderRowView: View {
+    let section: RootSection
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(verbatim: section.title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(SettingsDesignTokens.secondaryText)
+
+            if let info = section.info {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 10))
+                    .foregroundStyle(SettingsDesignTokens.tertiaryText)
+                    .help(info)
+                    .accessibilityLabel(info)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -444,7 +517,7 @@ final class ActionsOutlineTableView: NSOutlineView {
     override func menu(for event: NSEvent) -> NSMenu? {
         let point = convert(event.locationInWindow, from: nil)
         let clickedRow = row(at: point)
-        guard clickedRow >= 0, let node = item(atRow: clickedRow) as? OutlineNode else {
+        guard clickedRow >= 0, let node = item(atRow: clickedRow) as? OutlineNode, !node.isSectionHeader else {
             return nil
         }
         if !selectedRowIndexes.contains(clickedRow) {
@@ -577,6 +650,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     }
     weak var outlineView: ActionsOutlineTableView?
     private(set) var rootNodes: [OutlineNode] = []
+    private(set) var displayRootNodes: [OutlineNode] = []
     private var renamingActionID: String?
     private var resolvedDropTarget: OutlineNode?
     private var expandedNodeIDs: Set<String> = []
@@ -633,6 +707,126 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 self?.syncWithParent()
             }
             .store(in: &cancellables)
+    }
+
+    static func packageHeaderIDs(in roots: [OutlineNode]) -> Set<String> {
+        Set(roots.compactMap { node in
+            if case .packageHeader(let packageID, _, _) = node.kind { return packageID }
+            return nil
+        })
+    }
+
+    static func isContextualRoot(_ node: OutlineNode, packageHeaderIDs: Set<String>) -> Bool {
+        switch node.kind {
+        case .standaloneAction(let action):
+            if let packageID = ActionIdentity.extensionPackageID(of: action),
+               packageHeaderIDs.contains(packageID) {
+                return false
+            }
+            return action.isContextual
+        case .extensionGroup(let action):
+            return action.isContextual
+        case .customGroup, .groupMember, .extensionSubAction, .packageHeader, .sectionHeader:
+            return false
+        }
+    }
+
+    static func makeDisplayRoots(from roots: [OutlineNode]) -> [OutlineNode] {
+        let packageIDs = packageHeaderIDs(in: roots)
+        let contextual = roots.filter { isContextualRoot($0, packageHeaderIDs: packageIDs) }
+        let standard = roots.filter { !isContextualRoot($0, packageHeaderIDs: packageIDs) }
+
+        var display: [OutlineNode] = []
+        if !contextual.isEmpty {
+            display.append(OutlineNode(id: "section.contextual", kind: .sectionHeader(.contextual)))
+            display.append(contentsOf: contextual)
+        }
+        if !standard.isEmpty {
+            display.append(OutlineNode(id: "section.all", kind: .sectionHeader(.all)))
+            display.append(contentsOf: standard)
+        }
+        return display
+    }
+
+    private var packageHeaderIDs: Set<String> {
+        Self.packageHeaderIDs(in: rootNodes)
+    }
+
+    func section(of node: OutlineNode) -> RootSection? {
+        if let section = node.section { return section }
+        return Self.isContextualRoot(node, packageHeaderIDs: packageHeaderIDs) ? .contextual : .all
+    }
+
+    private func section(ofActionID id: String) -> RootSection {
+        if let root = rootNodes.first(where: { $0.id == id }) {
+            return section(of: root) ?? .all
+        }
+        guard let action = parent.coordinator.actions.first(where: { $0.id == id }) else { return .all }
+        if let packageID = ActionIdentity.extensionPackageID(of: action),
+           packageHeaderIDs.contains(packageID) {
+            return .all
+        }
+        return action.isContextual ? .contextual : .all
+    }
+
+    func displayIndex(forFlatRootIndex index: Int) -> Int? {
+        guard index >= 0, index <= rootNodes.count else { return nil }
+        guard index < rootNodes.count else { return displayRootNodes.count }
+        let id = rootNodes[index].id
+        return displayRootNodes.firstIndex { $0.id == id }
+    }
+
+    private func destinationSection(forDisplayGap index: Int) -> RootSection? {
+        guard !displayRootNodes.isEmpty else { return nil }
+        let gap = min(max(index, 0), displayRootNodes.count)
+        if gap < displayRootNodes.count {
+            let node = displayRootNodes[gap]
+            if node.isSectionHeader {
+                if gap > 0 {
+                    for previous in stride(from: gap - 1, through: 0, by: -1) {
+                        if let section = section(of: displayRootNodes[previous]) { return section }
+                    }
+                }
+                return node.section
+            }
+            return section(of: node)
+        }
+        for previous in stride(from: displayRootNodes.count - 1, through: 0, by: -1) {
+            if let section = section(of: displayRootNodes[previous]) { return section }
+        }
+        return nil
+    }
+
+    private func destinationAnchorIDs(forDisplayGap index: Int, section: RootSection) -> [String] {
+        let gap = min(max(index, 0), displayRootNodes.count)
+        let rootActionIDs = Set(rootNodes.compactMap { $0.action?.id })
+        var anchors: [String] = []
+        for position in gap..<displayRootNodes.count {
+            let node = displayRootNodes[position]
+            guard !node.isSectionHeader, self.section(of: node) == section else { continue }
+            if let action = node.action {
+                anchors.append(action.id)
+            } else if case .packageHeader(let packageID, _, _) = node.kind,
+                      let packageAction = parent.coordinator.actions.first(where: {
+                          rootActionIDs.contains($0.id) && ActionIdentity.extensionPackageID(of: $0) == packageID
+                      }) {
+                anchors.append(packageAction.id)
+            }
+        }
+        return anchors
+    }
+
+    private func rootDropSectionsMatch(_ draggedIDs: [String], displayIndex: Int) -> Bool {
+        let selectedParents = rootNodes.filter { draggedIDs.contains($0.id) && $0.isGroup }
+        let carriedChildren = Set(selectedParents.flatMap { $0.children.map(\.id) })
+        let movableIDs = draggedIDs.filter {
+            extensionGroupID(ofSubActionWithID: $0) == nil && !carriedChildren.contains($0)
+        }
+        let sections = Set(movableIDs.map(section(ofActionID:)))
+        guard sections.count == 1, let destination = destinationSection(forDisplayGap: displayIndex) else {
+            return false
+        }
+        return sections.contains(destination)
     }
 
     @discardableResult
@@ -825,9 +1019,12 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             }
         }
 
+        let newDisplayRoots = Self.makeDisplayRoots(from: newRoots)
         let changed = !OutlineNode.treesEqual(newRoots, self.rootNodes)
+            || !OutlineNode.treesEqual(newDisplayRoots, self.displayRootNodes)
         if changed {
             self.rootNodes = newRoots
+            self.displayRootNodes = newDisplayRoots
         }
         return changed
     }
@@ -853,7 +1050,9 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         guard !isSyncingSelection else { return }
         var targetIndexes = IndexSet()
         for row in 0..<outlineView.numberOfRows {
-            if let node = outlineView.item(atRow: row) as? OutlineNode, parent.selectedRowIDs.contains(node.id) {
+            if let node = outlineView.item(atRow: row) as? OutlineNode,
+               !node.isSectionHeader,
+               parent.selectedRowIDs.contains(node.id) {
                 targetIndexes.insert(row)
             }
         }
@@ -866,7 +1065,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
         if item == nil {
-            return rootNodes.count
+            return displayRootNodes.count
         }
         if let node = item as? OutlineNode {
             return node.children.count
@@ -876,7 +1075,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
         if item == nil {
-            return rootNodes[index]
+            return displayRootNodes[index]
         }
         if let node = item as? OutlineNode {
             return node.children[index]
@@ -906,6 +1105,9 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         }
 
         switch node.kind {
+        case .sectionHeader(let section):
+            cellView.setContent(SectionHeaderRowView(section: section))
+
         case .packageHeader(let packageID, let title, let gatedReason):
             cellView.setContent(
                 PackageHeaderRowView(
@@ -941,6 +1143,16 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     }
 
     func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+        if let node = item as? OutlineNode, node.isSectionHeader {
+            let identifier = NSUserInterfaceItemIdentifier("OutlineSectionHeaderRowView")
+            if let existing = outlineView.makeView(withIdentifier: identifier, owner: self) as? SectionHeaderTableRowView {
+                return existing
+            }
+            let rowView = SectionHeaderTableRowView()
+            rowView.identifier = identifier
+            return rowView
+        }
+
         let identifier = NSUserInterfaceItemIdentifier("OutlineTableRowView")
         let rowView: OutlineTableRowView
         if let existing = outlineView.makeView(withIdentifier: identifier, owner: self) as? OutlineTableRowView {
@@ -950,6 +1162,18 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             rowView.identifier = identifier
         }
         return rowView
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
+        (item as? OutlineNode)?.isSectionHeader == true
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+        (item as? OutlineNode)?.isSectionHeader != true
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, heightOfRow row: Int) -> CGFloat {
+        (outlineView.item(atRow: row) as? OutlineNode)?.isSectionHeader == true ? 32 : outlineView.rowHeight
     }
 
     func outlineViewItemDidExpand(_ notification: Notification) {
@@ -969,7 +1193,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         isSyncingSelection = true
         var selectedIDs = Set<String>()
         for row in outlineView.selectedRowIndexes {
-            if let node = outlineView.item(atRow: row) as? OutlineNode {
+            if let node = outlineView.item(atRow: row) as? OutlineNode, !node.isSectionHeader {
                 selectedIDs.insert(node.id)
             }
         }
@@ -993,7 +1217,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         guard parent.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         guard let node = item as? OutlineNode else { return nil }
         switch node.kind {
-        case .packageHeader:
+        case .packageHeader, .sectionHeader:
             return nil
         case .extensionSubAction(let action, _):
             // Draggable to reorder within its package; `validateDrop` stops it leaving.
@@ -1040,6 +1264,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         index: Int
     ) -> NSDragOperation {
         guard parent.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        if let node = item as? OutlineNode, node.isSectionHeader { return [] }
         guard let draggedID = info.draggingPasteboard.string(forType: actionPasteboardType) else {
             return []
         }
@@ -1051,15 +1276,17 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
            !group.children.isEmpty, outlineView.isItemExpanded(group),
            draggedIDs.contains(where: { extensionGroupID(ofSubActionWithID: $0) == nil }),
            let lastChild = group.children.last,
-           let rootIndex = rootNodes.firstIndex(where: { $0.id == group.id }) {
+           let groupDisplayIndex = displayRootNodes.firstIndex(where: { $0.id == group.id }) {
             let lastRow = outlineView.row(forItem: lastChild)
             if lastRow >= 0 {
                 let point = outlineView.convert(info.draggingLocation, from: nil)
                 let childFrame = outlineView.frameOfCell(atColumn: 0, row: lastRow)
                 if Self.isRootGapAfterGroup(point: point, lastRow: outlineView.rect(ofRow: lastRow),
                     childContentMinX: childFrame.minX + 30) {
+                    let destination = groupDisplayIndex + 1
+                    guard rootDropSectionsMatch(draggedIDs, displayIndex: destination) else { return [] }
                     resolvedDropTarget = nil
-                    outlineView.setDropItem(nil, dropChildIndex: rootIndex + 1)
+                    outlineView.setDropItem(nil, dropChildIndex: destination)
                     return .move
                 }
             }
@@ -1136,10 +1363,11 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 topLevel = parent
             }
             if let node = topLevel as? OutlineNode,
-               let rootIndex = rootNodes.firstIndex(where: { $0.id == node.id }),
+               let displayIndex = displayRootNodes.firstIndex(where: { $0.id == node.id }),
                extensionGroupID(ofSubActionWithID: draggedID) == nil {
+                guard rootDropSectionsMatch(draggedIDs, displayIndex: displayIndex) else { return [] }
                 resolvedDropTarget = nil
-                outlineView.setDropItem(nil, dropChildIndex: rootIndex)
+                outlineView.setDropItem(nil, dropChildIndex: displayIndex)
                 return .move
             }
         }
@@ -1147,6 +1375,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         // Case 4: root-level reorder. Extension commands never leave their package.
         if item == nil && index >= 0,
            draggedIDs.contains(where: { extensionGroupID(ofSubActionWithID: $0) == nil }) {
+            guard rootDropSectionsMatch(draggedIDs, displayIndex: index) else { return [] }
             // Reset the indicator to root indentation; AppKit otherwise keeps the child insertion line.
             outlineView.setDropItem(nil, dropChildIndex: index)
             return .move
@@ -1163,6 +1392,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     ) -> Bool {
         (outlineView as? ActionsOutlineTableView)?.showGroupDropHighlight(nil)
         guard parent.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        if let node = item as? OutlineNode, node.isSectionHeader { return false }
         guard let draggedID = info.draggingPasteboard.string(forType: actionPasteboardType) else {
             return false
         }
@@ -1246,16 +1476,9 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 extensionGroupID(ofSubActionWithID: $0) == nil && !carriedChildren.contains($0)
             }
             guard !draggedIDs.isEmpty else { return false }
-            let rootActionIDs = Set(rootNodes.compactMap { $0.action?.id })
-            let destinationCandidates = rootNodes.dropFirst(min(index, rootNodes.count)).compactMap { node -> String? in
-                if let action = node.action { return action.id }
-                if case .packageHeader(let packageID, _, _) = node.kind {
-                    return parent.coordinator.actions.first {
-                        rootActionIDs.contains($0.id) && ActionIdentity.extensionPackageID(of: $0) == packageID
-                    }?.id
-                }
-                return nil
-            }
+            guard rootDropSectionsMatch(draggedIDs, displayIndex: index),
+                  let targetSection = destinationSection(forDisplayGap: index) else { return false }
+            let destinationAnchorIDs = destinationAnchorIDs(forDisplayGap: index, section: targetSection)
 
             parent.coordinator.setAIActionPlacement(actionIDs: draggedIDs, standalone: true)
 
@@ -1265,8 +1488,8 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                 }
             }
 
-            let destinationActionIndex = destinationCandidates.lazy.compactMap { candidate in
-                self.parent.coordinator.actions.firstIndex { $0.id == candidate }
+            let destinationActionIndex = destinationAnchorIDs.lazy.compactMap { anchorID in
+                self.parent.coordinator.actions.firstIndex { $0.id == anchorID }
             }.first ?? parent.coordinator.actions.count
 
             // A group moves together with its members.
@@ -1380,7 +1603,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
                   !def.memberActionIDs.contains(draggedID) else { return nil }
             return .joinGroup(id: parentGroupID, afterMemberID: action.id)
 
-        case .customGroup, .extensionGroup, .extensionSubAction, .packageHeader:
+        case .customGroup, .extensionGroup, .extensionSubAction, .packageHeader, .sectionHeader:
             // Custom groups are handled earlier; extension nodes cannot take members.
             return nil
         }
@@ -1444,7 +1667,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     @objc func onDoubleClick(_ sender: Any?) {
         guard let outlineView else { return }
         let row = outlineView.clickedRow
-        guard row >= 0, let node = outlineView.item(atRow: row) as? OutlineNode else { return }
+        guard row >= 0, let node = outlineView.item(atRow: row) as? OutlineNode, !node.isSectionHeader else { return }
         parent.onOpenNode(node)
     }
 
@@ -1552,7 +1775,7 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             ungroupItem.representedObject = action.id
             menu.addItem(ungroupItem)
 
-        case .extensionGroup, .extensionSubAction, .packageHeader:
+        case .extensionGroup, .extensionSubAction, .packageHeader, .sectionHeader:
             break
         }
 

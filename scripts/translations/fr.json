@@ -897,5 +897,7 @@
   "Matching actions appear in a separate bar beside the popup and rank first in search.": "Les actions correspondantes apparaissent dans une barre séparée à côté du popup et sont prioritaires dans la recherche.",
   "Reset appearance": "Réinitialiser l’apparence",
   "Show Command Palette Icon in Popup": "Afficher l’icône de la palette de commandes dans le popup",
-  "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "Afficher l’icône de la palette de commandes à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’elle est masquée."
+  "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "Afficher l’icône de la palette de commandes à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’elle est masquée.",
+  "All Actions": "Toutes les actions",
+  "Only top-level contextual actions appear here. Actions inside a group stay with the group.": "Seules les actions contextuelles de premier niveau apparaissent ici. Les actions d’un groupe restent avec leur groupe."
 }

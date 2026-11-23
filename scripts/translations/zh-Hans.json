@@ -897,5 +897,7 @@
   "Matching actions appear in a separate bar beside the popup and rank first in search.": "匹配的操作会显示在弹出窗口旁的独立栏中，并在搜索中优先显示。",
   "Reset appearance": "重置外观",
   "Show Command Palette Icon in Popup": "在弹出窗口中显示命令面板图标",
-  "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "在弹出栏末尾显示命令面板图标。隐藏后键盘快捷键仍然有效。"
+  "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "在弹出栏末尾显示命令面板图标。隐藏后键盘快捷键仍然有效。",
+  "All Actions": "所有操作",
+  "Only top-level contextual actions appear here. Actions inside a group stay with the group.": "此处仅显示顶层上下文操作。组内的操作会保留在组中。"
 }

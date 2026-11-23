@@ -36,11 +36,17 @@ The settings window uses the macOS Liquid Glass look.
 
 ## Actions: the popup bar's layout
 
-**Actions** does two things: it sets the order of everything in the popup bar, and it manages custom groups.
+**Actions** does two things: it sets the order of everything in the popup bar, and it manages custom groups. The page has two sections:
+
+- **Contextual Actions** lists top-level actions the popup treats as contextual: standalone contextual actions and extension groups that are themselves contextual.
+- **All Actions** lists everything else, including custom groups, extension packages, and normal actions.
+
+Contextual actions inside a group or package stay with their container in **All Actions**. The info button beside **Contextual Actions** repeats this.
 
 ```
 Settings > Actions
-├── Drag a row to reorder the popup bar
+├── Drag a row within its section to reorder it
+├── Drop an action onto another action to group them; the group moves to All Actions
 ├── Drop an action onto a group to add it; drag it out to remove it
 ├── Select several rows, then + (or right-click › Create Group from Selection…)
 └── Right-click a group › Configure Group… / Ungroup
@@ -50,7 +56,7 @@ Each row has an enable switch and a **›** to that action's own page, where its
 
 ### Action order
 
-Dragging an action changes its position in the popup bar. [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) saves the order automatically under the key `actionOrder`.
+Dragging an action changes its position within its section. [`SettingsStore`](../../Sources/Core/Settings/SettingsStore.swift) saves the flat order automatically under the key `actionOrder`; the popup uses each action's contextual classification to build its contextual island and search order. A row cannot be dragged across the section boundary: dropping it onto another action groups them, and the group moves to **All Actions**.
 
 ## Shortcuts
 

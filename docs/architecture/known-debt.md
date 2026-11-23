@@ -304,6 +304,16 @@ areas; stale debt notes are worse than none.
   reordered. Typing still uses the existing alias/title/fuzzy/keyword ranking and usage tie-breaks;
   clearing the query restores contextual-first order. Scoped palettes keep their explicit child order.
 
+- The Actions page splits top-level rows into **Contextual Actions** and **All Actions**. The top
+  section contains standalone contextual actions and extension group rows whose own role is
+  contextual; custom groups, packages, and their members stay in All Actions. Headers are
+  non-selectable and root reorders cannot cross the boundary. Dropping a contextual action onto
+  another action groups them and moves the group to All Actions. The split is presentation only:
+  it reads `isContextual` and does not change runtime promotion. The section reflects capability,
+  so the global contextual toggle and per-action opt-outs can make the popup's current islands
+  differ from the page. Known limitation: contextual actions inside a group or package stay with
+  their container, so the top section is not an exhaustive list of every contextual action.
+
 - Classic popup shadows use a separate padded rendering buffer. `PopupCardChromeModifier`
   rasterizes only the solid rounded surface and its contact/ambient shadows, with
   `popupShadowInset` inside the buffer. The buttons and other live content remain outside that
@@ -477,8 +487,8 @@ areas; stale debt notes are worse than none.
   domain/runtime constants (timeouts, key codes, env vars, manifest keys).
 
 - The Search all actions button is optional. `SettingKey.showSearchAllActions` defaults to
-  true and is exposed under Customize → Behavior. Hiding it removes its width reservation
-  from popup pagination and updates the Appearance preview. The search hotkey stays available.
+  true and is exposed under General → App. Hiding it removes its width reservation
+  from popup pagination and updates the popup preview in Customize. The search hotkey stays available.
 
 - AI result bodies render Markdown once settled. `MarkdownPresence`
   (`Core/Utils/MarkdownPresence.swift`) is a detection-only scan (no parsing): line-anchored

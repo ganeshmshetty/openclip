@@ -1821,6 +1821,34 @@
         }
       }
     },
+    "All Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有動作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toutes les actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのアクション"
+          }
+        }
+      }
+    },
     "All Extensions": {
       "localizations": {
         "zh-Hans": {
@@ -13717,6 +13745,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "誤字のときだけ提案する"
+          }
+        }
+      }
+    },
+    "Only top-level contextual actions appear here. Actions inside a group stay with the group.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此处仅显示顶层上下文操作。组内的操作会保留在组中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此處僅顯示頂層情境動作。群組內的動作會保留在群組中。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seules les actions contextuelles de premier niveau apparaissent ici. Les actions d’un groupe restent avec leur groupe."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ここにはトップレベルのコンテキストアクションのみが表示されます。グループ内のアクションはグループに残ります。"
           }
         }
       }
