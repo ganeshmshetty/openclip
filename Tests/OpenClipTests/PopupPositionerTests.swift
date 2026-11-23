@@ -4,7 +4,16 @@ import XCTest
 
 final class PopupPositionerTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 800, height: 600)
-    private let size = CGSize(width: 50, height: 50)
+    private let inset = PopupMetrics.popupShadowInset
+    private let cardSize = CGSize(width: 50, height: 50)
+    /// Panel frames carry a transparent shadow ring on every edge, so the frame is the card plus two insets.
+    private var size: CGSize {
+        CGSize(width: cardSize.width + 2 * inset, height: cardSize.height + 2 * inset)
+    }
+
+    private func card(_ frame: CGRect) -> CGRect {
+        frame.insetBy(dx: inset, dy: inset)
+    }
 
     // Popup should appear above release point for normal/upward drag (center alignment)
     func testNormalPositioning() {
@@ -12,8 +21,8 @@ final class PopupPositionerTests: XCTestCase {
         let frame = PopupPositioner.placeNearReleasePoint(
             releasePoint: release, popupSize: size, screenBounds: screen, alignment: .center
         )
-        XCTAssertEqual(frame.origin.x, 375)
-        XCTAssertEqual(frame.origin.y, 206)
+        XCTAssertEqual(frame.origin.x, release.x - size.width / 2)
+        XCTAssertEqual(frame.origin.y, release.y + PopupPositioner.visibleGap - inset)
     }
 
     func testLeftAlignmentPositioning() {
@@ -22,7 +31,7 @@ final class PopupPositionerTests: XCTestCase {
             releasePoint: release, popupSize: size, screenBounds: screen, alignment: .left
         )
         XCTAssertEqual(frame.origin.x, 400 - PopupPositioner.firstActionCenterOffset)
-        XCTAssertEqual(frame.origin.y, 206)
+        XCTAssertEqual(frame.origin.y, release.y + PopupPositioner.visibleGap - inset)
     }
 
     func testRightAlignmentPositioning() {
@@ -31,7 +40,33 @@ final class PopupPositionerTests: XCTestCase {
             releasePoint: release, popupSize: size, screenBounds: screen, alignment: .right
         )
         XCTAssertEqual(frame.origin.x, 400 - (size.width - PopupPositioner.firstActionCenterOffset))
-        XCTAssertEqual(frame.origin.y, 206)
+        XCTAssertEqual(frame.origin.y, release.y + PopupPositioner.visibleGap - inset)
+    }
+
+    // Measure `visibleGap` to the visible card, excluding the panel's transparent shadow ring.
+    func testVisibleCardKeepsGapFromReleasePoint() {
+        let release = CGPoint(x: 400, y: 300)
+
+        let above = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release, popupSize: size, screenBounds: screen, verticalPosition: .above
+        )
+        XCTAssertEqual(card(above).minY - release.y, PopupPositioner.visibleGap)
+
+        let below = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release, popupSize: size, screenBounds: screen, verticalPosition: .below
+        )
+        XCTAssertEqual(release.y - card(below).maxY, PopupPositioner.visibleGap)
+
+        let dragDown = PopupPositioner.placeNearReleasePoint(
+            releasePoint: release, mouseDownPoint: CGPoint(x: 400, y: 400), popupSize: size, screenBounds: screen
+        )
+        XCTAssertEqual(release.y - card(dragDown).maxY, PopupPositioner.visibleGap)
+
+        let flipped = PopupPositioner.placeNearReleasePoint(
+            releasePoint: CGPoint(x: 400, y: 580), popupSize: size, screenBounds: screen, verticalPosition: .above
+        )
+        XCTAssertEqual(580 - card(flipped).maxY, PopupPositioner.visibleGap, "near the top edge the card flips below with the same gap")
+        XCTAssertFalse(PopupPositioner.isPlacedAbove(frame: flipped, releasePoint: CGPoint(x: 400, y: 580)))
     }
 
     func testOCRPopupStaysBesideTheRegionSelectionReleasePoint() {
@@ -45,15 +80,15 @@ final class PopupPositionerTests: XCTestCase {
         )
         let frame = PopupPositioner.calculateFrame(
             for: context,
-            popupSize: CGSize(width: 180, height: 48),
+            popupSize: CGSize(width: 180 + 2 * inset, height: 48 + 2 * inset),
             in: CGRect(x: 0, y: 0, width: 800, height: 600),
             alignment: .center,
             verticalPosition: .above
         )
 
         XCTAssertEqual(frame.midX, releasePoint.x)
-        XCTAssertEqual(frame.minY - releasePoint.y, 6)
-        XCTAssertLessThan(frame.minY - releasePoint.y, PopupMetrics.dismissalDistance(for: screen))
+        XCTAssertEqual(card(frame).minY - releasePoint.y, PopupPositioner.visibleGap)
+        XCTAssertLessThan(card(frame).minY - releasePoint.y, PopupMetrics.dismissalDistance(for: screen))
     }
 
     func testOCRPopupUsesCurrentPointerAndNormalGapAfterRecognitionDelay() {
@@ -73,7 +108,7 @@ final class PopupPositionerTests: XCTestCase {
         )
         let frame = PopupPositioner.calculateFrame(
             for: context,
-            popupSize: CGSize(width: 180, height: 48),
+            popupSize: CGSize(width: 180 + 2 * inset, height: 48 + 2 * inset),
             in: screen,
             alignment: .center,
             verticalPosition: .above
@@ -82,10 +117,11 @@ final class PopupPositionerTests: XCTestCase {
         XCTAssertEqual(anchor.cursorPosition, currentPointer)
         XCTAssertNil(anchor.mouseDownLocation)
         XCTAssertEqual(frame.midX, currentPointer.x)
-        XCTAssertEqual(frame.minY - currentPointer.y, 6)
-        let dx = max(0, max(frame.minX - currentPointer.x, currentPointer.x - frame.maxX))
-        let dy = max(0, max(frame.minY - currentPointer.y, currentPointer.y - frame.maxY))
-        XCTAssertEqual(hypot(dx, dy), 6)
+        XCTAssertEqual(card(frame).minY - currentPointer.y, PopupPositioner.visibleGap)
+        let cardFrame = card(frame)
+        let dx = max(0, max(cardFrame.minX - currentPointer.x, currentPointer.x - cardFrame.maxX))
+        let dy = max(0, max(cardFrame.minY - currentPointer.y, currentPointer.y - cardFrame.maxY))
+        XCTAssertEqual(hypot(dx, dy), PopupPositioner.visibleGap)
         XCTAssertLessThan(hypot(dx, dy), PopupMetrics.dismissalDistance(for: screen))
     }
 
@@ -103,7 +139,7 @@ final class PopupPositionerTests: XCTestCase {
         let frame = PopupPositioner.placeNearReleasePoint(
             releasePoint: release, mouseDownPoint: start, popupSize: size, screenBounds: screen
         )
-        XCTAssertEqual(frame.origin.y, 144)
+        XCTAssertEqual(frame.origin.y, 102)
     }
 
     // Near right edge: popup should be pushed left
@@ -112,7 +148,7 @@ final class PopupPositionerTests: XCTestCase {
         let frame = PopupPositioner.placeNearReleasePoint(
             releasePoint: release, popupSize: size, screenBounds: screen
         )
-        XCTAssertEqual(frame.origin.x, 742)
+        XCTAssertEqual(frame.origin.x, screen.maxX - size.width - 8)
     }
 
     // Near left edge: popup should be pushed right
@@ -130,16 +166,31 @@ final class PopupPositionerTests: XCTestCase {
         let frame = PopupPositioner.placeNearReleasePoint(
             releasePoint: release, popupSize: size, screenBounds: screen
         )
-        XCTAssertEqual(frame.origin.y, 524)
+        XCTAssertEqual(frame.origin.y, 482)
     }
 
-    // Near bottom edge: popup should stay above and clamp
-    func testBottomEdgeClamped() {
+    // Near bottom edge with no room below: the card keeps its gap above the release point rather than
+    // clamping the frame away from it.
+    func testBottomEdgeKeepsVisibleGap() {
         let release = CGPoint(x: 400, y: 5)
         let frame = PopupPositioner.placeNearReleasePoint(
-            releasePoint: release, popupSize: size, screenBounds: screen
+            releasePoint: release, popupSize: size, screenBounds: screen, verticalPosition: .above
         )
-        XCTAssertEqual(frame.origin.y, 11)
+        XCTAssertEqual(card(frame).minY - release.y, PopupPositioner.visibleGap)
+        XCTAssertGreaterThanOrEqual(card(frame).minY, screen.minY + 8)
+    }
+
+    func testCardOpensAboveOnlyWithinThresholdOfScreenBottom() {
+        let justBelow = CGRect(
+            x: 0,
+            y: PopupMetrics.cardAboveThreshold - inset - 1,
+            width: 100,
+            height: 50
+        )
+        XCTAssertTrue(PopupPositioner.prefersCardAbove(frame: justBelow, screenBounds: screen))
+
+        let atThreshold = justBelow.offsetBy(dx: 0, dy: 1)
+        XCTAssertFalse(PopupPositioner.prefersCardAbove(frame: atThreshold, screenBounds: screen))
     }
 
     // Width changes must re-center on the release X so the bar never drifts off the cursor.
@@ -193,7 +244,7 @@ final class PopupPositionerTests: XCTestCase {
             screenBounds: screen,
             verticalPosition: .above
         )
-        XCTAssertEqual(frame.origin.y, 206)
+        XCTAssertEqual(frame.origin.y, 192)
         XCTAssertTrue(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
     }
 
@@ -205,7 +256,7 @@ final class PopupPositionerTests: XCTestCase {
             screenBounds: screen,
             verticalPosition: .above
         )
-        XCTAssertEqual(frame.origin.y, 524)
+        XCTAssertEqual(frame.origin.y, 482)
         XCTAssertFalse(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
     }
 
@@ -218,7 +269,7 @@ final class PopupPositionerTests: XCTestCase {
             screenBounds: screen,
             verticalPosition: .below
         )
-        XCTAssertEqual(frame.origin.y, 144)
+        XCTAssertEqual(frame.origin.y, 102)
         XCTAssertFalse(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
     }
 
@@ -230,7 +281,7 @@ final class PopupPositionerTests: XCTestCase {
             screenBounds: screen,
             verticalPosition: .below
         )
-        XCTAssertEqual(frame.origin.y, 36)
+        XCTAssertEqual(frame.origin.y, 22)
         XCTAssertTrue(PopupPositioner.isPlacedAbove(frame: frame, releasePoint: release))
     }
 
