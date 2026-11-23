@@ -1,5 +1,6 @@
 import XCTest
 import AppKit
+import Core
 @testable import OpenClip
 
 /// AppKit resolves accessibility hit-tests on a helper thread. Overlay views must decline those calls
@@ -20,6 +21,33 @@ final class OverlayHitTestIsolationTests: XCTestCase {
 
         DispatchQueue.global(qos: .userInitiated).async {
             XCTAssertNil(box.value.hitTest(NSPoint(x: 20, y: 20)))
+            done.fulfill()
+        }
+
+        wait(for: [done], timeout: 5)
+    }
+
+    @MainActor
+    func testPopupContentDeclinesBackgroundHitTesting() {
+        let popup = PopupView(
+            actions: [],
+            context: ActionContext(selection: SelectionContext(text: "sample")),
+            onResult: { _ in }
+        )
+        let content = PopupPanel.ContentView(rootView: popup)
+        content.frame = NSRect(x: 0, y: 0, width: 200, height: 100)
+        XCTAssertTrue(
+            content.isMousePoint(NSPoint(x: 100, y: 50), in: content.bounds),
+            "the card still accepts the pointer on the main thread"
+        )
+
+        let box = UnsafeSendable(content)
+        let card = NSRect(x: 0, y: 0, width: 200, height: 100)
+        let done = expectation(description: "background popup hit test")
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            XCTAssertNil(box.value.hitTest(NSPoint(x: 100, y: 50)))
+            XCTAssertFalse(box.value.isMousePoint(NSPoint(x: 100, y: 50), in: card))
             done.fulfill()
         }
 
