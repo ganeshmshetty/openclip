@@ -896,5 +896,5 @@
   "Show Command Palette Icon in Popup": "Afficher l’icône de la palette de commandes dans le popup",
   "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "Afficher l’icône de la palette de commandes à la fin de la barre du popup. Le raccourci clavier reste actif lorsqu’elle est masquée.",
   "All Actions": "Toutes les actions",
-  "Only top-level contextual actions appear here. Actions inside a group stay with the group.": "Seules les actions contextuelles de premier niveau apparaissent ici. Les actions d’un groupe restent avec leur groupe."
+  "Actions that match the selected text are suggested first in the popup and search. Actions inside a group stay with the group below.": "Les actions qui correspondent au texte sélectionné sont proposées en premier dans le popup et la recherche. Les actions d’un groupe restent avec leur groupe ci-dessous."
 }

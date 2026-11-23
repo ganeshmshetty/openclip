@@ -896,5 +896,5 @@
   "Show Command Palette Icon in Popup": "ポップアップにコマンドパレットのアイコンを表示",
   "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "ポップアップバーの末尾にコマンドパレットのアイコンを表示します。非表示でもキーボードショートカットは使用できます。",
   "All Actions": "すべてのアクション",
-  "Only top-level contextual actions appear here. Actions inside a group stay with the group.": "ここにはトップレベルのコンテキストアクションのみが表示されます。グループ内のアクションはグループに残ります。"
+  "Actions that match the selected text are suggested first in the popup and search. Actions inside a group stay with the group below.": "選択したテキストに一致するアクションは、ポップアップと検索で優先的に表示されます。グループ内のアクションは、下のグループに残ります。"
 }

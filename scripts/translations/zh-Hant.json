@@ -896,5 +896,5 @@
   "Show Command Palette Icon in Popup": "在彈出視窗中顯示命令面板圖示",
   "Show the command palette icon at the end of the popup bar. The keyboard shortcut still works when hidden.": "在彈出列結尾顯示命令面板圖示。隱藏後鍵盤快速鍵仍然有效。",
   "All Actions": "所有動作",
-  "Only top-level contextual actions appear here. Actions inside a group stay with the group.": "此處僅顯示頂層情境動作。群組內的動作會保留在群組中。"
+  "Actions that match the selected text are suggested first in the popup and search. Actions inside a group stay with the group below.": "與所選文字相符的動作會在彈出視窗和搜尋中優先顯示。群組內的動作會保留在下方的群組中。"
 }

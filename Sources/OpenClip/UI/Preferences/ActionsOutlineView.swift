@@ -31,7 +31,7 @@ enum RootSection: String, Sendable {
     var info: String? {
         switch self {
         case .contextual:
-            return String(localized: "Only top-level contextual actions appear here. Actions inside a group stay with the group.")
+            return String(localized: "Actions that match the selected text are suggested first in the popup and search. Actions inside a group stay with the group below.")
         case .all:
             return nil
         }
@@ -552,6 +552,7 @@ struct ActionsOutlineView: NSViewRepresentable {
     @ObservedObject var coordinator: ActionCoordinator
     @ObservedObject var customizationManager: ActionCustomizationManager
     var searchQuery: String = ""
+    var contextualSectionsEnabled: Bool = true
     @Binding var disabledActionIDs: Set<String>
     @Binding var disabledPackages: Set<String>
     @Binding var selectedRowIDs: Set<String>
@@ -564,6 +565,7 @@ struct ActionsOutlineView: NSViewRepresentable {
         coordinator: ActionCoordinator,
         customizationManager: ActionCustomizationManager,
         searchQuery: String = "",
+        contextualSectionsEnabled: Bool = true,
         disabledActionIDs: Binding<Set<String>> = .constant([]),
         disabledPackages: Binding<Set<String>> = .constant([]),
         selectedRowIDs: Binding<Set<String>> = .constant([]),
@@ -574,6 +576,7 @@ struct ActionsOutlineView: NSViewRepresentable {
         self.coordinator = coordinator
         self.customizationManager = customizationManager
         self.searchQuery = searchQuery
+        self.contextualSectionsEnabled = contextualSectionsEnabled
         self._disabledActionIDs = disabledActionIDs
         self._disabledPackages = disabledPackages
         self._selectedRowIDs = selectedRowIDs
@@ -731,7 +734,8 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
         }
     }
 
-    static func makeDisplayRoots(from roots: [OutlineNode]) -> [OutlineNode] {
+    static func makeDisplayRoots(from roots: [OutlineNode], contextualSectionsEnabled: Bool = true) -> [OutlineNode] {
+        guard contextualSectionsEnabled else { return roots }
         let packageIDs = packageHeaderIDs(in: roots)
         let contextual = roots.filter { isContextualRoot($0, packageHeaderIDs: packageIDs) }
         let standard = roots.filter { !isContextualRoot($0, packageHeaderIDs: packageIDs) }
@@ -753,11 +757,13 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
     }
 
     func section(of node: OutlineNode) -> RootSection? {
+        guard parent.contextualSectionsEnabled else { return .all }
         if let section = node.section { return section }
         return Self.isContextualRoot(node, packageHeaderIDs: packageHeaderIDs) ? .contextual : .all
     }
 
     private func section(ofActionID id: String) -> RootSection {
+        guard parent.contextualSectionsEnabled else { return .all }
         if let root = rootNodes.first(where: { $0.id == id }) {
             return section(of: root) ?? .all
         }
@@ -1019,7 +1025,10 @@ final class ActionsOutlineCoordinator: NSObject, NSOutlineViewDataSource, NSOutl
             }
         }
 
-        let newDisplayRoots = Self.makeDisplayRoots(from: newRoots)
+        let newDisplayRoots = Self.makeDisplayRoots(
+            from: newRoots,
+            contextualSectionsEnabled: parent.contextualSectionsEnabled
+        )
         let changed = !OutlineNode.treesEqual(newRoots, self.rootNodes)
             || !OutlineNode.treesEqual(newDisplayRoots, self.displayRootNodes)
         if changed {

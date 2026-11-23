@@ -309,7 +309,8 @@ areas; stale debt notes are worse than none.
   contextual; custom groups, packages, and their members stay in All Actions. Headers are
   non-selectable and root reorders cannot cross the boundary. Dropping a contextual action onto
   another action groups them and moves the group to All Actions. The enable toggle, Placement, and
-  the configure list live in the Actions toolbar's Contextual Actions popover. The split is presentation only:
+  the configure list live in the Actions toolbar's Contextual Actions popover. Turning the feature
+  off collapses the page back to the flat list. The split is presentation only:
   it reads `isContextual` and does not change runtime promotion. The section reflects capability,
   so the global contextual toggle and per-action opt-outs can make the popup's current islands
   differ from the page. Known limitation: contextual actions inside a group or package stay with

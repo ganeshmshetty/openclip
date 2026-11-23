@@ -1233,6 +1233,34 @@
         }
       }
     },
+    "Actions that match the selected text are suggested first in the popup and search. Actions inside a group stay with the group below.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "与所选文本匹配的操作会在弹出窗口和搜索中优先显示。组内的操作会保留在下方的组中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "與所選文字相符的動作會在彈出視窗和搜尋中優先顯示。群組內的動作會保留在下方的群組中。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les actions qui correspondent au texte sélectionné sont proposées en premier dans le popup et la recherche. Les actions d’un groupe restent avec leur groupe ci-dessous."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択したテキストに一致するアクションは、ポップアップと検索で優先的に表示されます。グループ内のアクションは、下のグループに残ります。"
+          }
+        }
+      }
+    },
     "Actions you made yourself: open a URL with the selection, paste a snippet built from it, or run a shell script on it.": {
       "localizations": {
         "zh-Hans": {
@@ -13689,34 +13717,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "誤字のときだけ提案する"
-          }
-        }
-      }
-    },
-    "Only top-level contextual actions appear here. Actions inside a group stay with the group.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此处仅显示顶层上下文操作。组内的操作会保留在组中。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此處僅顯示頂層情境動作。群組內的動作會保留在群組中。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Seules les actions contextuelles de premier niveau apparaissent ici. Les actions d’un groupe restent avec leur groupe."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ここにはトップレベルのコンテキストアクションのみが表示されます。グループ内のアクションはグループに残ります。"
           }
         }
       }

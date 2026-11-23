@@ -19,6 +19,7 @@ struct CustomizePage: View {
 
     @ObservedObject private var coordinator = ActionCoordinator.shared
     @ObservedObject private var customizationManager = ActionCustomizationManager.shared
+    @Setting(SettingKey.contextualActionsEnabled) private var contextualActionsEnabled
 
     init(
         selectedRowIDs: Binding<Set<String>>,
@@ -63,6 +64,7 @@ struct CustomizePage: View {
                 coordinator: coordinator,
                 customizationManager: customizationManager,
                 searchQuery: query,
+                contextualSectionsEnabled: contextualActionsEnabled,
                 disabledActionIDs: $disabledActionIDs,
                 disabledPackages: $disabledPackages,
                 selectedRowIDs: $selectedRowIDs,

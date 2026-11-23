@@ -1492,6 +1492,34 @@ final class ActionsOutlineDropTests: XCTestCase {
 
         XCTAssertEqual(outlineCoordinator.displayRootNodes.map(\.id), ["section.contextual", contextual.id])
     }
+
+    func testContextualSectionsCollapseToAPlainListWhenDisabled() throws {
+        let contextual = DummyAction(
+            id: "contextual.plain",
+            title: "Contextual Plain",
+            chrome: ActionChrome(contextualOverride: true)
+        )
+        coordinator.register(action: contextual)
+        outlineCoordinator.rebuildTree()
+        XCTAssertTrue(outlineCoordinator.displayRootNodes.contains { $0.isSectionHeader })
+
+        outlineCoordinator.parent = ActionsOutlineView(
+            coordinator: coordinator,
+            customizationManager: ActionCustomizationManager(settingsStore: settingsStore),
+            contextualSectionsEnabled: false,
+            selectedRowIDs: .constant([]),
+            onEditGroup: { _ in },
+            onCreateGroupFromSelection: { },
+            onOpenNode: { _ in }
+        )
+        outlineCoordinator.rebuildTree()
+
+        XCTAssertFalse(outlineCoordinator.displayRootNodes.contains { $0.isSectionHeader })
+        XCTAssertEqual(
+            outlineCoordinator.displayRootNodes.map(\.id),
+            outlineCoordinator.rootNodes.map(\.id)
+        )
+    }
 }
 
 private final class MockDraggingInfo: NSObject, NSDraggingInfo {
