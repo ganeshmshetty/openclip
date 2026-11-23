@@ -326,15 +326,10 @@ final class ActionGroupIntegrationTests: XCTestCase {
             return results
         }
 
-        // Each action row hosts an enable switch; section headers carry no controls.
+        // Each row hosts an enable switch, matching the unified customize list design.
         var renderedRows = 0
         for r in 0..<outlineView.numberOfRows {
-            guard let node = outlineView.item(atRow: r) as? OutlineNode,
-                  let rowView = outlineView.view(atColumn: 0, row: r, makeIfNecessary: true) else { continue }
-            if node.isSectionHeader {
-                XCTAssertTrue(findSwitches(in: rowView).isEmpty, "Section headers must not carry controls")
-                continue
-            }
+            guard let rowView = outlineView.view(atColumn: 0, row: r, makeIfNecessary: true) else { continue }
             renderedRows += 1
             XCTAssertFalse(findSwitches(in: rowView).isEmpty, "Row \(r) should carry an enable switch")
         }
@@ -621,7 +616,7 @@ final class ActionsOutlineDropTests: XCTestCase {
             DummyAction(id: id, title: "Renamed", chrome: ActionChrome(source: .ai))
         ])
         outlineCoordinator.rebuildTree()
-        let rootCount = outlineCoordinator.displayRootNodes.count
+        let rootCount = outlineCoordinator.rootNodes.count
         XCTAssertTrue(outlineCoordinator.outlineView(outline, acceptDrop: MockDraggingInfo(actionID: "builtin.aiTools"), item: nil, childIndex: rootCount))
         XCTAssertEqual(outlineCoordinator.rootNodes.first?.id, id)
         XCTAssertEqual(outlineCoordinator.rootNodes.first?.action?.title, "Renamed")
@@ -769,7 +764,7 @@ final class ActionsOutlineDropTests: XCTestCase {
     func testDraggingGroupWithItsSelectedChildDoesNotUngroupChild() throws {
         let id = try XCTUnwrap(coordinator.createGroup(title: "Group", iconName: "folder", memberActionIDs: ["action.1", "action.2"]))
         outlineCoordinator.rebuildTree()
-        let count = outlineCoordinator.displayRootNodes.count
+        let count = outlineCoordinator.rootNodes.count
         XCTAssertTrue(outlineCoordinator.outlineView(NSOutlineView(), acceptDrop: MockDraggingInfo(actionIDs: [id, "action.1"]), item: nil, childIndex: count))
         XCTAssertEqual(coordinator.memberActionIDs(for: id), ["action.1", "action.2"])
         XCTAssertEqual(coordinator.actions.map(\.id), ["action.3", "action.4", id, "action.1", "action.2"])
@@ -789,7 +784,6 @@ final class ActionsOutlineDropTests: XCTestCase {
         outlineCoordinator.rebuildTree()
         let rootIndex = try XCTUnwrap(outlineCoordinator.rootNodes.firstIndex { $0.id == id })
         let group = outlineCoordinator.rootNodes[rootIndex]
-        let groupDisplayIndex = try XCTUnwrap(outlineCoordinator.displayRootNodes.firstIndex { $0.id == id })
         let outline = makeDropOutline()
         let lastRow = outline.row(forItem: try XCTUnwrap(group.children.last))
         XCTAssertGreaterThanOrEqual(lastRow, 0)
@@ -800,7 +794,7 @@ final class ActionsOutlineDropTests: XCTestCase {
         XCTAssertEqual(outlineCoordinator.outlineView(outline, validateDrop: drag, proposedItem: group, proposedChildIndex: group.children.count), .move)
         XCTAssertNil(outline.highlightedDropGroupID)
         // AppKit forwards the retargeted root gap to acceptDrop.
-        XCTAssertTrue(outlineCoordinator.outlineView(outline, acceptDrop: drag, item: nil, childIndex: groupDisplayIndex + 1))
+        XCTAssertTrue(outlineCoordinator.outlineView(outline, acceptDrop: drag, item: nil, childIndex: rootIndex + 1))
         XCTAssertEqual(coordinator.memberActionIDs(for: id), ["action.2"])
         let rootIDs = outlineCoordinator.rootNodes.compactMap { $0.action?.id }
         XCTAssertEqual(rootIDs, [id, "action.1", "action.3", "action.4"])
@@ -1313,8 +1307,7 @@ final class ActionsOutlineDropTests: XCTestCase {
         coordinator.register(action: standaloneAction)
         _ = outlineCoordinator.rebuildTree()
 
-        guard let flatIndex = outlineCoordinator.rootNodes.firstIndex(where: { $0.id == "pkg.com.pkg.leafy" }),
-              let headerIndex = outlineCoordinator.displayIndex(forFlatRootIndex: flatIndex) else {
+        guard let headerIndex = outlineCoordinator.rootNodes.firstIndex(where: { $0.id == "pkg.com.pkg.leafy" }) else {
             return XCTFail("Package header node not found")
         }
 
@@ -1324,201 +1317,6 @@ final class ActionsOutlineDropTests: XCTestCase {
         XCTAssertTrue(success)
 
         XCTAssertEqual(coordinator.actions.first?.id, "standalone.other")
-    }
-
-    // MARK: - Contextual / All Actions sections
-
-    func testSectionsPutStandaloneContextualActionsAboveAllActions() throws {
-        let contextual = DummyAction(
-            id: "contextual.standalone",
-            title: "Contextual Standalone",
-            chrome: ActionChrome(contextualOverride: true)
-        )
-        coordinator.register(action: contextual)
-        outlineCoordinator.rebuildTree()
-
-        let nodes = outlineCoordinator.displayRootNodes
-        XCTAssertEqual(nodes.first?.id, "section.contextual")
-
-        let contextualIndex = try XCTUnwrap(nodes.firstIndex { $0.id == contextual.id })
-        let allHeaderIndex = try XCTUnwrap(nodes.firstIndex { $0.id == "section.all" })
-        XCTAssertLessThan(contextualIndex, allHeaderIndex)
-        XCTAssertEqual(outlineCoordinator.section(of: nodes[contextualIndex]), .contextual)
-    }
-
-    func testSectionHeadersAreNotSelectableOrDraggable() throws {
-        coordinator.register(action: DummyAction(
-            id: "contextual.header",
-            title: "Contextual Header",
-            chrome: ActionChrome(contextualOverride: true)
-        ))
-        outlineCoordinator.rebuildTree()
-        let outline = ActionsOutlineTableView()
-        let header = try XCTUnwrap(outlineCoordinator.displayRootNodes.first { $0.isSectionHeader })
-
-        XCTAssertFalse(outlineCoordinator.outlineView(outline, shouldSelectItem: header))
-        XCTAssertNil(outlineCoordinator.outlineView(outline, pasteboardWriterForItem: header))
-    }
-
-    func testRootReorderCannotCrossSections() throws {
-        let contextual = DummyAction(
-            id: "contextual.reorder",
-            title: "Contextual Reorder",
-            chrome: ActionChrome(contextualOverride: true)
-        )
-        coordinator.register(action: contextual)
-        outlineCoordinator.rebuildTree()
-
-        let normalIndex = try XCTUnwrap(outlineCoordinator.displayRootNodes.firstIndex { $0.id == "action.1" })
-        let drag = MockDraggingInfo(actionID: contextual.id)
-        let outline = NSOutlineView()
-
-        XCTAssertEqual(outlineCoordinator.outlineView(
-            outline, validateDrop: drag, proposedItem: nil, proposedChildIndex: normalIndex
-        ), [])
-        XCTAssertFalse(outlineCoordinator.outlineView(
-            outline, acceptDrop: drag, item: nil, childIndex: normalIndex
-        ))
-    }
-
-    func testGroupingAContextualActionMovesTheGroupIntoAllActions() throws {
-        let contextual = DummyAction(
-            id: "contextual.grouped",
-            title: "Contextual Grouped",
-            chrome: ActionChrome(contextualOverride: true)
-        )
-        let normal = DummyAction(
-            id: "normal.grouped",
-            title: "Normal Grouped",
-            chrome: ActionChrome(source: .builtin)
-        )
-        coordinator.register(action: contextual)
-        coordinator.register(action: normal)
-        outlineCoordinator.rebuildTree()
-
-        let target = try XCTUnwrap(outlineCoordinator.displayRootNodes.first { $0.id == normal.id })
-        let drag = MockDraggingInfo(actionID: contextual.id)
-        let outline = NSOutlineView()
-
-        XCTAssertEqual(outlineCoordinator.outlineView(
-            outline, validateDrop: drag, proposedItem: target, proposedChildIndex: NSOutlineViewDropOnItemIndex
-        ), .move)
-        XCTAssertTrue(outlineCoordinator.outlineView(
-            outline, acceptDrop: drag, item: target, childIndex: NSOutlineViewDropOnItemIndex
-        ))
-
-        let groupID = try XCTUnwrap(coordinator.actionGroupDefs.first?.id)
-        XCTAssertEqual(Set(coordinator.actionGroupDefs[0].memberActionIDs), Set([contextual.id, normal.id]))
-
-        let updated = outlineCoordinator.displayRootNodes
-        XCTAssertFalse(updated.contains { $0.id == "section.contextual" })
-        let groupIndex = try XCTUnwrap(updated.firstIndex { $0.id == groupID })
-        let allIndex = try XCTUnwrap(updated.firstIndex { $0.id == "section.all" })
-        XCTAssertGreaterThan(groupIndex, allIndex)
-    }
-
-    func testContextualExtensionGroupRowStaysInTheContextualSection() throws {
-        let groupID = "com.pkg.contextual.group"
-        let group = GroupAction(
-            id: groupID,
-            title: "Contextual Group",
-            icon: .symbol("folder"),
-            chrome: ActionChrome(
-                rowStyle: .actionGroup,
-                popupBehavior: .showSubActions,
-                source: .extensionPkg(packageID: "com.pkg.contextual")
-            ),
-            rules: ExtensionActionRules(requirements: ActionRequirements(regex: "."))
-        )
-        let child = DummyAction(
-            id: "\(groupID).child",
-            title: "Child",
-            chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg.contextual"))
-        )
-        coordinator.register(action: group)
-        coordinator.register(action: child)
-        outlineCoordinator.rebuildTree()
-
-        let nodes = outlineCoordinator.displayRootNodes
-        let groupIndex = try XCTUnwrap(nodes.firstIndex { $0.id == groupID })
-        let contextualHeader = try XCTUnwrap(nodes.firstIndex { $0.id == "section.contextual" })
-        let allHeader = try XCTUnwrap(nodes.firstIndex { $0.id == "section.all" })
-        XCTAssertGreaterThan(groupIndex, contextualHeader)
-        XCTAssertLessThan(groupIndex, allHeader)
-    }
-
-    func testContextualActionInAPackageStaysWithThePackage() throws {
-        let contextual = DummyAction(
-            id: "com.pkg.mixed.ctx",
-            title: "Contextual Package Action",
-            chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg.mixed"), contextualOverride: true)
-        )
-        let normal = DummyAction(
-            id: "com.pkg.mixed.normal",
-            title: "Normal Package Action",
-            chrome: ActionChrome(source: .extensionPkg(packageID: "com.pkg.mixed"))
-        )
-        coordinator.register(action: contextual)
-        coordinator.register(action: normal)
-        outlineCoordinator.rebuildTree()
-
-        let nodes = outlineCoordinator.displayRootNodes
-        XCTAssertEqual(nodes.first?.id, "section.all")
-        let contextualIndex = try XCTUnwrap(nodes.firstIndex { $0.id == contextual.id })
-        let allHeader = try XCTUnwrap(nodes.firstIndex { $0.id == "section.all" })
-        XCTAssertGreaterThan(contextualIndex, allHeader)
-        XCTAssertTrue(nodes.contains { $0.id == "pkg.com.pkg.mixed" })
-    }
-
-    func testSearchHidesAnEmptySection() throws {
-        let contextual = DummyAction(
-            id: "contextual.search",
-            title: "Unique Contextual",
-            chrome: ActionChrome(contextualOverride: true)
-        )
-        coordinator.register(action: contextual)
-        outlineCoordinator.rebuildTree()
-
-        outlineCoordinator.parent = ActionsOutlineView(
-            coordinator: coordinator,
-            customizationManager: ActionCustomizationManager(settingsStore: settingsStore),
-            searchQuery: "Unique Contextual",
-            selectedRowIDs: .constant([]),
-            onEditGroup: { _ in },
-            onCreateGroupFromSelection: { },
-            onOpenNode: { _ in }
-        )
-        outlineCoordinator.rebuildTree()
-
-        XCTAssertEqual(outlineCoordinator.displayRootNodes.map(\.id), ["section.contextual", contextual.id])
-    }
-
-    func testContextualSectionsCollapseToAPlainListWhenDisabled() throws {
-        let contextual = DummyAction(
-            id: "contextual.plain",
-            title: "Contextual Plain",
-            chrome: ActionChrome(contextualOverride: true)
-        )
-        coordinator.register(action: contextual)
-        outlineCoordinator.rebuildTree()
-        XCTAssertTrue(outlineCoordinator.displayRootNodes.contains { $0.isSectionHeader })
-
-        outlineCoordinator.parent = ActionsOutlineView(
-            coordinator: coordinator,
-            customizationManager: ActionCustomizationManager(settingsStore: settingsStore),
-            contextualSectionsEnabled: false,
-            selectedRowIDs: .constant([]),
-            onEditGroup: { _ in },
-            onCreateGroupFromSelection: { },
-            onOpenNode: { _ in }
-        )
-        outlineCoordinator.rebuildTree()
-
-        XCTAssertFalse(outlineCoordinator.displayRootNodes.contains { $0.isSectionHeader })
-        XCTAssertEqual(
-            outlineCoordinator.displayRootNodes.map(\.id),
-            outlineCoordinator.rootNodes.map(\.id)
-        )
     }
 }
 

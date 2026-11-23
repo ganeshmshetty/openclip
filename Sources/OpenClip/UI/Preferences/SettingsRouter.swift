@@ -137,7 +137,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         switch self {
         case .general: return ["startup", "launch", "login", "menu bar", "trigger", "hotkey", "permission", "accessibility", "paste", "copy", "preview", "command palette", "show command palette", "search button"]
         case .appearance: return ["appearance", "theme", "dark", "light", "glass", "popup", "preview", "customize", "behavior", "scale", "position"]
-        case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install", "shortcuts", "hotkey", "keyboard", "alias", "shortcut", "key", "binding", "contextual", "contextual actions", "placement", "pill"]
+        case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install", "shortcuts", "hotkey", "keyboard", "alias", "shortcut", "key", "binding", "suggested", "suggested actions", "action suggestions", "suggestions", "contextual", "contextual actions", "placement", "pill"]
         case .shortcuts: return ["hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .appRules: return ["apps", "exclude", "allow", "block", "rules", "disable", "per-app"]
         case .store: return ["extensions", "clips", "install", "catalog", "browse", "download"]

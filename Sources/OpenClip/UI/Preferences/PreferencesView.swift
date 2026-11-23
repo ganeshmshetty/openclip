@@ -798,8 +798,8 @@ public struct PreferencesView: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .help(String(localized: "Contextual Actions"))
-                .accessibilityLabel(String(localized: "Contextual Actions"))
+                .help(String(localized: "Suggested Actions"))
+                .accessibilityLabel(String(localized: "Suggested Actions"))
                 .popover(isPresented: $isShowingContextualSettings, arrowEdge: .bottom) {
                     ContextualActionsPopoverView()
                 }

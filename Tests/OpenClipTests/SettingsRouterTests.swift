@@ -129,9 +129,9 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertNil(router.generalRevealRequest)
     }
 
-    func testAppearancePageIsTitledCustomizeAndActionsSearchFindsContextualControls() {
+    func testAppearancePageIsTitledCustomizeAndActionsSearchFindsSuggestedControls() {
         XCTAssertEqual(SettingsPage.appearance.staticTitle, "Customize")
-        XCTAssertTrue(SettingsPage.customize.searchKeywords.contains("contextual"))
+        XCTAssertTrue(SettingsPage.customize.searchKeywords.contains("suggested"))
         XCTAssertTrue(SettingsPage.customize.searchKeywords.contains("placement"))
         XCTAssertEqual(GeneralSearchTarget.all.count, 12)
     }

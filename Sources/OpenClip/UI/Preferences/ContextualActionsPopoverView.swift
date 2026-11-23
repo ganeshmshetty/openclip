@@ -27,12 +27,17 @@ struct ContextualActionsPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "Contextual Actions"))
+            Text(String(localized: "Suggested Actions"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(SettingsDesignTokens.rowTitleColor)
 
+            Text(String(localized: "Actions suggested when they match your selection."))
+                .font(.caption)
+                .foregroundStyle(SettingsDesignTokens.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
             HStack(spacing: 8) {
-                Text(String(localized: "Show Contextual Actions"))
+                Text(String(localized: "Show Suggested Actions"))
                     .font(.system(size: 12.5))
                     .foregroundStyle(SettingsDesignTokens.rowTitleColor)
                 Spacer(minLength: 8)
@@ -40,7 +45,7 @@ struct ContextualActionsPopoverView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.mini)
-                    .accessibilityLabel(String(localized: "Show Contextual Actions"))
+                    .accessibilityLabel(String(localized: "Show Suggested Actions"))
             }
 
             HStack(spacing: 8) {
@@ -62,7 +67,7 @@ struct ContextualActionsPopoverView: View {
             Divider()
 
             if eligibleActions.isEmpty {
-                Text(String(localized: "No actions declare detection rules. Extensions can add them."))
+                Text(String(localized: "No actions can be suggested yet. Extensions can add them."))
                     .font(.caption)
                     .foregroundStyle(SettingsDesignTokens.secondaryText)
                     .padding(.vertical, 8)
@@ -120,7 +125,7 @@ struct ContextualActionsPopoverView: View {
                 .controlSize(.mini)
                 .disabled(isGloballyDisabled)
                 .help(isGloballyDisabled ? String(localized: "Off in Actions") : "")
-                .accessibilityLabel(String(format: String(localized: "Show %@ in contextual bar"), presentation.title))
+                .accessibilityLabel(String(format: String(localized: "Suggest %@ when it matches"), presentation.title))
         }
         .opacity(isGloballyDisabled ? 0.65 : 1)
     }

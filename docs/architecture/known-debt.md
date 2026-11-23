@@ -304,17 +304,11 @@ areas; stale debt notes are worse than none.
   reordered. Typing still uses the existing alias/title/fuzzy/keyword ranking and usage tie-breaks;
   clearing the query restores contextual-first order. Scoped palettes keep their explicit child order.
 
-- The Actions page splits top-level rows into **Contextual Actions** and **All Actions**. The top
-  section contains standalone contextual actions and extension group rows whose own role is
-  contextual; custom groups, packages, and their members stay in All Actions. Headers are
-  non-selectable and root reorders cannot cross the boundary. Dropping a contextual action onto
-  another action groups them and moves the group to All Actions. The enable toggle, Placement, and
-  the configure list live in the Actions toolbar's Contextual Actions popover. Turning the feature
-  off collapses the page back to the flat list. The split is presentation only:
-  it reads `isContextual` and does not change runtime promotion. The section reflects capability,
-  so the global contextual toggle and per-action opt-outs can make the popup's current islands
-  differ from the page. Known limitation: contextual actions inside a group or package stay with
-  their container, so the top section is not an exhaustive list of every contextual action.
+- Suggested actions are managed from the Actions toolbar's **Suggested Actions** popover: the show
+  toggle, placement, and per-action opt-outs. The Actions page stays one flat list; membership is
+  capability-based (`isContextual`) and participation is `disabledContextualActionIDs`. The popup
+  promotes matching suggested actions when the feature is on. There is no section split or
+  cross-section reorder.
 
 - Classic popup shadows use a separate padded rendering buffer. `PopupCardChromeModifier`
   rasterizes only the solid rounded surface and its contact/ambient shadows, with

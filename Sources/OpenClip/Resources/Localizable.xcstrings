@@ -1233,30 +1233,30 @@
         }
       }
     },
-    "Actions that match the selected text are suggested first in the popup and search. Actions inside a group stay with the group below.": {
+    "Actions suggested when they match your selection.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "与所选文本匹配的操作会在弹出窗口和搜索中优先显示。组内的操作会保留在下方的组中。"
+            "value": "与所选内容匹配时建议的操作。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "與所選文字相符的動作會在彈出視窗和搜尋中優先顯示。群組內的動作會保留在下方的群組中。"
+            "value": "與選取內容相符時建議的動作。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Les actions qui correspondent au texte sélectionné sont proposées en premier dans le popup et la recherche. Les actions d’un groupe restent avec leur groupe ci-dessous."
+            "value": "Actions suggérées lorsqu’elles correspondent à votre sélection."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "選択したテキストに一致するアクションは、ポップアップと検索で優先的に表示されます。グループ内のアクションは、下のグループに残ります。"
+            "value": "選択内容に一致したときにおすすめされるアクションです。"
           }
         }
       }
@@ -1845,34 +1845,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "すべて"
-          }
-        }
-      }
-    },
-    "All Actions": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "所有操作"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "所有動作"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toutes les actions"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "すべてのアクション"
           }
         }
       }
@@ -2605,30 +2577,30 @@
         }
       }
     },
-    "As contextual action": {
+    "As suggested action": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "作为上下文操作"
+            "value": "作为建议操作"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "作為情境操作"
+            "value": "作為建議動作"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Comme action contextuelle"
+            "value": "Comme action suggérée"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "コンテキストアクションとして"
+            "value": "おすすめアクションとして"
           }
         }
       }
@@ -5121,34 +5093,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "設定済みのAIアクション"
-          }
-        }
-      }
-    },
-    "Contextual Actions": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "上下文操作"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "情境動作"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Actions contextuelles"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "コンテキストアクション"
           }
         }
       }
@@ -10529,30 +10473,30 @@
         }
       }
     },
-    "Inline shows suggestions in the bar. Contextual shows the Word Completion group for hover or search.": {
+    "Inline shows suggestions in the bar. Suggested shows the Word Completion group for hover or search.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "内联会在操作栏中显示建议。上下文操作会显示“单词补全”组，可悬停查看或搜索。"
+            "value": "内联会在栏中显示建议。作为建议操作会显示 Word Completion 组，供悬停或搜索使用。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "內嵌會在操作列中顯示建議。情境操作會顯示「單字自動完成」群組，可懸停查看或搜尋。"
+            "value": "內嵌會在列中顯示建議。作為建議動作會顯示 Word Completion 群組，供懸停或搜尋使用。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dans la barre affiche les suggestions. L’action contextuelle affiche le groupe Complétion de mots, à survoler ou rechercher."
+            "value": "Inline affiche les suggestions dans la barre. « Action suggérée » affiche le groupe Word Completion au survol ou dans la recherche."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "インラインはバーに候補を表示します。コンテキストアクションは単語補完グループを表示し、ホバーまたは検索で候補を開けます。"
+            "value": "インラインはバーに候補を表示します。「おすすめアクション」はホバーまたは検索用の Word Completion グループを表示します。"
           }
         }
       }
@@ -12741,30 +12685,30 @@
         }
       }
     },
-    "No actions declare detection rules. Extensions can add them.": {
+    "No actions can be suggested yet. Extensions can add them.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "没有操作声明检测规则。扩展可以添加规则。"
+            "value": "暂无可建议的操作。扩展可以添加。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "沒有動作宣告偵測規則。擴充功能可以加入規則。"
+            "value": "目前沒有可建議的動作。擴充功能可以加入。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aucune action ne déclare de règle de détection. Les extensions peuvent en ajouter."
+            "value": "Aucune action ne peut encore être suggérée. Les extensions peuvent en ajouter."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "検出ルールを宣言しているアクションはありません。拡張機能で追加できます。"
+            "value": "まだおすすめできるアクションはありません。拡張機能で追加できます。"
           }
         }
       }
@@ -19881,34 +19825,6 @@
         }
       }
     },
-    "Show %@ in contextual bar": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在上下文栏中显示 %@"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在情境列中顯示 %@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher %@ dans la barre contextuelle"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@をコンテキストバーに表示"
-          }
-        }
-      }
-    },
     "Show All": {
       "localizations": {
         "zh-Hans": {
@@ -19961,34 +19877,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ポップアップにコマンドパレットのアイコンを表示"
-          }
-        }
-      }
-    },
-    "Show Contextual Actions": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示上下文操作"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "顯示情境動作"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher les actions contextuelles"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "コンテキストアクションを表示"
           }
         }
       }
@@ -20129,6 +20017,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "シークレットを表示"
+          }
+        }
+      }
+    },
+    "Show Suggested Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示建议操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示建議動作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher les actions suggérées"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "おすすめアクションを表示"
           }
         }
       }
@@ -21109,6 +21025,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "ストア"
+          }
+        }
+      }
+    },
+    "Suggest %@ when it matches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匹配时建议 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相符時建議 %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggérer %@ lorsqu’elle correspond"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致したときに%@をおすすめ"
+          }
+        }
+      }
+    },
+    "Suggested Actions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議動作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions suggérées"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "おすすめアクション"
           }
         }
       }
