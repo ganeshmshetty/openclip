@@ -305,7 +305,7 @@ public class PopupWindowController {
             alignment: alignment,
             verticalPosition: verticalPosition
         )
-        cardAbove = tempFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
+        cardAbove = PopupPositioner.prefersCardAbove(frame: tempFrame, screenBounds: screenBounds)
 
         modeStore.mode = initialMode
         PaletteRowShortcuts.setActive(initialMode == .search)
@@ -451,7 +451,7 @@ public class PopupWindowController {
         let calculatedFrame = PopupPositioner.calculateFrame(
             for: selectionContext, popupSize: size, in: screenBounds, alignment: alignment, verticalPosition: verticalPosition)
         positionPanel(panel, size: size, for: selectionContext, alignment: alignment, verticalPosition: verticalPosition)
-        cardAbove = calculatedFrame.minY < screenBounds.minY + PopupMetrics.cardAboveThreshold
+        cardAbove = PopupPositioner.prefersCardAbove(frame: calculatedFrame, screenBounds: screenBounds)
         modeStore.searchResultsAbove = cardAbove
         modeStore.subBarAbove = PopupPositioner.isPlacedAbove(frame: calculatedFrame, releasePoint: selectionContext.cursorPosition)
         lastPopupFrame = panel.frame

@@ -16,7 +16,11 @@ enum PopupDismissalGrace {
 
 public struct PopupPositioner: Sendable {
 
-    private static let gap: CGFloat = 6
+    /// Visible distance (pt) between the card edge and the release point. Measured to the card, not the
+    /// panel frame, which carries a transparent shadow ring — see `PopupPanel.ContentView`.
+    static let visibleGap: CGFloat = 20
+    /// Transparent ring inside the panel frame; the card starts this far from every frame edge.
+    private static let shadowInset: CGFloat = PopupMetrics.popupShadowInset
 
     /// Main entry point — positions relative to mouse release point, drag direction, alignment, and vertical placement mode.
     public static func calculateFrame(
@@ -40,9 +44,14 @@ public struct PopupPositioner: Sendable {
     /// (shadow inset + half the button width).
     public static let firstActionCenterOffset: CGFloat = PopupMetrics.popupShadowInset + (PopupMetrics.actionButtonWidth / 2)
 
-    /// Returns true if the placed popup frame sits above the cursor release point.
+    /// Returns true if the placed popup's visible card sits above the cursor release point.
     public static func isPlacedAbove(frame: CGRect, releasePoint: CGPoint) -> Bool {
-        frame.minY >= releasePoint.y
+        frame.minY + shadowInset >= releasePoint.y
+    }
+
+    /// True when the bar sits close enough to the screen bottom that the result card must open above it.
+    public static func prefersCardAbove(frame: CGRect, screenBounds: CGRect) -> Bool {
+        frame.minY + shadowInset < screenBounds.minY + PopupMetrics.cardAboveThreshold
     }
 
     /// Horizontal origin that aligns a popup of the given width relative to the release X,
@@ -134,8 +143,10 @@ public struct PopupPositioner: Sendable {
             shouldPlaceBelow = true
         }
 
-        let yAbove = releasePoint.y + gap
-        let yBelow = releasePoint.y - popupSize.height - gap
+        // The frame hangs a shadow ring past the card on each side, so the gap is applied to the
+        // frame with the ring subtracted; otherwise the card floats ~34pt from the cursor.
+        let yAbove = releasePoint.y + visibleGap - shadowInset
+        let yBelow = releasePoint.y - visibleGap + shadowInset - popupSize.height
 
         var y: CGFloat
         if shouldPlaceBelow {
