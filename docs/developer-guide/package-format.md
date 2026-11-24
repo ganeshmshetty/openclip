@@ -109,7 +109,7 @@ reject the package, which is then logged (category `extensions`) rather than sil
 | `secondaryToast` | Object | Optional. Secondary-click companion toast (same shape as `toast`). Valid on all kinds. Dash alias: `secondary-toast`. |
 | `requirements.content` | Array | Non-empty list of `url`, `email`, `date`, `path`, `phone`, `address`; any detected type passes and supplies `openclip.input.detected`. A narrowing requirement makes the action contextual by default; `contextual` overrides. Requires 1.9.0. |
 | `requirements.input` | String | Input contract: `optional`, `text` (default), `liveSelection`, or `editableSelection`. Legacy `requiresSelection`/`requires-selection` maps `true` to `text` and `false` to `optional`; do not combine legacy and new keys. `liveSelection` and `editableSelection` are narrowing requirements for contextual promotion; `text` and `optional` are not. |
-| `requirements.requiresPasteTarget` | Boolean | Optional destination gate. `true` requires a confirmed Paste-capable target and is a narrowing requirement for contextual promotion; `false` or omission means no paste target is required, not that paste is forbidden. Dash alias: `requires-paste-target`. |
+| `requirements.requiresPasteTarget` | Boolean | Optional destination gate. `true` requires a confirmed Paste-capable target. It gates availability only and is **not** a narrowing requirement for contextual promotion; `false` or omission means no paste target is required, not that paste is forbidden. Dash alias: `requires-paste-target`. |
 | `requirements.predicate` | String | Optional package-relative `.js` file (64 KiB max) exporting one pure `(input) => boolean` function. ANDed after every other gate; fail-open on error/timeout; may `require` package-local helpers. Requires a `minOpenClipVersion` for the release that ships predicate support. |
 | `contextual` | Boolean | Optional contextual-promotion override. `true` promotes even without requirements; `false` prevents promotion even with requirements; absent uses the uniform narrowing-requirement rule. User settings override this value. |
 
@@ -152,12 +152,12 @@ result with `presentation` is only understood by releases that support the key; 
 ### Contextual promotion
 
 A parsed action is contextual by default when it declares a **narrowing** requirement: `apps`,
-`content`, `regex`/`regexNegated`, `predicate`, `requiresPasteTarget`, `input: "liveSelection"` or
+`content`, `regex`/`regexNegated`, `predicate`, `input: "liveSelection"` or
 `"editableSelection"`, a legacy top-level `regex`, or `menuRelevance`.
 
-`input: "optional"`, explicit `input: "text"`, and `requiredOptions` on their own do not narrow when
-the action appears, so they do not promote it. If a narrowing requirement is also present, the
-action is contextual.
+`input: "optional"`, explicit `input: "text"`, `requiredOptions`, and destination gates such as
+`requiresPasteTarget` on their own do not narrow *what* the action applies to, so they do not
+promote it. If a narrowing requirement is also present, the action is contextual.
 
 `contextual: true` forces promotion; `contextual: false` prevents it. The user's global contextual
 toggle and per-action disable still win. Within the contextual tier, the user's action order remains

@@ -23,14 +23,15 @@ public struct ActionRequirements: Codable, Sendable, Equatable {
     /// Package-relative JavaScript predicate file, ANDed after every other gate.
     public var predicate: String?
 
-    /// True when a declared requirement narrows when the action appears. Used by contextual promotion;
-    /// `input: .text`/`.optional` and `requiredOptions` deliberately do not count.
+    /// True when a declared requirement narrows *what* the action applies to. Used by contextual
+    /// promotion; `input: .text`/`.optional` and `requiredOptions` deliberately do not count.
+    /// Destination gates such as `requiresPasteTarget` narrow where an action can land, not the
+    /// content it serves, so they do not promote a generic action into the contextual island.
     public var declaresNarrowingRequirement: Bool {
         if let regex, !regex.isEmpty { return true }
         if let predicate, !predicate.isEmpty { return true }
         if let apps, !apps.isEmpty { return true }
         if let content, !content.isEmpty { return true }
-        if requiresPasteTarget { return true }
         return input == .liveSelection || input == .editableSelection
     }
 
