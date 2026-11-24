@@ -41,12 +41,11 @@ public final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPre
     public func show(url: URL) {
         self.currentURL = url
         guard let panel = QLPreviewPanel.shared() else { return }
-        NSApp.activate(ignoringOtherApps: true)
         panel.dataSource = self
         panel.delegate = self
         panel.reloadData()
         if NSClassFromString("XCTestCase") == nil {
-            panel.makeKeyAndOrderFront(nil)
+            panel.orderFrontRegardless()
         }
     }
 

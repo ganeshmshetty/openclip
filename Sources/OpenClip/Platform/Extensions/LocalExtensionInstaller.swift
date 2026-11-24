@@ -69,7 +69,7 @@ public final class LocalExtensionInstaller: Sendable {
             : fileURL.deletingPathExtension().lastPathComponent
         let initialPackageID = manifest?.identifier ?? fileURL.deletingPathExtension().lastPathComponent
 
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
 
         let confirmAlert = NSAlert()
         confirmAlert.messageText = String(localized: "Install Extension?")
