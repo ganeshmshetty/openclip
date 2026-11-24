@@ -174,16 +174,7 @@ public final class CLIProvider: AIProvider {
         case .codexConfig:
             let configPath = "\(home)/.codex/config.toml"
             guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else { return nil }
-            for line in content.components(separatedBy: .newlines) {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                guard trimmed.hasPrefix("model"), trimmed.contains("=") else { continue }
-                let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
-                guard parts.count == 2 else { continue }
-                var value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-                if !value.isEmpty { return value }
-            }
-            return nil
+            return codexModel(fromConfigContent: content)
         case .copilotConfig:
             let configDir = ProcessInfo.processInfo.environment["COPILOT_HOME"] ?? home + "/.copilot"
             let settingsPath = configDir + "/settings.json"
@@ -199,6 +190,19 @@ public final class CLIProvider: AIProvider {
               let model = object["model"] as? String else { return nil }
         let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    nonisolated static func codexModel(fromConfigContent content: String) -> String? {
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.contains("=") else { continue }
+            let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2, parts[0].trimmingCharacters(in: .whitespaces) == "model" else { continue }
+            var value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            if !value.isEmpty { return value }
+        }
+        return nil
     }
 
     nonisolated public static func fetchAvailableModels(for preset: CLIPreset) async -> [String] {

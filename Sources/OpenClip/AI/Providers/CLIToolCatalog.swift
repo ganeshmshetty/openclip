@@ -191,7 +191,10 @@ struct CLITool: Sendable, Equatable, Identifiable {
             signInCommand: "codex login",
             authHelp: "Run “codex login” in Terminal to sign in with your ChatGPT subscription.",
             runner: .subprocess,
-            auth: .command(binary: nil, arguments: ["login", "status"], rule: .phrase(marker: "logged in", negated: "not logged in")),
+            auth: .any([
+                .environmentNonEmpty(["OPENAI_API_KEY", "CODEX_API_KEY"]),
+                .command(binary: nil, arguments: ["login", "status"], rule: .phrase(marker: "logged in", negated: "not logged in"))
+            ]),
             models: .codexConfig,
             documentedAliases: [],
             thinkingArguments: ["-c", "model_reasoning_effort=none"],
@@ -565,6 +568,8 @@ enum CLIExecutableSearch {
             "/opt/homebrew/bin",
             "/usr/local/bin",
             root + "/.local/bin",
+            root + "/.local/share/mise/shims",
+            root + "/.asdf/shims",
             root + "/.opencode/bin",
             root + "/.npm-global/bin",
             root + "/.bun/bin",

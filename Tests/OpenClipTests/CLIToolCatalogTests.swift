@@ -53,6 +53,18 @@ final class CLIToolCatalogTests: XCTestCase {
         XCTAssertNil(CLIProvider.copilotModel(fromSettingsData: Data("not json".utf8)))
     }
 
+    func testCodexConfiguredModelIsReadFromToml() {
+        let toml = """
+        model_provider = "custom"
+        model_reasoning_effort = "xhigh"
+        model = "gpt-6.1-sol"
+        """
+        XCTAssertEqual(CLIProvider.codexModel(fromConfigContent: toml), "gpt-6.1-sol")
+        XCTAssertEqual(CLIProvider.codexModel(fromConfigContent: "model = 'o3'"), "o3")
+        XCTAssertNil(CLIProvider.codexModel(fromConfigContent: "model_provider = 'custom'"))
+        XCTAssertNil(CLIProvider.codexModel(fromConfigContent: ""))
+    }
+
     func testCopilotInvocationIsTheStandaloneCLI() throws {
         let tool = try XCTUnwrap(CLITool.tool(for: .copilot))
         XCTAssertEqual(tool.binaries, ["copilot"])
@@ -85,6 +97,12 @@ final class CLIToolCatalogTests: XCTestCase {
         XCTAssertEqual(codexArgs.suffix(2), ["-m", "configured"])
         XCTAssertEqual(codex.invocation.stdin, .userText)
         XCTAssertEqual(codex.invocation.output, .codexJSONL)
+        if case .any(let checks) = codex.auth {
+            XCTAssertTrue(checks.contains(.environmentNonEmpty(["OPENAI_API_KEY", "CODEX_API_KEY"])))
+            XCTAssertTrue(checks.contains(.command(binary: nil, arguments: ["login", "status"], rule: .phrase(marker: "logged in", negated: "not logged in"))))
+        } else {
+            XCTFail("Codex should have composite auth check")
+        }
     }
 
     func testCursorTemplate() throws {
@@ -263,6 +281,8 @@ final class CLIToolCatalogTests: XCTestCase {
                 "/opt/homebrew/bin",
                 "/usr/local/bin",
                 "\(home)/.local/bin",
+                "\(home)/.local/share/mise/shims",
+                "\(home)/.asdf/shims",
                 "\(home)/.opencode/bin",
                 "\(home)/.npm-global/bin",
                 "\(home)/.bun/bin",
