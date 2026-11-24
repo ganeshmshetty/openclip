@@ -17,7 +17,7 @@ public enum PreferenceTab: String, CaseIterable, Hashable, Sendable {
     case shortcuts = "Shortcuts"
     case ai = "AI"
     case store = "Store"
-    case appRules = "App Rules"
+    case appRules = "Rules"
     case about = "About"
 
     public var localizedTitle: LocalizedStringKey {
@@ -511,7 +511,7 @@ public struct PreferencesView: View {
         case .appearance: return "Customize"
         case .customize: return "Actions"
         case .ai: return "AI"
-        case .appRules: return "App Rules"
+        case .appRules: return "Rules"
         case .store: return "Store"
         case .about: return "About"
         default: return page.id

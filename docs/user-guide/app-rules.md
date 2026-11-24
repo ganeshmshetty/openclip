@@ -1,6 +1,6 @@
-# App rules
+# Rules
 
-[`AppRule`](../../Sources/Core/Rules/AppRule.swift) and [`RuleEngine`](../../Sources/Core/Rules/RuleEngine.swift) let you change how OpenClip behaves in specific apps. A rule can turn OpenClip off in an app, limit it to the hotkey, choose how the selection is read, or force text to be copied instead of pasted.
+[`AppRule`](../../Sources/Core/Rules/AppRule.swift) and [`RuleEngine`](../../Sources/Core/Rules/RuleEngine.swift) let you change how OpenClip behaves in specific apps, and which pages never show the automatic popup. An app rule can turn OpenClip off, limit it to the hotkey, choose how the selection is read, or force text to be copied instead of pasted. Website rules are a separate list and apply in every browser.
 
 ## Rule file format
 
@@ -29,7 +29,8 @@ Rules live in a JSON file such as `~/.openclip/rules.json`, which follows `RuleE
         "allowedCursors": ["beam", "arrow", "pointingHand", "unknown"]
       }
     }
-  ]
+  ],
+  "websites": ["google.com/maps*", "*.youtube.com"]
 }
 ```
 
@@ -61,7 +62,7 @@ These match the per-app defaults in the built-in catalog (`DefaultAppRules.catal
 
 `DefaultAppRules.disabledApps` is a built-in `disabled: true` rule for apps where OpenClip has nothing useful to read: virtual machines and remote desktops (Parallels, VMware, UTM, VirtualBox, Microsoft Remote Desktop, Citrix, Amazon Workspaces, Screen Sharing, Remote Desktop, Screens, TeamViewer, AnyDesk, Parsec, Jump Desktop, RealVNC, NoMachine, Splashtop, LogMeIn), emulators and canvas-first apps (iOS Simulator, Android emulators, Unity, Blizzard games, CrossOver, Adobe apps, Pixelmator), and a few apps that expose no text selection.
 
-These are ordinary rules, not a separate blocklist. The menu bar shows **Disabled in &lt;App&gt;** for them, and turning that item off writes a user rule with `disabled: false` that overrides the default. The App Rules page sees the same user rule.
+These are ordinary rules, not a separate blocklist. The menu bar shows **Disabled in &lt;App&gt;** for them, and turning that item off writes a user rule with `disabled: false` that overrides the default. The Rules page sees the same user rule.
 
 `AppFilter` is narrower and not user-editable. It only holds identities that must never be targeted: OpenClip itself, the Dock, SystemUIServer, the character palette, PopClip, and the bundle-less Java launcher.
 
@@ -74,7 +75,7 @@ A plain entry matches the app's bundle identifier. Apps without one, such as com
 - `"process:scrcpy"` matches the process's executable or localized name. Matching ignores case, and `*` wildcards work (`"process:scr*"`).
 - `"path:/opt/homebrew/bin/scrcpy"` matches the executable path, and `*` wildcards work (`"path:/opt/tools/*"`).
 
-The App Rules page and the menu bar's **Disable in &lt;App&gt;** item write `process:` rules for apps without a bundle ID.
+The Rules page and the menu bar's **Disable in &lt;App&gt;** item write `process:` rules for apps without a bundle ID.
 
 ### Wildcards
 
@@ -88,6 +89,16 @@ The App Rules page and the menu bar's **Disable in &lt;App&gt;** item write `pro
 | Alias | Expands to |
 | :--- | :--- |
 | `:menu-copy-apps:` | Every terminal app set up for menu-based copy in `DefaultAppRules.menuCopyApps`. |
+
+## Blocked websites
+
+The top-level `websites` array lists pages where the automatic popup stays off. There are no built-in entries; the list starts empty.
+
+A pattern without a slash matches the host and its subdomains. A pattern with a slash matches the host and path, and `*` matches any run of characters. Schemes, a leading `www.`, query strings, and fragments are ignored. A match keeps the popup closed when text is selected; the global hotkey still opens it.
+
+OpenClip reads the page from the focused window's Accessibility `AXDocument` attribute. Safari and the Chromium browsers expose it, so no Automation permission prompt appears. Firefox does not, and website rules have no effect there.
+
+In the app, open **Rules → Websites** and choose **Add Website**. While a browser page is frontmost, the menu bar item **Disable on <host/path>** adds the current page's host and first path segment, so `google.com/maps` and `google.com/search` can be handled separately. The item becomes **Enable on <host/path>** when the page is already blocked and removes every pattern that matches the page.
 
 ## How a rule is applied
 

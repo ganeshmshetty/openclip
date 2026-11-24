@@ -896,5 +896,15 @@
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "Emplacement de la barre de suggestions par rapport à la barre principale. Auto suit l’alignement horizontal du popup.",
   "Action Suggestions": "Suggestions d’actions",
   "Suggestion Position": "Position des suggestions",
-  "Show Command Palette": "Afficher la palette de commandes"
+  "Show Command Palette": "Afficher la palette de commandes",
+  "The popup stays off on these sites. The keyboard shortcut still works.": "Le popup reste masqué sur ces sites. Le raccourci clavier continue de fonctionner.",
+  "One pattern per line, for example google.com/maps*. Use * as a wildcard.": "Un motif par ligne, par exemple google.com/maps*. Utilisez * comme joker.",
+  "Rules": "Règles",
+  "Websites": "Sites web",
+  "No Websites Blocked": "Aucun site web bloqué",
+  "Add Website": "Ajouter un site web",
+  "Remove Website": "Supprimer le site web",
+  "Application rules control triggers and paste behavior. Website rules keep the popup off on the sites you add.": "Les règles d’application contrôlent les déclencheurs et le comportement du collage. Les règles de site gardent le popup masqué sur les sites que vous ajoutez.",
+  "Disable on %@": "Désactiver sur %@",
+  "Enable on %@": "Activer sur %@"
 }

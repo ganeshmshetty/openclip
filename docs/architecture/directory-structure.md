@@ -239,7 +239,7 @@ Sources/
             ├── ActionEditorPage.swift        # One action's settings page (enabled, appearance, keyboard, options/logic, delete/duplicate)
             ├── ActionEnablement.swift        # Shared enable-switch rule for actions and packages
             ├── ActionsOutlineView.swift      # Native NSOutlineView for the Customize page (reorder, groups, drag/drop)
-            ├── AddApplicationPage.swift      # App Rules ▸ Add Application page (running/installed apps, custom bundle id)
+            ├── AddApplicationPage.swift      # Rules ▸ Add Application page (running/installed apps, custom bundle id)
             ├── AIActionsSection.swift        # AI prompt library section (reorderable, rows drill into a prompt)
             ├── AIConfigureForm.swift         # Shared AI engine/provider form (embedded in AIPage and onboarding)
             ├── AIPage.swift                  # AI page (toggle + engine + prompts) and the prompt edit/new pages

@@ -29,7 +29,63 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(rule.useMenuCopy, true)
         XCTAssertEqual(rule.denyPaste, true)
     }
-    
+
+    @MainActor
+    func testWebsitesDecodeAndResolveGlobally() async throws {
+        let json = """
+        {
+            "rules": [],
+            "websites": ["google.com/maps*", "*.youtube.com"]
+        }
+        """.data(using: .utf8)!
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("rules_website_test_\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        try json.write(to: tempURL)
+
+        await RuleEngine.shared.loadRules(from: tempURL)
+
+        XCTAssertEqual(RuleEngine.shared.websitePatterns, ["google.com/maps*", "*.youtube.com"])
+        let context = RuleEngine.shared.resolvePolicies(for: "com.google.Chrome")
+        XCTAssertEqual(context.blockedWebsitePatterns, ["google.com/maps*", "*.youtube.com"])
+        let otherContext = RuleEngine.shared.resolvePolicies(for: "com.apple.TextEdit")
+        XCTAssertEqual(otherContext.blockedWebsitePatterns, ["google.com/maps*", "*.youtube.com"])
+    }
+
+    @MainActor
+    func testWebsitesAreEmptyByDefaultAndPersist() throws {
+        XCTAssertTrue(RuleEngine.shared.websitePatterns.isEmpty)
+
+        let url = tempRulesURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        RuleEngine.shared.addWebsite("google.com/maps", saveURL: url)
+        RuleEngine.shared.addWebsite("google.com/maps", saveURL: url)   // duplicate ignored
+        XCTAssertEqual(RuleEngine.shared.websitePatterns, ["google.com/maps"])
+
+        let data = try Data(contentsOf: url)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(object?["websites"] as? [String], ["google.com/maps"])
+
+        RuleEngine.shared.removeWebsite("google.com/maps", saveURL: url)
+        XCTAssertTrue(RuleEngine.shared.websitePatterns.isEmpty)
+    }
+
+    @MainActor
+    func testEnablingAPageRemovesEveryMatchingPattern() throws {
+        let url = tempRulesURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        RuleEngine.shared.addWebsite("google.com", saveURL: url)
+        RuleEngine.shared.addWebsite("google.com/maps", saveURL: url)
+        RuleEngine.shared.addWebsite("youtube.com", saveURL: url)
+
+        RuleEngine.shared.removeWebsites(matching: URL(string: "https://www.google.com/maps/@1")!, saveURL: url)
+
+        XCTAssertEqual(RuleEngine.shared.websitePatterns, ["youtube.com"])
+    }
+
+    private func tempRulesURL() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("rules_website_\(UUID().uuidString).json")
+    }
+
     @MainActor
     func testWildcardMatchingAndResolvePolicies() async throws {
         let json = """

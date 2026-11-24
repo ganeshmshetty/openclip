@@ -896,5 +896,15 @@
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "メインバーに対する候補バーの位置。自動はポップアップの水平方向の配置に従います。",
   "Action Suggestions": "アクション候補",
   "Suggestion Position": "候補の位置",
-  "Show Command Palette": "コマンドパレットを表示"
+  "Show Command Palette": "コマンドパレットを表示",
+  "The popup stays off on these sites. The keyboard shortcut still works.": "これらのサイトではポップアップは自動で表示されません。キーボードショートカットは引き続き使えます。",
+  "One pattern per line, for example google.com/maps*. Use * as a wildcard.": "1 行に 1 つのパターン（例: google.com/maps*）。* はワイルドカードとして使えます。",
+  "Rules": "ルール",
+  "Websites": "ウェブサイト",
+  "No Websites Blocked": "ブロック中のウェブサイトはありません",
+  "Add Website": "ウェブサイトを追加",
+  "Remove Website": "ウェブサイトを削除",
+  "Application rules control triggers and paste behavior. Website rules keep the popup off on the sites you add.": "アプリのルールは表示のきっかけとペーストの動作を設定します。ウェブサイトのルールは、追加したサイトでポップアップを表示しません。",
+  "Disable on %@": "%@ で無効にする",
+  "Enable on %@": "%@ で有効にする"
 }

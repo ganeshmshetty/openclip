@@ -23,11 +23,18 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
     internal var toggleEnabledItem: NSMenuItem?
     internal var disableAppItem: NSMenuItem?
     internal var disableAppSeparatorItem: NSMenuItem?
+    internal var disableWebsiteItem: NSMenuItem?
+    internal var disableWebsiteSeparatorItem: NSMenuItem?
     internal var pauseSubmenu: NSMenu?
     internal var pauseParentMenuItem: NSMenuItem?
     internal var updateMenuItem: NSMenuItem?
     internal var actionsSubmenu: NSMenu?
     internal var targetAppOverride: NSRunningApplication?
+    /// Page URL of the frontmost browser window. Injected so tests can drive the website item
+    /// without a live browser.
+    internal var documentURLProvider: @MainActor (NSRunningApplication) -> URL? = { app in
+        BrowserDocumentURL.focusedDocumentURL(for: app)
+    }
     var onCaptureText: ((NSRunningApplication?) -> Void)?
     private var lastActiveApp: NSRunningApplication?
     internal var currentTargetApp: NSRunningApplication? {
@@ -158,6 +165,21 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
         disableAppSep.isHidden = true
         menu.addItem(disableAppSep)
         self.disableAppSeparatorItem = disableAppSep
+
+        let disableWebsite = NSMenuItem(
+            title: "",
+            action: #selector(toggleCurrentWebsiteDisabled),
+            keyEquivalent: ""
+        )
+        disableWebsite.target = self
+        disableWebsite.isHidden = true
+        menu.addItem(disableWebsite)
+        self.disableWebsiteItem = disableWebsite
+
+        let disableWebsiteSep = NSMenuItem.separator()
+        disableWebsiteSep.isHidden = true
+        menu.addItem(disableWebsiteSep)
+        self.disableWebsiteSeparatorItem = disableWebsiteSep
 
         let pauseMenu = NSMenu(title: String(localized: "Pause"))
 
@@ -390,7 +412,38 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
             disableAppSeparatorItem?.isHidden = true
         }
 
+        updateWebsiteItem(for: frontApp)
         updateStatusIcon(isEnabled: isEnabled)
+    }
+
+    private func updateWebsiteItem(for app: NSRunningApplication?) {
+        guard let app,
+              let url = documentURLProvider(app),
+              let suggestion = WebsitePattern.suggestion(for: url) else {
+            disableWebsiteItem?.isHidden = true
+            disableWebsiteSeparatorItem?.isHidden = true
+            return
+        }
+        let blocked = RuleEngine.shared.isWebsiteBlocked(url)
+        disableWebsiteItem?.isHidden = false
+        disableWebsiteSeparatorItem?.isHidden = false
+        disableWebsiteItem?.title = blocked
+            ? String(localized: "Enable on \(suggestion)")
+            : String(localized: "Disable on \(suggestion)")
+        disableWebsiteItem?.image = menuSymbolImage("globe")
+    }
+
+    /// Adds or removes the current page's host and first path segment. The site list has no
+    /// defaults; the first entry comes from this command or the Rules settings page.
+    @objc internal func toggleCurrentWebsiteDisabled() {
+        guard let app = currentTargetApp,
+              let url = documentURLProvider(app) else { return }
+        if RuleEngine.shared.isWebsiteBlocked(url) {
+            RuleEngine.shared.removeWebsites(matching: url, saveURL: rulesSaveURL)
+        } else if let suggestion = WebsitePattern.suggestion(for: url) {
+            RuleEngine.shared.addWebsite(suggestion, saveURL: rulesSaveURL)
+        }
+        updateRootMenuDynamicItems()
     }
 
     @objc private func handleWorkspaceAppActivated(_ notification: Notification) {

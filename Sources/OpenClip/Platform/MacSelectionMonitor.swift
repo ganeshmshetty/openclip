@@ -114,10 +114,24 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal func shouldSuppress(for bundleID: String? = nil) -> Bool {
         isSuppressed() || isSuppressedForApp(bundleID ?? frontmostAppProvider()?.bundleIdentifier)
     }
+
+    /// Website rules silence the automatic popup only. The explicit hotkey path never reaches this
+    /// gate, matching `hotkeyOnly`: the user asked for that read.
+    internal func isBlockedWebsite(_ policy: AppPolicyContext, app: NSRunningApplication) -> Bool {
+        guard !policy.blockedWebsitePatterns.isEmpty, let url = documentURLProvider(app) else { return false }
+        return policy.blockedWebsitePatterns.contains { WebsitePattern.matches(url, pattern: $0) }
+    }
+
     /// Policy resolution for the target app; tests fix it to `.default` so real user rules
     /// (~/.openclip/rules.json) cannot alter gating or force copy-based strategies mid-test.
     internal var policyResolver: @MainActor (AppIdentity) -> AppPolicyContext = { identity in
         RuleEngine.shared.resolvePolicies(for: identity)
+    }
+
+    /// Page URL of the frontmost browser window, used by website rules. Injected so tests can
+    /// exercise suppression without a live browser.
+    internal var documentURLProvider: @MainActor (NSRunningApplication) -> URL? = { app in
+        BrowserDocumentURL.focusedDocumentURL(for: app)
     }
     
     // Delegated to OpenSelectionMonitor
@@ -451,6 +465,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             if policy.disabled || policy.hotkeyOnly {
                 return
             }
+            if self.isBlockedWebsite(policy, app: app) {
+                Log.selection.debug("monitor: website rule silenced the automatic popup bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
+                self.recordRead(.init(status: .policyBlocked))
+                return
+            }
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
 
@@ -693,6 +712,12 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             if policy.disabled {
                 return
             }
+            if self.isBlockedWebsite(policy, app: app) {
+                Log.selection.debug("monitor: website rule silenced the automatic popup bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
+                self.recordRead(.init(status: .policyBlocked))
+                self.latestSelection = nil
+                return
+            }
             
             let appIdentity = AppIdentity(app)
             // Keep monitoring (so `latestSelection` stays warm for ⌥⌘C) but never post a synthetic
@@ -765,6 +790,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             
             let policy = self.policyResolver(AppIdentity(app))
             if policy.disabled {
+                return
+            }
+            if self.isBlockedWebsite(policy, app: app) {
+                Log.selection.debug("monitor: website rule silenced the automatic popup bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
+                self.recordRead(.init(status: .policyBlocked))
                 return
             }
             let appIdentity = AppIdentity(app)

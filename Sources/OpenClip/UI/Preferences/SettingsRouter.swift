@@ -90,7 +90,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
         case .appearance: return String(localized: "Customize")
         case .customize: return String(localized: "Actions")
         case .shortcuts: return String(localized: "Shortcuts")
-        case .appRules: return String(localized: "App Rules")
+        case .appRules: return String(localized: "Rules")
         case .store: return String(localized: "Store")
         case .about: return String(localized: "About")
         case .ai: return String(localized: "AI")
@@ -141,7 +141,7 @@ public enum SettingsPage: Hashable, Identifiable, Sendable {
                 + Self.localizedLabels(["Suggestions", "Action Suggestions", "Suggestion Position"])
         case .customize: return ["actions", "popup bar", "order", "reorder", "arrange", "group", "groups", "layout", "install", "shortcuts", "hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
         case .shortcuts: return ["hotkey", "keyboard", "alias", "shortcut", "key", "binding"]
-        case .appRules: return ["apps", "exclude", "allow", "block", "rules", "disable", "per-app"]
+        case .appRules: return ["apps", "app rules", "exclude", "allow", "block", "rules", "disable", "per-app", "website", "websites", "site", "sites"]
         case .store: return ["extensions", "clips", "install", "catalog", "browse", "download"]
         case .about: return ["version", "update", "licence", "license", "logs", "diagnostics", "github"]
         case .ai:

@@ -31,7 +31,7 @@ The settings window uses the macOS Liquid Glass look.
 - Each page and action has its own colored rounded-square icon.
 - Settings details appear in an inset rounded card. Its header has back and forward buttons (`⌘[` and `⌘]`), breadcrumbs, and buttons for the current page.
 - To record a shortcut, click its field. A popover shows the modifier keys as you press them and listens for the key combination.
-- The sidebar lists the core pages (General, Customize, Actions, AI, App Rules, Store, About), then built-in actions, custom actions, and installed extensions.
+- The sidebar lists the core pages (General, Customize, Actions, AI, Rules, Store, About), then built-in actions, custom actions, and installed extensions.
 - **About** holds the version, links, and update controls, including an **Update Channel** picker for the **Stable** and **Beta** feeds.
 
 ## Actions: the popup bar's layout
