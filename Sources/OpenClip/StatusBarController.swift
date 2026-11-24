@@ -574,9 +574,12 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
         updateStatusIcon(isEnabled: isEnabled)
     }
 
-    /// Screen frame of the status item button; nil until it has joined a window.
+    /// Screen frame of the status item button; nil while it is hidden or has not joined a window.
     var statusItemButtonFrame: NSRect? {
-        statusItem?.button?.window?.frame
+        guard let statusItem, statusItem.isVisible,
+              let frame = statusItem.button?.window?.frame,
+              !frame.isEmpty else { return nil }
+        return frame
     }
     
     private func updateStatusIcon(isEnabled: Bool) {

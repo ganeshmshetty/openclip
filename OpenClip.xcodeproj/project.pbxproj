@@ -48,6 +48,7 @@
 		15C5141D5230B99E9F2ED832 /* SelectionEditabilityProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68D58BC0D8D00D9FAA3D89D /* SelectionEditabilityProbe.swift */; };
 		1654FC22741FA550FEBEDF43 /* SmartCopyPasteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E3792C0DF61B9169F7AB13 /* SmartCopyPasteTests.swift */; };
 		1776C35BA556FBCE317BCC52 /* InstalledExtensionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 569412EFC877FF5E34F89619 /* InstalledExtensionInfo.swift */; };
+		1783363D63F305D5A245ABA7 /* CocoaWindowFrameIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514AAE798179C26690E075FF /* CocoaWindowFrameIndexTests.swift */; };
 		178E112173476FC1E3A3B9BC /* ExtensionPackageResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D2717804C4DC26A77E2F50F /* ExtensionPackageResolverTests.swift */; };
 		18071BC77B65C5D865553387 /* SettingMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BEC6DDB53B06A122C44A24 /* SettingMetadata.swift */; };
 		184207DF1E09CEFFCC848F2B /* PasteAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F2731480550C2912B357B1C /* PasteAvailabilityTests.swift */; };
@@ -252,6 +253,7 @@
 		81DE7F9D785C381BD5BC32E7 /* SettingsRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB51CCF85D073D65583B8B60 /* SettingsRouterTests.swift */; };
 		8338B9836EE4705E1F77FABF /* ExtensionInstallPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B089BADD4537CE2BF5489A37 /* ExtensionInstallPanel.swift */; };
 		840EBC7CFB3BC038347B9D7B /* ExtensionOutputContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2F75856E239C65CF4300FA /* ExtensionOutputContract.swift */; };
+		844AF33A6F8487712AF0725B /* PasteboardAccessPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E950AB47D55339D8A8E1BFBD /* PasteboardAccessPolicy.swift */; };
 		84E4BB6969912DE94A5736AA /* NewCustomActionPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43164B559184ADE5F08C1FDD /* NewCustomActionPage.swift */; };
 		84EF2405B8FF3B97D76C6F43 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287DF09DC26BE3ACE16F3B53 /* AppDelegate.swift */; };
 		850F4271977FEE58D8FA55ED /* PopupPositioner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D913A22565F43A04740AEB /* PopupPositioner.swift */; };
@@ -275,6 +277,7 @@
 		8C2E4BA3A05F994AFC60F063 /* ActionSelectionCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 463D68764560F056BEE26517 /* ActionSelectionCaptureTests.swift */; };
 		8CABBF132C8D96FB5362D7E1 /* PasteboardCopyEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40068DD0346E93060C2DE55A /* PasteboardCopyEngineTests.swift */; };
 		8D26F2D7A7F2388B28EF7E03 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE7151632E620F610F28030 /* DeepLinkHandlerTests.swift */; };
+		8D2C0AFEE254586B3AF78C22 /* PasteboardAccessPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F6FE261AF1FB67F2000AD9 /* PasteboardAccessPolicyTests.swift */; };
 		8D96F0F84D1CFC88E268B2AA /* ActionAppearanceFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4284E18DE06D8BB8FF933E15 /* ActionAppearanceFields.swift */; };
 		8DAF0E4B6BDCBE112945F7AC /* AIActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A55EA02DDDA4E6CD7B599D1 /* AIActionTests.swift */; };
 		8DFC838BDE16FA27F0C19FBB /* AppIdentifying.swift in Sources */ = {isa = PBXBuildFile; fileRef = 556EAA8E99BA35061EE49D9F /* AppIdentifying.swift */; };
@@ -403,6 +406,7 @@
 		CE759FD419A671CB23C175B8 /* DefaultActionFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301144A424F615703BABA2D0 /* DefaultActionFactoryTests.swift */; };
 		CEB0CBD90C4E2440C883E060 /* CloudServiceProviderPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8AAC8B8C0962FA6D0F5846 /* CloudServiceProviderPresetTests.swift */; };
 		CEC0A74CD58A1B995AFEF646 /* PopupPageLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF42F1F38524FF53F4FF61B2 /* PopupPageLayoutTests.swift */; };
+		CFF82E63175B1B4C68DED0C6 /* CocoaWindowFrameIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69568E90CEED904F4073EEBD /* CocoaWindowFrameIndex.swift */; };
 		D0BB6450547A7DF15CF1CCB0 /* ExtensionRiskProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1095E57905F2635B5FB919D /* ExtensionRiskProfile.swift */; };
 		D0D36E658373B46A93874A28 /* AIPresetModelSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 066C3492A0A8E6A24CD32A98 /* AIPresetModelSection.swift */; };
 		D125FD5A45279574BF101F18 /* StoreIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 296DBB8D2CA1C1D578E27343 /* StoreIcon.svg */; };
@@ -684,6 +688,7 @@
 		459B709840D3A9F1DFD49761 /* ToastPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastPanel.swift; sourceTree = "<group>"; };
 		459E967BAF22A06CFF5237D0 /* OverlayHitTestIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayHitTestIsolationTests.swift; sourceTree = "<group>"; };
 		45EDC48BB789417097D3B8A4 /* ExtensionUpdatePlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUpdatePlanner.swift; sourceTree = "<group>"; };
+		45F6FE261AF1FB67F2000AD9 /* PasteboardAccessPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteboardAccessPolicyTests.swift; sourceTree = "<group>"; };
 		45F89648F28A6C0A22CAB033 /* SelectionGestureLocalityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionGestureLocalityTests.swift; sourceTree = "<group>"; };
 		463D68764560F056BEE26517 /* ActionSelectionCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionSelectionCaptureTests.swift; sourceTree = "<group>"; };
 		46F35FE3A8EA5549603E53B4 /* PermissionRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionRecoveryView.swift; sourceTree = "<group>"; };
@@ -712,6 +717,7 @@
 		503C3147E869802CD5FF0867 /* AIPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPage.swift; sourceTree = "<group>"; };
 		5056C8C6C08BF8DC3FFAAC3C /* SubBarState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubBarState.swift; sourceTree = "<group>"; };
 		50ED885195ED5F0480BB0606 /* RecognizedTextLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognizedTextLayoutTests.swift; sourceTree = "<group>"; };
+		514AAE798179C26690E075FF /* CocoaWindowFrameIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocoaWindowFrameIndexTests.swift; sourceTree = "<group>"; };
 		535B6891DB044AC163B4E2CF /* RotatingFileLogSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotatingFileLogSink.swift; sourceTree = "<group>"; };
 		5403DA3AA5ED80810759AB76 /* ActionIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionIconView.swift; sourceTree = "<group>"; };
 		5462DE3FBF349954799E6C00 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
@@ -748,6 +754,7 @@
 		66CC45A4DB583FE383CE8D25 /* ExtensionOutputContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionOutputContractTests.swift; sourceTree = "<group>"; };
 		68398DBF5595C9E8C0BECA0B /* AISettingsSiblingImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettingsSiblingImportTests.swift; sourceTree = "<group>"; };
 		691C4AB5E7CCD2F8E5D4A214 /* ExtensionsDirectoryWatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsDirectoryWatcherTests.swift; sourceTree = "<group>"; };
+		69568E90CEED904F4073EEBD /* CocoaWindowFrameIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocoaWindowFrameIndex.swift; sourceTree = "<group>"; };
 		6A9596443229B1173DAB2434 /* ExtensionsStoreViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsStoreViewTests.swift; sourceTree = "<group>"; };
 		6AC3BCA6E3A1AD4B3B623C09 /* ExtensionUninstallOptionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUninstallOptionsTests.swift; sourceTree = "<group>"; };
 		6BCD81A735F9A377FDE4DB32 /* DefineActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefineActionTests.swift; sourceTree = "<group>"; };
@@ -983,6 +990,7 @@
 		E7D67EF0F01017315F0E775B /* ActionResultHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResultHandler.swift; sourceTree = "<group>"; };
 		E7F63399A1C7D78E9E1667DF /* GeneralTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTabView.swift; sourceTree = "<group>"; };
 		E843649F2E5528CE1F44259F /* MenuActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuActionTests.swift; sourceTree = "<group>"; };
+		E950AB47D55339D8A8E1BFBD /* PasteboardAccessPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteboardAccessPolicy.swift; sourceTree = "<group>"; };
 		E97352E36DEEAE5F6A6AE6F5 /* OpenClip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9CB80BD9BDEB6CA9AA95B1F /* HotkeyManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManagerTests.swift; sourceTree = "<group>"; };
 		EB0FCD0F9D893D036736EA4C /* ExtensionPackagePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionPackagePage.swift; sourceTree = "<group>"; };
@@ -1090,6 +1098,7 @@
 			isa = PBXGroup;
 			children = (
 				2DA4A90456579EBD22D3EF86 /* ActionSelectionCapture.swift */,
+				69568E90CEED904F4073EEBD /* CocoaWindowFrameIndex.swift */,
 				FC7FBE249ECC224CA984309D /* ElectronAccessibilityEnabler.swift */,
 				F5F4AFF322060F5A1943DFDD /* OpenSelectionBridge.swift */,
 				28738CA98A3B9F200561D4C4 /* RichInputAction.swift */,
@@ -1222,6 +1231,7 @@
 				6129D3E6F351430FA57265B6 /* MacSelectionMonitor.swift */,
 				4953987A3DEEA1E3E220311D /* PaletteRowShortcuts.swift */,
 				07948B26DD33C5F462D65FAE /* PasteAvailabilityProbe.swift */,
+				E950AB47D55339D8A8E1BFBD /* PasteboardAccessPolicy.swift */,
 				4BB115DCDCB4749A1DDB8222 /* PermissionManager.swift */,
 				9B9D14F126A7A6B0BAF69C1B /* QuickLookPresenter.swift */,
 				BF33081FB4BA95A0DF2F7A87 /* SecretStore.swift */,
@@ -1759,6 +1769,7 @@
 				D12AB539B7DF39134F2B7F90 /* CloudEndpointSettingsTests.swift */,
 				7DF50320C6F302EFD2DF6CAD /* CloudModelCatalogTests.swift */,
 				BD8AAC8B8C0962FA6D0F5846 /* CloudServiceProviderPresetTests.swift */,
+				514AAE798179C26690E075FF /* CocoaWindowFrameIndexTests.swift */,
 				0CF97DDF5B196383416AB162 /* CompletionActionTests.swift */,
 				AE05D73E4B003FF0AFC40559 /* CompletionSettingsTests.swift */,
 				896D4183D6755AC6E9642EF5 /* ContextualActionClassifierTests.swift */,
@@ -1825,6 +1836,7 @@
 				459E967BAF22A06CFF5237D0 /* OverlayHitTestIsolationTests.swift */,
 				201CA35D10C8474B786349EE /* PasteAvailabilityProbeTests.swift */,
 				3F2731480550C2912B357B1C /* PasteAvailabilityTests.swift */,
+				45F6FE261AF1FB67F2000AD9 /* PasteboardAccessPolicyTests.swift */,
 				40068DD0346E93060C2DE55A /* PasteboardCopyEngineTests.swift */,
 				B124F887F7A3BC670F51CE92 /* PermissionRecoveryWindowControllerTests.swift */,
 				5E0C162D15E96DEE09FEBBAA /* PopupBarHighlightInsetsTests.swift */,
@@ -2090,6 +2102,7 @@
 				D4B05C00CA37B54F170E4A5E /* CloudEndpointSettingsTests.swift in Sources */,
 				54DD31623913B1BCBC381922 /* CloudModelCatalogTests.swift in Sources */,
 				CEB0CBD90C4E2440C883E060 /* CloudServiceProviderPresetTests.swift in Sources */,
+				1783363D63F305D5A245ABA7 /* CocoaWindowFrameIndexTests.swift in Sources */,
 				6715AE5F11FE111A1668090C /* CompletionActionTests.swift in Sources */,
 				4D0575224628450655D1AA27 /* CompletionSettingsTests.swift in Sources */,
 				1F034256ED4AEE153E2E33B4 /* ContextualActionClassifierTests.swift in Sources */,
@@ -2156,6 +2169,7 @@
 				03983C996994A71728BBE8B7 /* OverlayHitTestIsolationTests.swift in Sources */,
 				7A6B2CBBA01D8F8A4E89D8DC /* PasteAvailabilityProbeTests.swift in Sources */,
 				184207DF1E09CEFFCC848F2B /* PasteAvailabilityTests.swift in Sources */,
+				8D2C0AFEE254586B3AF78C22 /* PasteboardAccessPolicyTests.swift in Sources */,
 				8CABBF132C8D96FB5362D7E1 /* PasteboardCopyEngineTests.swift in Sources */,
 				1417AB102E02EC8244A06418 /* PermissionRecoveryWindowControllerTests.swift in Sources */,
 				770ECF68D9EB44F7FC14C799 /* PopupBarHighlightInsetsTests.swift in Sources */,
@@ -2383,6 +2397,7 @@
 				199DB7B20898DC56BE6AC773 /* CloudEndpointSettings.swift in Sources */,
 				597327FAAF346196F4F48EB1 /* CloudModelCatalog.swift in Sources */,
 				B9AF5DDB7DFBC46EE834CAF8 /* CoachMarkController.swift in Sources */,
+				CFF82E63175B1B4C68DED0C6 /* CocoaWindowFrameIndex.swift in Sources */,
 				3165370D30624071D8F6E1A4 /* CompletionAction.swift in Sources */,
 				C082BB82834FE847B280FFB3 /* ContextualActionsPopoverView.swift in Sources */,
 				29DC7732228424F98AEF1665 /* CustomActionManifestWriter.swift in Sources */,
@@ -2449,6 +2464,7 @@
 				4CB49E0424CE26F1B9CB0A5A /* PaletteAIPrompt.swift in Sources */,
 				00F99CE9A59716DFB7EF8A58 /* PaletteRowShortcuts.swift in Sources */,
 				D3C8C3EA66019AC8C95C551C /* PasteAvailabilityProbe.swift in Sources */,
+				844AF33A6F8487712AF0725B /* PasteboardAccessPolicy.swift in Sources */,
 				24ABC449CE3810541D898C48 /* PermissionManager.swift in Sources */,
 				19FCE93857CAD6FAEB596826 /* PermissionRecoveryView.swift in Sources */,
 				A17489A5BE3089B48468E9F0 /* PermissionRecoveryWindowController.swift in Sources */,

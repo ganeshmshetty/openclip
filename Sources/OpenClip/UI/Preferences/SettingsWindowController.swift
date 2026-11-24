@@ -42,7 +42,7 @@ public enum AppActivationPolicy {
         count += 1
         apply(.regular)
         if !isSuppressed {
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
         }
     }
 
@@ -98,7 +98,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
                 window.deminiaturize(nil)
             }
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             postDidShow()
             return
         }
@@ -113,7 +113,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         AppActivationPolicy.enter()
         let window = makeWindow()
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         // Activation lands asynchronously; re-assert once so a first open cannot stay behind.
         DispatchQueue.main.async { [weak self, weak window] in
             guard let self, let window, self.window === window, window.isVisible else { return }

@@ -247,6 +247,100 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.stop()
     }
 
+    func testMouseCancellationClearsPressStateWithoutStartingASelection() {
+        let store = MemorySettingsStore()
+        store.set(.isMouseHoldEnabled, value: true)
+        store.set(.mouseHoldDuration, value: 5)
+        let monitor = makeMonitor(settingsStore: store)
+        monitor.latestSelection = (
+            context: SelectionContext(
+                text: "before cancellation",
+                sourceApp: AppIdentity(bundleIdentifier: "com.apple.TextEdit")
+            ),
+            canPaste: true
+        )
+
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        XCTAssertNotNil(monitor.mouseHoldTask)
+        monitor.mouseDownWasSystemChrome = true
+
+        monitor.handleMouseCancelled()
+
+        XCTAssertNil(monitor.mouseHoldTask)
+        XCTAssertFalse(monitor.mouseDownWasSystemChrome)
+        XCTAssertNil(monitor.latestSelection)
+        XCTAssertNil(monitor.debounceTask)
+
+        monitor.handleMouseUp(
+            app: MockTestApp(bundleID: "com.apple.TextEdit"),
+            cursor: CGPoint(x: 300, y: 300),
+            clickCount: 1
+        )
+        XCTAssertNil(monitor.debounceTask, "A cancelled press must not turn the release into a new drag")
+    }
+
+    func testPressInsideOwnWindowSkipsWindowChromeProbe() async throws {
+        let store = MemorySettingsStore()
+        store.set(.isMouseHoldEnabled, value: false)
+        let monitor = makeMonitor(settingsStore: store)
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in .default }
+        monitor.ownWindowFrames = { [CGRect(x: 0, y: 0, width: 500, height: 500)] }
+        var chromeProbes = 0
+        monitor.isPressOnWindowChrome = { _, _ in
+            chromeProbes += 1
+            return true
+        }
+        monitor.preparePasteProbe = { _, _ in Task { true } }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "outside the overlay")
+        }, copyCapture: { _ in nil })
+
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(
+            app: MockTestApp(bundleID: "com.apple.TextEdit"),
+            cursor: CGPoint(x: 200, y: 150),
+            clickCount: 1
+        )
+        await monitor.debounceTask?.value
+
+        XCTAssertEqual(chromeProbes, 0, "Our own window must never be AX hit-tested as window chrome")
+        XCTAssertEqual(monitor.latestSelection?.context.text, "outside the overlay")
+    }
+
+    func testHoldInsideOwnWindowSkipsEditabilityProbe() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.ownWindowFrames = { [CGRect(x: 100, y: 100, width: 100, height: 100)] }
+        var editabilityProbes = 0
+        monitor.isPressOverEditableText = { _, _ in
+            editabilityProbes += 1
+            return true
+        }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXTextField", selectedText: nil)
+        }, copyCapture: { _ in nil })
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("clipboard text", forType: .string)
+        monitor.fallbackPasteboard = pasteboard
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+        gate.signal()
+        try await waitUntil { !monitor.triggeredByHold }
+
+        XCTAssertEqual(editabilityProbes, 0, "Our own window must never receive an AX editability probe")
+        XCTAssertNil(delivered)
+    }
+
     func testIsMouseHoldEnabledFalseDoesNotSpawnTask() {
         let store = MemorySettingsStore()
         store.set(.isMouseHoldEnabled, value: false)
@@ -426,6 +520,40 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.handleMouseDragged(at: CGPoint(x: point.x + 50, y: point.y))
         XCTAssertFalse(monitor.triggeredByHold, "drag-in-progress must clear a stuck hold trigger")
         XCTAssertNil(monitor.mouseHoldTask)
+    }
+
+    /// A system-cancelled press never gets a mouse-up. Once the drag handler releases the fired
+    /// task's handle, cancellation must still stop its in-flight popup from surfacing.
+    @MainActor
+    func testCancelledPressDropsFiredHoldDelivery() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 300, y: 300)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXTextField", selectedText: "held text")
+        }, copyCapture: { _ in nil })
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+        var cancelledReads = 0
+        monitor.onReadOutcome = { response in
+            if response.status == .cancelled { cancelledReads += 1 }
+        }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+
+        monitor.handleMouseDragged(at: CGPoint(x: point.x + 50, y: point.y))
+        monitor.handleMouseCancelled()
+        gate.signal()
+
+        try await waitUntil { cancelledReads > 0 }
+        XCTAssertNil(delivered, "A cancelled press must not surface a fired hold's popup")
+        XCTAssertNil(monitor.latestSelection)
     }
 
     /// Fire-time stationarity gate: only a parked press within the tight fire radius counts;

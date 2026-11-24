@@ -48,7 +48,7 @@ public final class OnboardingWindowController: NSWindowController {
 
     public override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         window?.makeKeyAndOrderFront(sender)
     }
 }

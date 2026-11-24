@@ -958,6 +958,13 @@ lines by height interleaved multi-column text.
   their permits until they exit, so timed-out workers cannot accumulate unbounded threads.
   Saturation fails closed (no clipboard fallback) while those workers finish. The main actor
   remains responsive throughout.
+- OpenClip's own surfaces never feed gesture probes. When OpenClip owns focus or has a visible
+  window, the palette editability probe returns unknown rather than resolve an AX focused element
+  that may be its own SwiftUI overlay; unknown editability keeps paste on its safe copy fallback.
+  A system-cancelled mouse press (`.mouseCancelled` on macOS 26+) clears the press point, gesture
+  window, chrome flag, and pending retrieval/hold, and advances the press generation, so a hold
+  that already fired but is still retrieving drops its delivery. A cancelled press never
+  surfaces a popup.
 
 ## Test isolation
 

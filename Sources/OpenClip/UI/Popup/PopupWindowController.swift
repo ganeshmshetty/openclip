@@ -196,7 +196,8 @@ public class PopupWindowController {
     /// context, so a paste result still lands only where text can be inserted.
     private func refreshTargetEditability(attemptID: UUID) {
         Task { [weak self] in
-            guard let self, let editable = await self.editabilityProbe() else { return }
+            guard let self, !self.ownOverlayCouldOwnAXFocus else { return }
+            guard let editable = await self.editabilityProbe() else { return }
             guard self.presentationAttemptID == attemptID else { return }
             // Record the answer even if the popup already hid: a loading action may deliver after
             // the probe finishes.
@@ -216,6 +217,13 @@ public class PopupWindowController {
                 )
             }
         }
+    }
+
+    /// The focused-element AX read resolves whatever window owns focus, and our SwiftUI overlay
+    /// must never be walked off-main. Unknown editability keeps the safe paste→copy fallback.
+    private var ownOverlayCouldOwnAXFocus: Bool {
+        if let panel, panel.isVisible, panel.isKeyWindow { return true }
+        return NSApp.isActive && NSApp.windows.contains { $0.isVisible && !$0.frame.isEmpty }
     }
 
     /// Starts the paste-availability probe (rules first, then AX), run in parallel with selection retrieval. Not cached,
@@ -1197,15 +1205,21 @@ public class PopupWindowController {
         let canMonitorGlobally = PermissionManager.shared.isAccessibilityGranted
         PopupHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
         SubBarHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
+        var globalMask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]
+        var localMask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .leftMouseUp, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]
+        if #available(macOS 26.0, *) {
+            globalMask.insert(.mouseCancelled)
+            localMask.insert(.mouseCancelled)
+        }
         if canMonitorGlobally {
-            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: globalMask) { [weak self] event in
                 self?.handleEvent(event)
             }
         } else {
             Log.presentation.notice("Accessibility permission unavailable; using local hover tracking.")
         }
         
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: localMask) { [weak self] event in
             self?.handleEvent(event)
             return event
         }
@@ -1258,6 +1272,11 @@ public class PopupWindowController {
 
     func handleEvent(_ event: NSEvent) {
         if isMenuTracking { return }
+        if #available(macOS 26.0, *), event.type == .mouseCancelled {
+            isRightClickInProgress = false
+            pendingClickIntent = .primary
+            return
+        }
         
         switch event.type {
         case .mouseMoved:

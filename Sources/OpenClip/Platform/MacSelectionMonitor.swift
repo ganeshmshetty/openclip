@@ -48,6 +48,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// overshoots onto the menu bar or Dock is still a selection, while one that begins on chrome is not.
     internal var mouseDownWasSystemChrome: Bool = false
     internal var triggeredByHold: Bool = false
+    /// Monotonic token for the current press cycle. A hold captures it when armed and drops its
+    /// delivery if a later cancellation (system-cancelled press, new press, app switch) advanced it.
+    private var pressGeneration: UInt64 = 0
     private var selectionSourceApp: NSRunningApplication?
     private let settingsStore: SettingsStore
 
@@ -78,6 +81,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Whether `point` sits on on-screen system chrome (the menu bar or Dock). Injectable so tests
     /// can exercise the gesture gating against a fixed geometry.
     internal var isSystemChromeAt: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.isSystemChromeLocation($0) }
+    /// Visible OpenClip window frames in Cocoa screen coordinates. An AX hit-test at a point
+    /// inside one resolves our own popup, which must never be inspected from the probe queues.
+    internal var ownWindowFrames: @MainActor () -> [CGRect] = { MacSelectionMonitor.visibleOwnWindowFrames() }
     internal var windowAtPoint: @MainActor (CGPoint) -> SelectionGestureWindow? = { SelectionGestureWindow.at($0) }
     internal var windowFrame: @MainActor (CGWindowID) -> CGRect? = { SelectionGestureWindow.currentFrame(for: $0) }
     internal var requestAppAccessibility: @MainActor (NSRunningApplication?) -> Void = { app in
@@ -174,6 +180,19 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         )
     }
 
+    internal static func visibleOwnWindowFrames() -> [CGRect] {
+        // Normal-level windows (Settings, Onboarding) can sit behind another app, and an overlay
+        // panel can remain ordered in while its Space is not the active one; neither frame may
+        // shadow a probe point in the front app.
+        NSApp.windows
+            .filter { $0.isVisible && $0.isOnActiveSpace && !$0.frame.isEmpty && $0.level > .normal }
+            .map(\.frame)
+    }
+
+    private func isOverOwnWindow(_ point: CGPoint) -> Bool {
+        CocoaWindowFrameIndex(cocoaFrames: ownWindowFrames()).contains(cocoaPoint: point)
+    }
+
     internal init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
         self.settingsStore = settingsStore
     }
@@ -209,7 +228,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
         }
         
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+        var mouseUpMask: NSEvent.EventTypeMask = [.leftMouseUp]
+        if #available(macOS 26.0, *) {
+            mouseUpMask.insert(.mouseCancelled)
+        }
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: mouseUpMask) { [weak self] event in
+            if #available(macOS 26.0, *), event.type == .mouseCancelled {
+                MainActor.assumeIsolated {
+                    self?.handleMouseCancelled()
+                }
+                return
+            }
             guard let app = NSWorkspace.shared.frontmostApplication else { return }
             let cursor = NSEvent.mouseLocation
             let clickCount = event.clickCount
@@ -284,6 +313,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
 
     internal func stop() {
+        pressGeneration &+= 1
         debounceTask?.cancel()
         debounceTask = nil
         mouseHoldTask?.cancel()
@@ -333,6 +363,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
     /// A new press or application activation invalidates any earlier automatic copy attempt.
     internal func cancelPendingSelection() {
+        pressGeneration &+= 1
         debounceTask?.cancel()
         debounceTask = nil
         mouseHoldTask?.cancel()
@@ -409,6 +440,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         let holdDuration = settingsStore.get(.mouseHoldDuration)
         guard holdDuration > 0 else { return }
 
+        let holdGeneration = pressGeneration
         mouseHoldTask = Task { @MainActor in
             do {
                 try await Task.sleep(nanoseconds: UInt64(holdDuration * 1_000_000_000))
@@ -492,7 +524,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // earlier I-beam signal did the same over read-only web text — browsers show a beam
             // over selectable text whether or not it is editable.
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let isEditableContext = await isPressOverEditableText(point, app.processIdentifier)
+                let isEditableContext = self.isOverOwnWindow(point)
+                    ? false
+                    : await isPressOverEditableText(point, app.processIdentifier)
                 guard self.isSelectionSourceActive(app) else {
                 self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged, traceID: read.traceID)); return
             }
@@ -541,6 +575,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             guard self.isSelectionSourceActive(app) else {
                 self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged, traceID: read.traceID)); return
             }
+            guard self.pressGeneration == holdGeneration else {
+                self.recordRead(.init(status: .cancelled, traceID: read.traceID)); return
+            }
             delivered = true
             latestSelection = (context, canPaste)
             self.recordRead(.init(context: context, canPaste: canPaste,
@@ -567,6 +604,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             mouseHoldTask = nil
             triggeredByHold = false
         }
+    }
+
+    /// A system-cancelled press (e.g. a Mission Control gesture) never gets a mouse-up.
+    internal func handleMouseCancelled() {
+        mouseDownLocation = nil
+        mouseDownWindow = nil
+        mouseDownWasSystemChrome = false
+        cancelPendingSelection()
     }
 
     internal func handleMouseUp(
@@ -660,7 +705,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             guard self.isSelectionSourceActive(app) else {
                 self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged)); return
             }
-            if let downPoint, await self.isPressOnWindowChrome(downPoint, app.processIdentifier) {
+            if let downPoint, !self.isOverOwnWindow(downPoint),
+               await self.isPressOnWindowChrome(downPoint, app.processIdentifier) {
                 guard self.isSelectionSourceActive(app) else { return }
                 Log.selection.debug("monitor: skipped press on window chrome bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
                 self.latestSelection = nil
