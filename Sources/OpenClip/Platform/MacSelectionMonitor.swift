@@ -178,10 +178,11 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
 
     internal static func visibleOwnWindowFrames() -> [CGRect] {
-        // Normal-level windows (Settings, Onboarding) can sit behind another app; their frames must
-        // not shadow a probe point in the front app. Every overlay panel is above normal level.
+        // Normal-level windows (Settings, Onboarding) can sit behind another app, and an overlay
+        // panel can remain ordered in while its Space is not the active one; neither frame may
+        // shadow a probe point in the front app.
         NSApp.windows
-            .filter { $0.isVisible && !$0.frame.isEmpty && $0.level > .normal }
+            .filter { $0.isVisible && $0.isOnActiveSpace && !$0.frame.isEmpty && $0.level > .normal }
             .map(\.frame)
     }
 
