@@ -8,7 +8,7 @@ Welcome to the **OpenClip** technical documentation hub. OpenClip is a lightweig
 
 ### Prerequisites
 - macOS 14.0 (Sonoma) or later
-- Xcode 15.0+ (for building from source)
+- Xcode 27+ (for building from source)
 - [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
 ### Building & Running

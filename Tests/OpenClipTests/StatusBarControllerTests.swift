@@ -281,6 +281,59 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(controller.disableAppItem?.state, .off)
         XCTAssertEqual(controller.disableAppItem?.title, "Disable in UTM")
     }
+
+    func testMenuItemWithImagePrefersVisibleImage() {
+        let item = NSMenuItem(title: "Capture Text", action: nil, keyEquivalent: "")
+        item.image = NSImage(size: NSSize(width: 14, height: 14))
+
+        item.preferVisibleImage()
+
+        if #available(macOS 27.0, *) {
+            XCTAssertEqual(item.preferredImageVisibility, .visible)
+        }
+    }
+
+    func testMenuItemWithoutImageLeavesVisibilityAlone() {
+        let item = NSMenuItem(title: "Quit", action: nil, keyEquivalent: "")
+
+        item.preferVisibleImage()
+
+        if #available(macOS 27.0, *) {
+            XCTAssertEqual(item.preferredImageVisibility, .automatic)
+        }
+    }
+
+    func testStatusMenuActionItemsBuiltFromRegistryPreferVisibleImages() {
+        ActionRegistry.shared.register(
+            action: StatusMenuAction(id: "test.menu.symbol", title: "Symbol Action", icon: .symbol("star"))
+        )
+        ActionRegistry.shared.register(
+            action: StatusMenuAction(id: "test.menu.text", title: "Text Action", icon: .text("T"))
+        )
+
+        let controller = StatusBarController(
+            settingsStore: MemorySettingsStore(),
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+        controller.updateRootMenuDynamicItems()
+
+        guard let actionsSubmenu = controller.actionsSubmenu else {
+            return XCTFail("Expected the actions submenu")
+        }
+        controller.menuNeedsUpdate(actionsSubmenu)
+
+        let actionItems = actionsSubmenu.items.filter { $0.image != nil }
+        XCTAssertEqual(actionItems.count, 2, "both real action items should carry an image")
+        XCTAssertEqual(Set(actionItems.map(\.title)), ["Symbol Action", "Text Action"])
+        XCTAssertNotNil(controller.rootMenu)
+
+        if #available(macOS 27.0, *) {
+            for item in actionItems {
+                XCTAssertEqual(item.preferredImageVisibility, .visible, "\(item.title) lost its image")
+            }
+        }
+    }
 }
 
 private final class MockStatusBarApp: NSRunningApplication {
@@ -295,4 +348,14 @@ private final class MockStatusBarApp: NSRunningApplication {
 
     override var bundleIdentifier: String? { bundleID }
     override var localizedName: String? { locName }
+}
+
+private struct StatusMenuAction: Action, Sendable {
+    let id: String
+    let title: String
+    let icon: ActionIcon
+    let chrome = ActionChrome(badge: .none, rowStyle: .standard, popupBehavior: .perform, source: .builtin)
+
+    @MainActor func isEnabled(for context: ActionContext) -> Bool { true }
+    @MainActor func perform(_ context: ActionContext) async throws -> ActionResult { .none }
 }

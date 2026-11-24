@@ -331,6 +331,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             item.isEnabled = entry.isEnabled
             if !entry.symbol.isEmpty {
                 item.image = NSImage(systemSymbolName: entry.symbol, accessibilityDescription: nil)
+                item.preferVisibleImage()
             }
             if entry.role == .destructive {
                 // NSMenu has no destructive role, so the colour has to be drawn on.
@@ -353,6 +354,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             item.target = self
             item.representedObject = sort.rawValue
             item.image = NSImage(systemSymbolName: sort.symbol, accessibilityDescription: nil)
+            item.preferVisibleImage()
             item.state = (sort == selected) ? .on : .off
             menu.addItem(item)
         }
@@ -404,6 +406,7 @@ public final class PreferencesToolbarController: NSObject, NSToolbarDelegate, NS
             item.target = self
             item.representedObject = entry.action
             item.image = NSImage(systemSymbolName: entry.symbol, accessibilityDescription: nil)
+            item.preferVisibleImage()
             menu.addItem(item)
         }
         return menu

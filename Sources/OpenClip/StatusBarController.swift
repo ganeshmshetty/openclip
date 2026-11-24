@@ -245,6 +245,7 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
         item.target = self
         if let iconName {
             item.image = menuSymbolImage(iconName)
+            item.preferVisibleImage()
         }
         return item
     }
@@ -334,6 +335,7 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
             menuItem.representedObject = item
             menuItem.state = item.isEnabled ? .on : .off
             menuItem.image = ActionIconImageHelper.menuImage(for: item.icon)
+            menuItem.preferVisibleImage()
             menu.addItem(menuItem)
         }
     }

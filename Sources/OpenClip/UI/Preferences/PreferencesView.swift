@@ -712,6 +712,7 @@ public struct PreferencesView: View {
                                 toolbarModel.actions.send(item.action)
                             } label: {
                                 Label(item.title, systemImage: item.symbol)
+                                    .labelStyle(.titleAndIcon)
                             }
                         }
                     } label: {
@@ -764,6 +765,7 @@ public struct PreferencesView: View {
                         } label: {
                             if storeViewModel.selectedSort == sort {
                                 Label(sort.title, systemImage: "checkmark")
+                                    .labelStyle(.titleAndIcon)
                             } else {
                                 Text(sort.title)
                             }
@@ -796,6 +798,7 @@ public struct PreferencesView: View {
                             } label: {
                                 if !item.symbol.isEmpty {
                                     Label(item.title, systemImage: item.symbol)
+                                        .labelStyle(.titleAndIcon)
                                 } else {
                                     Text(item.title)
                                 }
