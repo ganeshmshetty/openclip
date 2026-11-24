@@ -29,6 +29,8 @@ public final class HotkeyManager {
     internal var frontmostPIDProvider: @MainActor @Sendable () -> pid_t? = { NSWorkspace.shared.frontmostApplication?.processIdentifier }
     private var cancellables = Set<AnyCancellable>()
     private var registeredHotkeyIDs: Set<String> = []
+    internal var pasteboardAccess = PasteboardAccessPolicy()
+    internal var didLogPasteboardDenied = false
     
     /// Does not consult `isAppEnabled` ("Appear Automatically" only gates the automatic popup).
     /// Pause, app exclusions, and per-app `disabled` rules still apply.
@@ -181,7 +183,7 @@ public final class HotkeyManager {
         let currentChangeCount = pasteboard.changeCount
         var retrievedText = ""
         var isClipboardFallback = false
-        if let clipboard = pasteboard.string(forType: .string),
+        if let clipboard = clipboardString(from: pasteboard),
            !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             retrievedText = clipboard
             isClipboardFallback = true
@@ -217,6 +219,17 @@ public final class HotkeyManager {
             isEditable: nil
         )
         return (emptyContext, nil)
+    }
+
+    private func clipboardString(from pasteboard: NSPasteboard) -> String? {
+        guard !pasteboardAccess.deniesReads else {
+            if !didLogPasteboardDenied {
+                didLogPasteboardDenied = true
+                Log.selection.notice("clipboard reads are denied by the system pasteboard access policy")
+            }
+            return nil
+        }
+        return pasteboard.string(forType: .string)
     }
 
     private func registerActionHotkeys(_ actions: [any Action]) {
@@ -378,7 +391,7 @@ public final class HotkeyManager {
         if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let pasteboard = NSPasteboard.general
             let currentChangeCount = pasteboard.changeCount
-            if let clipboard = pasteboard.string(forType: .string),
+            if let clipboard = clipboardString(from: pasteboard),
                !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 retrievedText = clipboard
                 isClipboardFallback = true
