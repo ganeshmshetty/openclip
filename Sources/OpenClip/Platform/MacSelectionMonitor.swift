@@ -48,6 +48,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// overshoots onto the menu bar or Dock is still a selection, while one that begins on chrome is not.
     internal var mouseDownWasSystemChrome: Bool = false
     internal var triggeredByHold: Bool = false
+    /// Monotonic token for the current press cycle. A hold captures it when armed and drops its
+    /// delivery if a later cancellation (system-cancelled press, new press, app switch) advanced it.
+    private var pressGeneration: UInt64 = 0
     private var selectionSourceApp: NSRunningApplication?
     private let settingsStore: SettingsStore
 
@@ -310,6 +313,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     }
 
     internal func stop() {
+        pressGeneration &+= 1
         debounceTask?.cancel()
         debounceTask = nil
         mouseHoldTask?.cancel()
@@ -359,6 +363,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
 
     /// A new press or application activation invalidates any earlier automatic copy attempt.
     internal func cancelPendingSelection() {
+        pressGeneration &+= 1
         debounceTask?.cancel()
         debounceTask = nil
         mouseHoldTask?.cancel()
@@ -435,6 +440,7 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         let holdDuration = settingsStore.get(.mouseHoldDuration)
         guard holdDuration > 0 else { return }
 
+        let holdGeneration = pressGeneration
         mouseHoldTask = Task { @MainActor in
             do {
                 try await Task.sleep(nanoseconds: UInt64(holdDuration * 1_000_000_000))
@@ -568,6 +574,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             await InlineResultEvaluator.shared.awaitPrewarmed(timeout: 0.025)
             guard self.isSelectionSourceActive(app) else {
                 self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged, traceID: read.traceID)); return
+            }
+            guard self.pressGeneration == holdGeneration else {
+                self.recordRead(.init(status: .cancelled, traceID: read.traceID)); return
             }
             delivered = true
             latestSelection = (context, canPaste)

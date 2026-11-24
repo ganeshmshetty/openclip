@@ -522,6 +522,40 @@ final class MacSelectionMonitorTests: XCTestCase {
         XCTAssertNil(monitor.mouseHoldTask)
     }
 
+    /// A system-cancelled press never gets a mouse-up. Once the drag handler releases the fired
+    /// task's handle, cancellation must still stop its in-flight popup from surfacing.
+    @MainActor
+    func testCancelledPressDropsFiredHoldDelivery() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 300, y: 300)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXTextField", selectedText: "held text")
+        }, copyCapture: { _ in nil })
+
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+        var cancelledReads = 0
+        monitor.onReadOutcome = { response in
+            if response.status == .cancelled { cancelledReads += 1 }
+        }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+
+        monitor.handleMouseDragged(at: CGPoint(x: point.x + 50, y: point.y))
+        monitor.handleMouseCancelled()
+        gate.signal()
+
+        try await waitUntil { cancelledReads > 0 }
+        XCTAssertNil(delivered, "A cancelled press must not surface a fired hold's popup")
+        XCTAssertNil(monitor.latestSelection)
+    }
+
     /// Fire-time stationarity gate: only a parked press within the tight fire radius counts;
     /// slow drag starts and already-released presses never fire.
     func testHoldStationarityGate() {
