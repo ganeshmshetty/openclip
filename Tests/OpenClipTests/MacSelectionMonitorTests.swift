@@ -247,6 +247,38 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.stop()
     }
 
+    func testMouseCancellationClearsPressStateWithoutStartingASelection() {
+        let store = MemorySettingsStore()
+        store.set(.isMouseHoldEnabled, value: true)
+        store.set(.mouseHoldDuration, value: 5)
+        let monitor = makeMonitor(settingsStore: store)
+        monitor.latestSelection = (
+            context: SelectionContext(
+                text: "before cancellation",
+                sourceApp: AppIdentity(bundleIdentifier: "com.apple.TextEdit")
+            ),
+            canPaste: true
+        )
+
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        XCTAssertNotNil(monitor.mouseHoldTask)
+        monitor.mouseDownWasSystemChrome = true
+
+        monitor.handleMouseCancelled()
+
+        XCTAssertNil(monitor.mouseHoldTask)
+        XCTAssertFalse(monitor.mouseDownWasSystemChrome)
+        XCTAssertNil(monitor.latestSelection)
+        XCTAssertNil(monitor.debounceTask)
+
+        monitor.handleMouseUp(
+            app: MockTestApp(bundleID: "com.apple.TextEdit"),
+            cursor: CGPoint(x: 300, y: 300),
+            clickCount: 1
+        )
+        XCTAssertNil(monitor.debounceTask, "A cancelled press must not turn the release into a new drag")
+    }
+
     func testPressInsideOwnWindowSkipsWindowChromeProbe() async throws {
         let store = MemorySettingsStore()
         store.set(.isMouseHoldEnabled, value: false)

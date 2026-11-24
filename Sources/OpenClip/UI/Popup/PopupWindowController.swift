@@ -1205,15 +1205,21 @@ public class PopupWindowController {
         let canMonitorGlobally = PermissionManager.shared.isAccessibilityGranted
         PopupHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
         SubBarHoverState.shared.usesGlobalMouseMonitoring = canMonitorGlobally
+        var globalMask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]
+        var localMask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .leftMouseUp, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]
+        if #available(macOS 26.0, *) {
+            globalMask.insert(.mouseCancelled)
+            localMask.insert(.mouseCancelled)
+        }
         if canMonitorGlobally {
-            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: globalMask) { [weak self] event in
                 self?.handleEvent(event)
             }
         } else {
             Log.presentation.notice("Accessibility permission unavailable; using local hover tracking.")
         }
         
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .rightMouseUp, .mouseMoved, .scrollWheel, .keyDown]) { [weak self] event in
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: localMask) { [weak self] event in
             self?.handleEvent(event)
             return event
         }
@@ -1266,6 +1272,11 @@ public class PopupWindowController {
 
     func handleEvent(_ event: NSEvent) {
         if isMenuTracking { return }
+        if #available(macOS 26.0, *), event.type == .mouseCancelled {
+            isRightClickInProgress = false
+            pendingClickIntent = .primary
+            return
+        }
         
         switch event.type {
         case .mouseMoved:

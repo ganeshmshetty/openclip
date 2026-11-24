@@ -220,7 +220,17 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
         }
         
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+        var mouseUpMask: NSEvent.EventTypeMask = [.leftMouseUp]
+        if #available(macOS 26.0, *) {
+            mouseUpMask.insert(.mouseCancelled)
+        }
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: mouseUpMask) { [weak self] event in
+            if #available(macOS 26.0, *), event.type == .mouseCancelled {
+                MainActor.assumeIsolated {
+                    self?.handleMouseCancelled()
+                }
+                return
+            }
             guard let app = NSWorkspace.shared.frontmostApplication else { return }
             let cursor = NSEvent.mouseLocation
             let clickCount = event.clickCount
@@ -580,6 +590,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             mouseHoldTask = nil
             triggeredByHold = false
         }
+    }
+
+    /// A system-cancelled press (e.g. a Mission Control gesture) never gets a mouse-up.
+    internal func handleMouseCancelled() {
+        mouseDownLocation = nil
+        mouseDownWindow = nil
+        mouseDownWasSystemChrome = false
+        cancelPendingSelection()
     }
 
     internal func handleMouseUp(
