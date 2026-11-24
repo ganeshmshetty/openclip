@@ -16,7 +16,7 @@ permissions:
 jobs:
   package-and-release:
     name: Package App & Create Release
-    runs-on: macos-26
+    runs-on: xcode-27
 
     steps:
       - name: Checkout repository
@@ -61,10 +61,10 @@ jobs:
             echo "Signing mode: ad-hoc (NOT distributable)"
           fi
 
-      - name: Select Xcode 26
+      - name: Select Xcode 27
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.6'
+          xcode-version: '27.2'
 
       # Plain `security` commands rather than a third-party action: the private key for OpenClip's
       # signing certificate passes through this step, and the same reasoning that pins the Sparkle
