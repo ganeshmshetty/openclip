@@ -107,4 +107,25 @@ final class PreferencesToolbarTests: XCTestCase {
         XCTAssertEqual(host.intrinsicContentSize.width, 0,
                        "a page with no switch must not reserve title bar space")
     }
+
+    func testTheSortMenuItemsPreferVisibleImages() throws {
+        let controller = PreferencesToolbarController(model: PreferencesToolbarModel(), router: SettingsRouter())
+        self.controller = controller
+        let toolbar = controller.makeToolbar()
+        let sortItem = try XCTUnwrap(
+            controller.toolbar(
+                toolbar,
+                itemForItemIdentifier: NSToolbarItem.Identifier("openclip.preferences.sort"),
+                willBeInsertedIntoToolbar: true
+            ) as? NSMenuToolbarItem
+        )
+        let items = sortItem.menu.items
+        XCTAssertFalse(items.isEmpty)
+
+        if #available(macOS 27.0, *) {
+            for item in items where item.image != nil {
+                XCTAssertEqual(item.preferredImageVisibility, .visible, "\(item.title) lost its image")
+            }
+        }
+    }
 }
