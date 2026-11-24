@@ -74,7 +74,7 @@ Install community extensions from **Preferences → Extension Store**, or read t
 
 ## Building from Source
 
-**Prerequisites:** macOS 14+, Xcode 16+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+**Prerequisites:** macOS 14+, Xcode 27+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 ```bash
 git clone https://github.com/ganeshmshetty/openclip.git
