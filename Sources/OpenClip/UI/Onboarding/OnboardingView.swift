@@ -366,7 +366,7 @@ public struct OnboardingView: View {
             VStack(spacing: 10) {
                 permissionRow(
                     icon: "hand.raised.fill",
-                    title: "Accessibility",
+                    title: PermissionCopy.paneName,
                     reason: "Read the text you select",
                     tag: "Required",
                     isGranted: permissionManager.isAccessibilityGranted,

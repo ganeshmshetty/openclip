@@ -130,8 +130,8 @@ private struct CoachMarkCard: View {
                 Text(accessibilityGranted ? String(localized: "Select any text to see OpenClip") : String(localized: "Finish setting up OpenClip"))
                     .font(.system(size: 13, weight: .medium))
                 Text(accessibilityGranted
-                     ? String(localized: "A bar with quick actions appears near your cursor.")
-                     : String(localized: "Grant Accessibility to detect your text selections."))
+                     ? LocalizedStringKey("A bar with quick actions appears near your cursor.")
+                     : PermissionCopy.grantPrompt)
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

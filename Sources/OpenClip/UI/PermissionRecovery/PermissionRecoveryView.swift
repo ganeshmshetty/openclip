@@ -36,12 +36,10 @@ public struct PermissionRecoveryView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(permissionManager.isAccessibilityGranted ? Color.green : Color.accentColor)
 
-                Text(isUpdate ? String(localized: "OpenClip Has Been Updated") : String(localized: "Accessibility Access Required"))
+                Text(isUpdate ? LocalizedStringKey("OpenClip Has Been Updated") : PermissionCopy.requiredTitle)
                     .font(.title3.weight(.bold))
 
-                Text(isUpdate
-                     ? String(localized: "macOS requires re-enabling Accessibility to continue detecting text selections.")
-                     : String(localized: "OpenClip needs Accessibility access to detect selected text and display action bars."))
+                Text(isUpdate ? PermissionCopy.reEnableDescription : PermissionCopy.needsAccessDescription)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -54,7 +52,7 @@ public struct PermissionRecoveryView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("Accessibility Permission Granted")
+                    Text(PermissionCopy.grantedTitle)
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.green)
                 }

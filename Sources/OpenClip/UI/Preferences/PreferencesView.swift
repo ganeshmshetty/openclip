@@ -408,7 +408,7 @@ public struct PreferencesView: View {
             (GeneralSearchTarget.showMenuBarIcon, "Show Menu Bar Icon"),
             (GeneralSearchTarget.showCommandPalette, "Show Command Palette"),
             (GeneralSearchTarget.startAtLogin, "Start at Login"),
-            (GeneralSearchTarget.accessibilityAccess, "Accessibility Access"),
+            (GeneralSearchTarget.accessibilityAccess, PermissionCopy.accessTitleKey),
             (GeneralSearchTarget.screenRecordingAccess, "Screen Recording Access")
         ]
         entries.append(contentsOf: generalControls.map { control in
