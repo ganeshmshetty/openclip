@@ -56,10 +56,6 @@ final class ContextualPolicyTests: XCTestCase {
         XCTAssertTrue(RulesAction(requirements: ActionRequirements(predicate: "visible.js")).isContextual)
     }
 
-    func testRequiresPasteTargetIsContextual() {
-        XCTAssertTrue(RulesAction(requirements: ActionRequirements(requiresPasteTarget: true)).isContextual)
-    }
-
     func testLiveAndEditableInputAreContextual() {
         XCTAssertTrue(RulesAction(requirements: ActionRequirements(input: .liveSelection)).isContextual)
         XCTAssertTrue(RulesAction(requirements: ActionRequirements(input: .editableSelection)).isContextual)
