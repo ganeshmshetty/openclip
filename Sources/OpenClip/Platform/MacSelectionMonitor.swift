@@ -78,6 +78,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Whether `point` sits on on-screen system chrome (the menu bar or Dock). Injectable so tests
     /// can exercise the gesture gating against a fixed geometry.
     internal var isSystemChromeAt: @MainActor (CGPoint) -> Bool = { MacSelectionMonitor.isSystemChromeLocation($0) }
+    /// Visible OpenClip window frames in Cocoa screen coordinates. An AX hit-test at a point
+    /// inside one resolves our own popup, which must never be inspected from the probe queues.
+    internal var ownWindowFrames: @MainActor () -> [CGRect] = { MacSelectionMonitor.visibleOwnWindowFrames() }
     internal var windowAtPoint: @MainActor (CGPoint) -> SelectionGestureWindow? = { SelectionGestureWindow.at($0) }
     internal var windowFrame: @MainActor (CGWindowID) -> CGRect? = { SelectionGestureWindow.currentFrame(for: $0) }
     internal var requestAppAccessibility: @MainActor (NSRunningApplication?) -> Void = { app in
@@ -172,6 +175,14 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             pressAXPoint: pressAXPoint,
             tolerance: tolerance
         )
+    }
+
+    internal static func visibleOwnWindowFrames() -> [CGRect] {
+        NSApp.windows.filter { $0.isVisible && !$0.frame.isEmpty }.map(\.frame)
+    }
+
+    private func isOverOwnWindow(_ point: CGPoint) -> Bool {
+        CocoaWindowFrameIndex(cocoaFrames: ownWindowFrames()).contains(cocoaPoint: point)
     }
 
     internal init(settingsStore: SettingsStore = DefaultSettingsStore.shared) {
@@ -492,7 +503,9 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // earlier I-beam signal did the same over read-only web text — browsers show a beam
             // over selectable text whether or not it is editable.
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let isEditableContext = await isPressOverEditableText(point, app.processIdentifier)
+                let isEditableContext = self.isOverOwnWindow(point)
+                    ? false
+                    : await isPressOverEditableText(point, app.processIdentifier)
                 guard self.isSelectionSourceActive(app) else {
                 self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged, traceID: read.traceID)); return
             }
@@ -660,7 +673,8 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             guard self.isSelectionSourceActive(app) else {
                 self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged)); return
             }
-            if let downPoint, await self.isPressOnWindowChrome(downPoint, app.processIdentifier) {
+            if let downPoint, !self.isOverOwnWindow(downPoint),
+               await self.isPressOnWindowChrome(downPoint, app.processIdentifier) {
                 guard self.isSelectionSourceActive(app) else { return }
                 Log.selection.debug("monitor: skipped press on window chrome bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
                 self.latestSelection = nil

@@ -196,7 +196,8 @@ public class PopupWindowController {
     /// context, so a paste result still lands only where text can be inserted.
     private func refreshTargetEditability(attemptID: UUID) {
         Task { [weak self] in
-            guard let self, let editable = await self.editabilityProbe() else { return }
+            guard let self, !self.ownOverlayCouldOwnAXFocus else { return }
+            guard let editable = await self.editabilityProbe() else { return }
             guard self.presentationAttemptID == attemptID else { return }
             // Record the answer even if the popup already hid: a loading action may deliver after
             // the probe finishes.
@@ -216,6 +217,13 @@ public class PopupWindowController {
                 )
             }
         }
+    }
+
+    /// The focused-element AX read resolves whatever window owns focus, and our SwiftUI overlay
+    /// must never be walked off-main. Unknown editability keeps the safe paste→copy fallback.
+    private var ownOverlayCouldOwnAXFocus: Bool {
+        if let panel, panel.isVisible, panel.isKeyWindow { return true }
+        return NSApp.isActive && NSApp.windows.contains { $0.isVisible && !$0.frame.isEmpty }
     }
 
     /// Starts the paste-availability probe (rules first, then AX), run in parallel with selection retrieval. Not cached,

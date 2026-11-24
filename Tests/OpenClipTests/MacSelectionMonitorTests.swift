@@ -247,6 +247,68 @@ final class MacSelectionMonitorTests: XCTestCase {
         monitor.stop()
     }
 
+    func testPressInsideOwnWindowSkipsWindowChromeProbe() async throws {
+        let store = MemorySettingsStore()
+        store.set(.isMouseHoldEnabled, value: false)
+        let monitor = makeMonitor(settingsStore: store)
+        monitor.isExcludedBundle = { _ in false }
+        monitor.policyResolver = { _ in .default }
+        monitor.ownWindowFrames = { [CGRect(x: 0, y: 0, width: 500, height: 500)] }
+        var chromeProbes = 0
+        monitor.isPressOnWindowChrome = { _, _ in
+            chromeProbes += 1
+            return true
+        }
+        monitor.preparePasteProbe = { _, _ in Task { true } }
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            Self.fixtureTarget(role: "AXTextField", selectedText: "outside the overlay")
+        }, copyCapture: { _ in nil })
+
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        monitor.handleMouseUp(
+            app: MockTestApp(bundleID: "com.apple.TextEdit"),
+            cursor: CGPoint(x: 200, y: 150),
+            clickCount: 1
+        )
+        await monitor.debounceTask?.value
+
+        XCTAssertEqual(chromeProbes, 0, "Our own window must never be AX hit-tested as window chrome")
+        XCTAssertEqual(monitor.latestSelection?.context.text, "outside the overlay")
+    }
+
+    func testHoldInsideOwnWindowSkipsEditabilityProbe() async throws {
+        let monitor = makeHoldMonitor()
+        let point = CGPoint(x: 150, y: 150)
+        monitor.frontmostAppProvider = { Self.runnerApp() }
+        monitor.currentMouseLocation = { point }
+        monitor.ownWindowFrames = { [CGRect(x: 100, y: 100, width: 100, height: 100)] }
+        var editabilityProbes = 0
+        monitor.isPressOverEditableText = { _, _ in
+            editabilityProbes += 1
+            return true
+        }
+
+        let gate = DispatchSemaphore(value: 0)
+        monitor.retriever = SelectionRetrievalCoordinator(inspect: {
+            gate.wait()
+            return Self.fixtureTarget(role: "AXTextField", selectedText: nil)
+        }, copyCapture: { _ in nil })
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("OpenClipTest-\(UUID().uuidString)"))
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("clipboard text", forType: .string)
+        monitor.fallbackPasteboard = pasteboard
+        var delivered: SelectionContext?
+        monitor.onSelection = { context, _ in delivered = context }
+
+        monitor.handleMouseDown(at: point)
+        try await waitUntil { monitor.triggeredByHold }
+        gate.signal()
+        try await waitUntil { !monitor.triggeredByHold }
+
+        XCTAssertEqual(editabilityProbes, 0, "Our own window must never receive an AX editability probe")
+        XCTAssertNil(delivered)
+    }
+
     func testIsMouseHoldEnabledFalseDoesNotSpawnTask() {
         let store = MemorySettingsStore()
         store.set(.isMouseHoldEnabled, value: false)
