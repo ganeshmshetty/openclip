@@ -93,7 +93,8 @@ Default to no comment. Code and names say *what*; a comment earns its place only
 - Comment-only changes must pass `./scripts/verify_comment_only.sh` (non-comment lines identical to the base) and `./scripts/lint_comments.sh`.
 
 ## Tests
- 
+
+- **A skipped test is not a passing test.** The suite is expected to run with zero skips in headless CI. If a test needs the screen, pasteboard, clock, external CLI, or network, inject that dependency (`TestIsolation`, `MemorySettingsStore`, `gestureScreens`, runner seams) instead of adding `XCTSkip`; if it cannot be injected, move the test out of the unit target. Existing conditional skips are debt to replace, not precedent.
 - `Tests/OpenClipTests/` is one flat target. Test classes that touch app singletons call `TestIsolation.reset()` in `setUp()`; store-backed tests use `MemorySettingsStore` rather than the real preferences domain.
 - All unit and integration tests are isolated with in-memory test doubles and temporary directories (including `SecretActionOptionStoreTests`), allowing the full suite to run cleanly in headless CI with zero skips.
 
@@ -107,5 +108,5 @@ User-facing copy lives in `Sources/OpenClip/Resources/Localizable.xcstrings` (En
 
 ## Docs & housekeeping
 
-- `docs/index.md` is the docs hub; `todo.md` tracks outstanding work (check it before assuming something is unimplemented).
+- `docs/index.md` is the docs hub.
 - Ignore junk the repo accumulates but gitignores: `reference/`, `graphify-out/`, `.superpowers/`, `default.profraw`.
