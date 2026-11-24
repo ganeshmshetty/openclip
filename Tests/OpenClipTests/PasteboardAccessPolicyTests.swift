@@ -54,8 +54,9 @@ final class HotkeyPasteboardDenialTests: XCTestCase {
         defer { Log.restoreSinks(previous) }
 
         let app = MockFrontmostApp(bundleID: "com.apple.TextEdit")
-        let first = try XCTUnwrap(manager.resolveSynchronousTrigger(frontmostApp: app))
-        let second = try XCTUnwrap(manager.resolveSynchronousTrigger(frontmostApp: app))
+        let settings = MemorySettingsStore()
+        let first = try XCTUnwrap(manager.resolveSynchronousTrigger(frontmostApp: app, settingsStore: settings))
+        let second = try XCTUnwrap(manager.resolveSynchronousTrigger(frontmostApp: app, settingsStore: settings))
 
         XCTAssertEqual(first.context.text, "")
         XCTAssertFalse(first.context.isClipboardFallback)
@@ -77,7 +78,10 @@ final class HotkeyPasteboardDenialTests: XCTestCase {
         board.setString("allowed clipboard text", forType: .string)
 
         let trigger = try XCTUnwrap(
-            manager.resolveSynchronousTrigger(frontmostApp: MockFrontmostApp(bundleID: "com.apple.TextEdit"))
+            manager.resolveSynchronousTrigger(
+                frontmostApp: MockFrontmostApp(bundleID: "com.apple.TextEdit"),
+                settingsStore: MemorySettingsStore()
+            )
         )
         XCTAssertEqual(trigger.context.text, "allowed clipboard text")
         XCTAssertTrue(trigger.context.isClipboardFallback)
