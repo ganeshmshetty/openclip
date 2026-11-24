@@ -162,6 +162,7 @@ private struct AppRuleRowView: View {
                 } label: {
                     if isHotkeyOnly {
                         Label("Hotkey Only", systemImage: "checkmark")
+                            .labelStyle(.titleAndIcon)
                     } else {
                         Text("Hotkey Only")
                     }
@@ -181,6 +182,7 @@ private struct AppRuleRowView: View {
                 } label: {
                     if isPasteDenied {
                         Label("Copy Result Only", systemImage: "checkmark")
+                            .labelStyle(.titleAndIcon)
                     } else {
                         Text("Copy Result Only")
                     }
@@ -190,6 +192,7 @@ private struct AppRuleRowView: View {
 
                 Button(role: .destructive, action: onDelete) {
                     Label("Remove Rule", systemImage: "trash")
+                        .labelStyle(.titleAndIcon)
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")

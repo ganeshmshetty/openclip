@@ -281,6 +281,27 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(controller.disableAppItem?.state, .off)
         XCTAssertEqual(controller.disableAppItem?.title, "Disable in UTM")
     }
+
+    func testMenuItemWithImagePrefersVisibleImage() {
+        let item = NSMenuItem(title: "Capture Text", action: nil, keyEquivalent: "")
+        item.image = NSImage(size: NSSize(width: 14, height: 14))
+
+        item.preferVisibleImage()
+
+        if #available(macOS 27.0, *) {
+            XCTAssertEqual(item.preferredImageVisibility, .visible)
+        }
+    }
+
+    func testMenuItemWithoutImageLeavesVisibilityAlone() {
+        let item = NSMenuItem(title: "Quit", action: nil, keyEquivalent: "")
+
+        item.preferVisibleImage()
+
+        if #available(macOS 27.0, *) {
+            XCTAssertEqual(item.preferredImageVisibility, .automatic)
+        }
+    }
 }
 
 private final class MockStatusBarApp: NSRunningApplication {

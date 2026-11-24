@@ -345,6 +345,7 @@ public struct IconPickerView: View {
                                         }
                                     } label: {
                                         Label("Delete Icon", systemImage: "trash")
+                                            .labelStyle(.titleAndIcon)
                                     }
                                 }
                             }

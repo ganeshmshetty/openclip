@@ -62,6 +62,7 @@
 		1CDF0D30E4B08B90733C53D8 /* ActionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AF0F3CA2EF364269DB523FD /* ActionRegistry.swift */; };
 		1D9F6742D5B5311A90FE613A /* PopupMultiClickTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C922CD3980899FB5E1C2B97E /* PopupMultiClickTests.swift */; };
 		1DAA6E1F5849B540F57EDF56 /* PopupPositionerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BFF66BC8C0CB6DBE2EEC671 /* PopupPositionerTests.swift */; };
+		1E6065A144B67C201FFBD391 /* MenuItemImageVisibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECB789B2CB934799C476DE86 /* MenuItemImageVisibility.swift */; };
 		1EA69A22B765ABF0A7D3EE76 /* SettingsNoticeBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AF3AA6CD7D50EFBF864A117 /* SettingsNoticeBanner.swift */; };
 		1F034256ED4AEE153E2E33B4 /* ContextualActionClassifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 896D4183D6755AC6E9642EF5 /* ContextualActionClassifierTests.swift */; };
 		1FA8CFA55755A2903AE4D934 /* TextPlaceholderEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8874EAC1123657CDB78D06 /* TextPlaceholderEngine.swift */; };
@@ -989,6 +990,7 @@
 		EB7F93A0807221276A6B0310 /* AppLaunchClassifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLaunchClassifierTests.swift; sourceTree = "<group>"; };
 		EC2F75856E239C65CF4300FA /* ExtensionOutputContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionOutputContract.swift; sourceTree = "<group>"; };
 		EC570E95AD00AF13279BF5F1 /* OpenClipModuleLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipModuleLoader.swift; sourceTree = "<group>"; };
+		ECB789B2CB934799C476DE86 /* MenuItemImageVisibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuItemImageVisibility.swift; sourceTree = "<group>"; };
 		EDA9C8A4040E18E41E19E64A /* JavaScriptAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptAction.swift; sourceTree = "<group>"; };
 		EDD81FEADD6D3A4AC7AA1BE9 /* TextLanguageDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextLanguageDetectorTests.swift; sourceTree = "<group>"; };
 		EE9A2E6AABA7969BAF8C6A44 /* PopupResizeGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupResizeGeometry.swift; sourceTree = "<group>"; };
@@ -1159,6 +1161,7 @@
 			isa = PBXGroup;
 			children = (
 				0D7A473B890B4C97C343497A /* AppIcon.swift */,
+				ECB789B2CB934799C476DE86 /* MenuItemImageVisibility.swift */,
 				CFFF4D85EF1B4FF0339BF733 /* CoachMark */,
 				442E875DFEB929427D5A4801 /* Design */,
 				C91E21DF3A15D5BFFFC6D0AA /* Icons */,
@@ -2430,6 +2433,7 @@
 				ACCD0DDEFEB27D40BA433024 /* LocalLLMProvider.swift in Sources */,
 				FAE6A04356B9A3C6C10F7274 /* LogExporter.swift in Sources */,
 				09A58930CFE1B6C771AAF8D4 /* MacSelectionMonitor.swift in Sources */,
+				1E6065A144B67C201FFBD391 /* MenuItemImageVisibility.swift in Sources */,
 				468FD2B168D9A77D579DFBF1 /* NamedServiceAction.swift in Sources */,
 				2320A4B4D04528CD6D99F9BF /* NativeSearchField.swift in Sources */,
 				84E4BB6969912DE94A5736AA /* NewCustomActionPage.swift in Sources */,
