@@ -82,6 +82,13 @@ All worktrees install to the same `~/Applications/OpenClip Dev.app`; an ad-hoc b
 its code requirement, and macOS then asks for Accessibility and Screen Recording again. The launcher warns when that
 is about to happen.
 
+An ad-hoc Dev build's designated requirement is its bare `cdhash`, so every changed build needs a new grant.
+Turning an existing **OpenClip Dev** row back on does not help: System Settings keeps the old build's hash,
+and the new build stays untrusted with no popup. When an ad-hoc build's hash differs from the installed copy,
+`dev_run.sh` therefore runs `tccutil reset Accessibility com.openclip.OpenClip.dev` before installing, and
+the new build adds a fresh row when it asks for Accessibility. Signed Dev builds keep their grant and are
+never reset. If a grant is already stuck, run that `tccutil` command yourself and relaunch.
+
 The dev launcher opens the `.app` through LaunchServices (`open`), as Finder does, rather than
 spawning `Contents/MacOS/OpenClip` directly. This gives permission requests the normal application
 launch context. After rebuilding, check both the app's permission status and its entry in
