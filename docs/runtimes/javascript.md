@@ -65,7 +65,7 @@ interface OpenClipBridge {
   pasteContent(payload: { 'public.utf8-plain-text'?: string; 'public.html'?: string; 'public.rtf'?: string } | { text?: string; html?: string; rtf?: string }): void;
   copyContent(payload: { 'public.utf8-plain-text'?: string; 'public.html'?: string; 'public.rtf'?: string } | { text?: string; html?: string; rtf?: string }): void;
   cut(value: string): void;
-  openURL(urlString: string): void;      // Invalid URLs are ignored
+  openURL(urlString: string): void;      // Invalid and local-file/scripting URLs are ignored
   keyPress(key: string, modifiers: string[]): void; // e.g. openclip.keyPress("a", ["command"])
   runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
   notify(title: string, body: string): void;
@@ -195,8 +195,9 @@ json(): Promise<any> }`. Network errors reject the promise. Requests use the inj
 HTTP/HTTPS URLs opened by `openclip.openURL(url)` use the recognized source browser,
 just like Search, falling back to the default browser when the source is not recognized.
 This applies with or without `requirements.content`. Other URL schemes use their system
-handlers. Call `openclip.openURL` repeatedly to queue multiple links in call order; scripts
-choose whether to deduplicate.
+handlers, except `file:`, `javascript:`, `data:`, `blob:` and `about:`, which are ignored.
+Call `openclip.openURL` repeatedly to queue multiple links in call order; scripts choose
+whether to deduplicate.
 
 ### Execution model and watchdog
 
@@ -208,8 +209,8 @@ the pump on the same path as a returned-promise rejection if an exception escape
 callback, so it does not wait for the idle watchdog. When the run carries a budget (`Request.timeout`),
 a watchdog (`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern) throws `Script timed out after
 N seconds` once it elapses, and a JavaScriptCore VM execution limit interrupts the synchronous phase.
-Runs with no budget (the default for extension and custom actions) have no timer: they end when the
-promise settles or the caller cancels. Running async tasks can be cancelled immediately by clicking
+Normal extension and custom actions pass `Constants.scriptTimeout` (60 s); inline previews pass their
+shorter UI budget. A run with no budget has no timer and ends when the promise settles or the caller cancels. Running async tasks can be cancelled immediately by clicking
 the loading toast, which cancels in-flight fetch requests. A fetch response that arrives after the
 evaluation ends is discarded; the host does not call the JavaScript VM for it. This holds on every
 exit path: success, JS exception, promise rejection, timeout, cancellation, and thrown error.

@@ -20,4 +20,28 @@ final class RemoteExtensionInstallerTests: XCTestCase {
         XCTAssertFalse(RemoteExtensionInstaller.isPathSafe(destinationURL: sibling, baseDirectory: targetDir))
         XCTAssertTrue(RemoteExtensionInstaller.isPathSafe(destinationURL: baseFile, baseDirectory: targetDir))
     }
+
+    func testAllowsStoreHostsAndOfficialGitHubRelease() {
+        XCTAssertTrue(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://www.getopenclip.app/packages/test.zip")!))
+        XCTAssertTrue(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://getopenclip.app/packages/test.zip")!))
+        XCTAssertTrue(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://github.com/ganeshmshetty/openclip-extensions/releases/download/com.test@1.0.0/Test.openclipext.zip")!))
+    }
+
+    func testRejectsArbitraryGitHubRepositoryAndRawHost() {
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://github.com/attacker/repo/releases/download/v1/evil.zip")!))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://raw.githubusercontent.com/ganeshmshetty/openclip-extensions/main/evil.zip")!))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://getopenclip.vercel.app/packages/test.zip")!))
+    }
+
+    func testRejectsNonHTTPSAndNonDefaultPort() {
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(URL(string: "http://www.getopenclip.app/packages/test.zip")!))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://github.com:8443/ganeshmshetty/openclip-extensions/releases/download/v1/test.zip")!))
+    }
+
+    func testRedirectsAllowGitHubAssetCDNsButNotAsSources() {
+        let asset = URL(string: "https://release-assets.githubusercontent.com/github-production-release-asset/test.zip")!
+        XCTAssertTrue(RemoteExtensionInstaller.isAllowedRedirect(asset))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(asset))
+        XCTAssertTrue(RemoteExtensionInstaller.isAllowedRedirect(URL(string: "https://www.getopenclip.app/packages/test.zip")!))
+    }
 }

@@ -22,12 +22,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Signing degrades rather than fails. If the certificate or the notary credentials are
-      # missing — a fork, or secrets that were rotated away — the release still builds and
-      # publishes, ad-hoc signed, with a warning on the run. Gatekeeper refuses an ad-hoc build
-      # on every Mac but the one that produced it, so this is a visible degradation and not a
-      # silent one. All five secrets are required together: a certificate without notary
-      # credentials would sign successfully and then fail minutes later at the notarization step.
+      - name: Require main for manual releases
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Manual releases must be dispatched from main."
+          exit 1
+
+      # Signing degrades rather than fails for manual (non-tag) runs, so a fork or a rotated
+      # secret can still produce a test build. A tagged release is the distributable artifact:
+      # if any secret is missing there, fail before building rather than publishing an ad-hoc
+      # build that every other Mac will refuse. All five secrets are required together.
       - name: Determine signing mode
         id: signing
         env:
@@ -54,6 +58,10 @@ jobs:
             echo "allow_unsigned=0" >> "$GITHUB_OUTPUT"
             echo "Signing mode: Developer ID (signed, notarized, stapled)"
           else
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+              echo "::error title=Unsigned release::Missing signing secrets:$MISSING. Tagged releases must be signed and notarized."
+              exit 1
+            fi
             echo "::warning title=Unsigned release::Missing signing secrets:$MISSING. Building ad-hoc and skipping notarization — Gatekeeper will refuse these artifacts. See docs/developer-guide/signing-and-notarization.md."
             echo "mode=adhoc" >> "$GITHUB_OUTPUT"
             echo "identity=-" >> "$GITHUB_OUTPUT"

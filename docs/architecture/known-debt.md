@@ -20,9 +20,9 @@ areas; stale debt notes are worse than none.
 
 ## Extension automatic updates
 
-- About → Extension Updates contains a persisted toggle, enabled by default. The app checks
-  at launch and every six hours while running, and applies updates only to store-sourced
-  packages through the existing installer/trust flow. Revoked packages stay revoked.
+- About → Extension Updates contains a persisted toggle, disabled by default. When enabled,
+  the app checks at launch and every six hours while running, and applies updates only to
+  store-sourced packages through the existing installer/trust flow. Revoked packages stay revoked.
 - Turning the toggle off prevents subsequent automatic installs; an install already in progress
   finishes. Manual update controls remain available. Local and sideloaded packages are excluded.
 

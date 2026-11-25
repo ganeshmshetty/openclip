@@ -13,7 +13,7 @@ public final class AppleScriptRunner: @unchecked Sendable {
     private init() {}
 
     /// Returns trimmed stdout. Throws on non-zero exit or watchdog timeout; nil timeout disables the watchdog.
-    public func run(_ source: String, timeout: TimeInterval? = nil) async throws -> String {
+    public func run(_ source: String, timeout: TimeInterval? = Constants.scriptTimeout) async throws -> String {
         let invocation = ShellProcessRunner.Invocation(
             executableURL: URL(fileURLWithPath: "/usr/bin/osascript"),
             arguments: ["-e", source],

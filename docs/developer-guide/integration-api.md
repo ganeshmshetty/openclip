@@ -32,13 +32,15 @@ the app performs the effects in `Sources/OpenClip/Platform/DeepLinkRouter.swift`
 openclip://install?id=com.example.myext&name=My%20Extension&url=https%3A%2F%2Fopenclip.app%2Fmyext.zip
 ```
 
-Downloads and installs a signed extension package. The download host must be on the allow-list:
+Downloads and installs an extension package. The source must be on the allowlist:
 
 ```
-github.com, release-assets.githubusercontent.com, objects.githubusercontent.com,
-raw.githubusercontent.com, getopenclip.vercel.app, getopenclip.app,
-www.getopenclip.app, openclip.app
+getopenclip.app, www.getopenclip.app, openclip.app
+github.com/ganeshmshetty/openclip-extensions/releases/download/…
 ```
+
+GitHub release downloads may redirect to `release-assets.githubusercontent.com` or
+`objects.githubusercontent.com`; those asset hosts are not accepted as an initial URL.
 
 A confirmation dialog is shown before installation. Malformed URLs (missing `id`/`url`) are ignored.
 

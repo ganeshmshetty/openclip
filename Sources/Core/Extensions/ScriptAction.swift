@@ -96,7 +96,8 @@ public struct ScriptAction: ConfigurableAction, ActionWithRules {
             executableURL: scriptURL,
             arguments: [],
             environment: env,
-            stdinText: text
+            stdinText: text,
+            timeout: Constants.scriptTimeout
         ))
 
         // Precedence: JSON stdout, then an existing file path, then plain-text stdout as returned text.

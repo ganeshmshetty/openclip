@@ -15,35 +15,40 @@ public final class RemoteExtensionInstaller: Sendable {
         Constants.isPathSafe(destinationURL: destinationURL, baseDirectory: baseDirectory)
     }
     
-    /// Allowed remote download hosts; anything else is untrusted and rejected.
-    public nonisolated static let allowedDownloadHosts: Set<String> = [
-        "github.com",
-        "release-assets.githubusercontent.com",
-        "objects.githubusercontent.com",
-        "raw.githubusercontent.com",
-        "getopenclip.vercel.app",
+    /// Store-controlled package hosts.
+    nonisolated static let storeDownloadHosts: Set<String> = [
         "getopenclip.app",
         "www.getopenclip.app",
         "openclip.app",
     ]
-    
+
+    /// GitHub release assets redirect to one of these CDNs. They are not accepted as an initial source.
+    nonisolated static let githubAssetHosts: Set<String> = [
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com",
+    ]
+
+    nonisolated static let githubReleaseHost = "github.com"
+    nonisolated static let officialGitHubReleasePathPrefix =
+        "/ganeshmshetty/openclip-extensions/releases/download/"
+
     public func installFromRemoteURL(_ downloadURL: URL, extensionID: String) async throws -> [any Action] {
         Log.extensions.notice("Starting installation for extension '\(extensionID, privacy: .public)'. Initial API URL: \(downloadURL, privacy: .public)")
 
         guard Self.isAllowedSource(downloadURL) else {
-            Log.extensions.error("Host not in allowlist: \(downloadURL.host ?? "unknown", privacy: .public)")
-            throw NSError(domain: "RemoteExtensionInstaller", code: 400, userInfo: [NSLocalizedDescriptionKey: "Download host is not in the allowed list"])
+            Log.extensions.error("URL is not an allowed extension source: \(downloadURL, privacy: .public)")
+            throw NSError(domain: "RemoteExtensionInstaller", code: 400, userInfo: [NSLocalizedDescriptionKey: "Download source is not allowed"])
         }
         
         // Redirect delegate enforces the allowlist on every hop; URLSession follows redirects silently.
         let session = URLSession(
             configuration: .ephemeral,
-            delegate: AllowlistRedirectDelegate(allowedHosts: Self.allowedDownloadHosts),
+            delegate: AllowlistRedirectDelegate(),
             delegateQueue: nil
         )
         defer { session.invalidateAndCancel() }
         
-        Log.extensions.notice("Downloading verified package from \(downloadURL, privacy: .public)")
+        Log.extensions.notice("Downloading package from allowed source \(downloadURL, privacy: .public)")
         
         let (tempLocalURL, response) = try await session.download(from: downloadURL)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -55,7 +60,7 @@ public final class RemoteExtensionInstaller: Sendable {
             }
             throw NSError(domain: "RemoteExtensionInstaller", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
         }
-        guard Self.isAllowedResponse(response, allowedHosts: Self.allowedDownloadHosts) else {
+        guard Self.isAllowedResponse(response) else {
             throw NSError(domain: "RemoteExtensionInstaller", code: 403, userInfo: [NSLocalizedDescriptionKey: "Download redirected to an untrusted host"])
         }
         
@@ -71,19 +76,30 @@ public final class RemoteExtensionInstaller: Sendable {
         return installedActions
     }
     
-    nonisolated private static func isAllowedSource(_ url: URL) -> Bool {
-        guard url.scheme?.lowercased() == "https",
-              let host = url.host?.lowercased(),
-              allowedDownloadHosts.contains(host) else { return false }
-        return true
+    nonisolated static func isAllowedSource(_ url: URL) -> Bool {
+        guard isHTTPS(url), let host = url.host?.lowercased() else { return false }
+        if storeDownloadHosts.contains(host) { return true }
+        return host == githubReleaseHost && url.path.hasPrefix(officialGitHubReleasePathPrefix)
     }
-    
-    nonisolated private static func isAllowedResponse(_ response: URLResponse, allowedHosts: Set<String>) -> Bool {
-        guard let url = response.url,
-              url.scheme?.lowercased() == "https",
-              let host = url.host?.lowercased(),
-              allowedHosts.contains(host) else { return false }
-        return true
+
+    /// Redirects may land on the store hosts or GitHub's asset CDNs. GitHub itself stays scoped to
+    /// the official release path so a different repository cannot supply a package.
+    nonisolated static func isAllowedRedirect(_ url: URL) -> Bool {
+        guard isHTTPS(url), let host = url.host?.lowercased() else { return false }
+        if host == githubReleaseHost {
+            return url.path.hasPrefix(officialGitHubReleasePathPrefix)
+        }
+        return storeDownloadHosts.contains(host) || githubAssetHosts.contains(host)
+    }
+
+    nonisolated private static func isAllowedResponse(_ response: URLResponse) -> Bool {
+        guard let url = response.url else { return false }
+        return isAllowedRedirect(url)
+    }
+
+    nonisolated private static func isHTTPS(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "https" else { return false }
+        return url.port == nil || url.port == 443
     }
     
     private nonisolated func checkURLExists(_ url: URL, session: URLSession) async -> Bool {
@@ -95,7 +111,7 @@ public final class RemoteExtensionInstaller: Sendable {
                 Log.extensions.error("HEAD check for \(url, privacy: .public) returned a non-HTTP response")
                 return false
             }
-            return http.statusCode == 200 && Self.isAllowedResponse(response, allowedHosts: Self.allowedDownloadHosts)
+            return http.statusCode == 200 && Self.isAllowedResponse(response)
         } catch {
             Log.extensions.error("HEAD check failed for \(url, privacy: .public): \(error.localizedDescription)")
             return false
@@ -105,12 +121,6 @@ public final class RemoteExtensionInstaller: Sendable {
 
 /// Refuses redirects that leave the HTTPS allowlist.
 private final class AllowlistRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-    private let allowedHosts: Set<String>
-
-    init(allowedHosts: Set<String>) {
-        self.allowedHosts = allowedHosts
-    }
-
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
@@ -118,10 +128,7 @@ private final class AllowlistRedirectDelegate: NSObject, URLSessionTaskDelegate,
         newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
-        guard let url = request.url,
-              url.scheme?.lowercased() == "https",
-              let host = url.host?.lowercased(),
-              allowedHosts.contains(host) else {
+        guard let url = request.url, RemoteExtensionInstaller.isAllowedRedirect(url) else {
             // Refusing the redirect cancels the task and fails the install.
             completionHandler(nil)
             return

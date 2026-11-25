@@ -58,7 +58,7 @@ reported to their maintainers, though a private heads-up here is appreciated.
   plain preferences or UserDefaults.
 - **Credentials never in URLs.** Gemini authentication uses the `x-goog-api-key`
   header only, so keys cannot leak through logged or shared URLs.
-- **Subprocess sandboxing.** Script actions run under a 30-second watchdog that
+- **Subprocess sandboxing.** Script actions run under a 60-second watchdog that
   terminates stuck processes (process-group kill) so scripts cannot run or hang
   indefinitely.
 - **Hardened runtime, verified on the artifact.** Release builds are signed with

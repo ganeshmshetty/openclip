@@ -86,7 +86,7 @@ public struct JavaScriptAction: ConfigurableAction, ActionWithRules {
     }
 
     public func perform(_ context: ActionContext) async throws -> ActionResult {
-        try await perform(context, timeout: nil)
+        try await perform(context, timeout: Constants.scriptTimeout)
     }
 
     /// Inline evaluation passes its shorter UI budget so JavaScriptCore interrupts sync scripts at the same deadline.

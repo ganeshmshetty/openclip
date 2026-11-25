@@ -1812,6 +1812,22 @@ final class OpenClipJSHostTests: XCTestCase {
         }
     }
 
+    func testOpenURLRejectsLocalFileAndScriptingSchemes() async throws {
+        let result = try await host.run(makeRequest(script: """
+            openclip.openURL('file:///etc/passwd');
+            openclip.openURL('javascript:alert(1)');
+            openclip.openURL('data:text/html,hello');
+            openclip.openURL('ticktick://x-callback-url/add');
+            openclip.openURL('https://example.com');
+            """))
+        guard case .sequence(let effects) = result else { return XCTFail("Expected allowed URLs, got \(result)") }
+        let urls = effects.compactMap { effect -> String? in
+            if case .openURL(let url) = effect { return url.absoluteString }
+            return nil
+        }
+        XCTAssertEqual(urls, ["ticktick://x-callback-url/add", "https://example.com"])
+    }
+
     func testDetectedContentIsFrozenAndUnrequestedTypesStayEmpty() async throws {
         let result = try await host.run(makeRequest(script: """
             function action() {

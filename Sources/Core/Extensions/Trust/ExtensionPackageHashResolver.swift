@@ -36,11 +36,17 @@ public enum ExtensionPackageHashResolver {
 
         if let enumerator = FileManager.default.enumerator(
             at: canonicalDirectory,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
+            includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey],
+            options: []
         ) {
             var extraFiles: [(relativePath: String, url: URL)] = []
             for case let fileURL as URL in enumerator {
+                if isIgnoredMetadata(fileURL) {
+                    if (try? fileURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
+                        enumerator.skipDescendants()
+                    }
+                    continue
+                }
                 guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
                       values.isRegularFile == true else { continue }
                 let canonicalFile = fileURL.resolvingSymlinksInPath().standardizedFileURL
@@ -60,6 +66,15 @@ public enum ExtensionPackageHashResolver {
         }
         
         return ContentFingerprint.sha256Hex(payload)
+    }
+
+    /// Filesystem/VCS metadata that changes without changing the extension. Hidden files that could be
+    /// loaded by `require()` are still hashed.
+    private static let ignoredMetadataNames: Set<String> = [".DS_Store", ".localized", ".git", ".svn", ".hg"]
+
+    private static func isIgnoredMetadata(_ url: URL) -> Bool {
+        let name = url.lastPathComponent
+        return ignoredMetadataNames.contains(name) || name.hasPrefix("._")
     }
 
     /// Frames a component as [path length][path][data length][data], lengths 8-byte big-endian.
