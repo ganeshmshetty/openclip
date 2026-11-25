@@ -198,8 +198,7 @@ public struct CustomAction: ConfigurableAction, ActionWithRules, Codable, Sendab
                 executableURL: URL(fileURLWithPath: "/bin/zsh"),
                 arguments: ["-c", script],
                 environment: env,
-                stdinText: nil,
-                timeout: Constants.scriptTimeout
+                stdinText: nil
             ))
 
             // Precedence: JSON stdout, then an existing file path (when !replaceSelection), then paste/copy.

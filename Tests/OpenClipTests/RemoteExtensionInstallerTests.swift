@@ -38,10 +38,28 @@ final class RemoteExtensionInstallerTests: XCTestCase {
         XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(URL(string: "https://github.com:8443/ganeshmshetty/openclip-extensions/releases/download/v1/test.zip")!))
     }
 
-    func testRedirectsAllowGitHubAssetCDNsButNotAsSources() {
+    func testRejectsDotSegmentAndEncodedTraversal() {
+        let base = "https://github.com/ganeshmshetty/openclip-extensions/releases/download/"
+        let literal = URL(string: base + "../../attacker/evil/releases/download/v1/evil.zip")!
+        let encoded = URL(string: base + "%2e%2e/%2e%2e/attacker/evil/releases/download/v1/evil.zip")!
+        let doubleEncoded = URL(string: base + "%252e%252e/%252e%252e/attacker/evil/releases/download/v1/evil.zip")!
+
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(literal))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(encoded))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(doubleEncoded))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedRedirect(literal, allowsGitHubAssets: true))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedRedirect(encoded, allowsGitHubAssets: true))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedRedirect(doubleEncoded, allowsGitHubAssets: true))
+    }
+
+    func testGitHubAssetRedirectsRequireGitHubReleaseSource() {
         let asset = URL(string: "https://release-assets.githubusercontent.com/github-production-release-asset/test.zip")!
-        XCTAssertTrue(RemoteExtensionInstaller.isAllowedRedirect(asset))
+        XCTAssertTrue(RemoteExtensionInstaller.isAllowedRedirect(asset, allowsGitHubAssets: true))
+        XCTAssertFalse(RemoteExtensionInstaller.isAllowedRedirect(asset, allowsGitHubAssets: false))
         XCTAssertFalse(RemoteExtensionInstaller.isAllowedSource(asset))
-        XCTAssertTrue(RemoteExtensionInstaller.isAllowedRedirect(URL(string: "https://www.getopenclip.app/packages/test.zip")!))
+        XCTAssertTrue(RemoteExtensionInstaller.isAllowedRedirect(
+            URL(string: "https://www.getopenclip.app/packages/test.zip")!,
+            allowsGitHubAssets: false
+        ))
     }
 }

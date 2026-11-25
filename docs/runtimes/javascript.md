@@ -209,8 +209,8 @@ the pump on the same path as a returned-promise rejection if an exception escape
 callback, so it does not wait for the idle watchdog. When the run carries a budget (`Request.timeout`),
 a watchdog (`TimeoutFlag`, mirroring the `ShellProcessRunner` pattern) throws `Script timed out after
 N seconds` once it elapses, and a JavaScriptCore VM execution limit interrupts the synchronous phase.
-Normal extension and custom actions pass `Constants.scriptTimeout` (60 s); inline previews pass their
-shorter UI budget. A run with no budget has no timer and ends when the promise settles or the caller cancels. Running async tasks can be cancelled immediately by clicking
+Runs with no budget (the default for extension and custom actions) have no timer: they end when the
+promise settles or the caller cancels. Running async tasks can be cancelled immediately by clicking
 the loading toast, which cancels in-flight fetch requests. A fetch response that arrives after the
 evaluation ends is discarded; the host does not call the JavaScript VM for it. This holds on every
 exit path: success, JS exception, promise rejection, timeout, cancellation, and thrown error.

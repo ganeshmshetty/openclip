@@ -342,12 +342,15 @@ drift out of step with the certificate it is supposed to describe.
 
 All five are required **together**. A certificate without notary credentials would sign
 successfully and then fail minutes later at the notarization step, so the workflow checks for the
-whole set up front. If any are absent — a fork, or secrets rotated away — the release still builds
-and publishes, ad-hoc signed, with a `::warning::` naming exactly which secrets were missing.
+whole set up front. The two entry points behave differently:
 
-This keeps tagging working under any configuration, but the degradation is real: **an ad-hoc
-release is refused by Gatekeeper on every Mac except the one that built it, and must not be
-published as a real release.** Check the run's warnings before announcing a version.
+- **Tag push (`v*`)**: any missing secret fails the run before building. A tagged build is the
+  distributable release, so it must not silently become ad-hoc.
+- **Manual `workflow_dispatch`**: allowed only from `main`. Missing secrets still build an ad-hoc
+  test artifact with a `::warning::` naming exactly which secrets were missing.
+
+An ad-hoc build is refused by Gatekeeper on every Mac except the one that built it and must not be
+published as a real release. Check manual-run warnings before sharing an artifact.
 
 ### How the certificate is handled
 

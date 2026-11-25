@@ -117,9 +117,6 @@ public enum Constants {
     /// Maximum age (seconds) for a monitored selection before it is treated as stale.
     public static let selectionMaxAge: TimeInterval = 30.0
 
-    /// Default watchdog for action subprocesses and normal JS evaluation. Inline previews use a shorter UI budget.
-    public static let scriptTimeout: TimeInterval = 60
-
     /// Default duration (seconds) of holding the mouse button down to trigger the popup.
     public static let defaultMouseHoldDuration: TimeInterval = 0.3
 

@@ -650,8 +650,7 @@ public final class DefaultActionResultHandler: ActionResultHandler, Sendable {
         _ = try await ShellProcessRunner.run(ShellProcessRunner.Invocation(
             executableURL: binary,
             arguments: arguments,
-            environment: ProcessInfo.processInfo.environment,
-            timeout: Constants.scriptTimeout
+            environment: ProcessInfo.processInfo.environment
         ))
     }
 

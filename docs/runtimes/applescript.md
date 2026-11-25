@@ -28,9 +28,9 @@ In-process `NSAppleScript.executeAndReturnError()` blocks the calling thread unt
 application answers over Apple Events. It cannot be cancelled, has no timeout, and a hung
 `tell application` permanently parks a cooperative-pool thread. `NSAppleScript` is also not
 thread-safe across instances. Running each script as a killable subprocess keeps the
-cooperative-thread pool free, and a stuck script never wedges a thread forever: `AppleScriptRunner`
-arms the subprocess watchdog with `Constants.scriptTimeout` by default, and passing `nil` explicitly
-runs until the script exits or the user cancels the loading toast.
+cooperative-thread pool free, and a stuck script never wedges a thread forever: callers that want a
+bound pass an explicit `timeout` that arms the subprocess watchdog, and without one the script runs
+until it exits or the user cancels the loading toast.
 
 `AppleScriptAction` and custom AppleScript actions route through the shared subprocess runner.
 The deadline-capped AX inspect in `SelectionRetrievalCoordinator` uses `OnceResume` to guarantee
@@ -68,4 +68,4 @@ return (upperText as text)
   preference (preview/paste/copy; a secondary click copies, unless the user set Show in card).
 - **No Return Value (empty)**: If the script executes without returning text, it returns `ActionResult.success`.
 - **Error Handling**: On a non-zero subprocess exit (the AppleScript error text goes to stderr), the runtime returns `ActionResult.failure(error)` with the error message.
-- **Timeout**: `AppleScriptRunner` supplies a 60-second budget by default. Past it the watchdog terminates `osascript`, the process group when it is the leader, and remaining descendants, and the run surfaces as a timeout failure. Passing `nil` explicitly disables the watchdog; the subprocess then runs until it exits or the loading toast cancels it.
+- **Timeout**: Only when the invocation carries an explicit budget. Past it the watchdog terminates `osascript`, the process group when it is the leader, and remaining descendants. Execution surfaces as a timeout failure. With no budget (the default) there is no watchdog; the subprocess runs until it exits or the loading toast cancels it.
