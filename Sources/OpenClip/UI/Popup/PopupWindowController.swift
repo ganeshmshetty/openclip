@@ -1512,24 +1512,58 @@ public class PopupWindowController {
         }()
         let isParentGroup = hoveredAction?.id == subBarController.activeState?.groupID
         let isImmediateNeighbor = hoveredIndex.map { subBarController.isImmediateNeighbor(actionIndex: $0) } ?? false
+        let region = Self.subBarPointerRegion(
+            overSubBarContent: overContent,
+            isParentGroup: isParentGroup,
+            isImmediateNeighbor: isImmediateNeighbor,
+            overMainBarContent: isOverPanelContent(screenLocation),
+            overSubBarFrame: overSubBar
+        )
 
-        if overSubBar || isParentGroup {
+        switch region {
+        case .subBarContent, .parentGroup, .subBarShadow:
             clearPendingGroupAim()
             subBarController.cancelGrace()
-        } else if let action = hoveredAction, isImmediateNeighbor {
+        case .immediateNeighbor:
             subBarController.cancelGrace()
-            if !action.opensSubActions {
+            if let action = hoveredAction, !action.opensSubActions {
                 beginNeighborDismissAimIfNeeded(for: action)
             }
-        } else if isOverPanelContent(screenLocation) {
+        case .distantAction:
             // Pointer is over a distant action on the main bar: close the sub-bar!
             clearPendingGroupAim()
             subBarController.hide()
-        } else {
+        case .outside:
             // Pointer has left both the sub-bar and the main bar (moving across the gap or away)
             clearPendingGroupAim()
             subBarController.startGrace()
         }
+    }
+
+    enum SubBarPointerRegion: Equatable {
+        case subBarContent
+        case parentGroup
+        case immediateNeighbor
+        case distantAction
+        case subBarShadow
+        case outside
+    }
+
+    /// Main-bar actions outrank the sub-bar's expanded shadow ring, which can overlap a right-hand
+    /// neighbor. Without that priority the shadow branch clears the neighbor's aim timer.
+    nonisolated static func subBarPointerRegion(
+        overSubBarContent: Bool,
+        isParentGroup: Bool,
+        isImmediateNeighbor: Bool,
+        overMainBarContent: Bool,
+        overSubBarFrame: Bool
+    ) -> SubBarPointerRegion {
+        if overSubBarContent { return .subBarContent }
+        if isParentGroup { return .parentGroup }
+        if isImmediateNeighbor { return .immediateNeighbor }
+        if overMainBarContent { return .distantAction }
+        if overSubBarFrame { return .subBarShadow }
+        return .outside
     }
 
     /// Feeds hover from the `.activeAlways` tracking areas, keeping hover, tooltips, and sub-bars alive while OpenClip is inactive

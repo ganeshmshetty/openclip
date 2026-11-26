@@ -82,6 +82,40 @@ final class SubBarAimTests: XCTestCase {
         )
     }
 
+    func testMainBarNeighborOutranksOverlappingSubBarShadow() {
+        XCTAssertEqual(
+            PopupWindowController.subBarPointerRegion(
+                overSubBarContent: false,
+                isParentGroup: false,
+                isImmediateNeighbor: true,
+                overMainBarContent: true,
+                overSubBarFrame: true
+            ),
+            .immediateNeighbor,
+            "the shadow ring must not swallow a right-hand neighbor"
+        )
+        XCTAssertEqual(
+            PopupWindowController.subBarPointerRegion(
+                overSubBarContent: true,
+                isParentGroup: false,
+                isImmediateNeighbor: true,
+                overMainBarContent: false,
+                overSubBarFrame: true
+            ),
+            .subBarContent
+        )
+        XCTAssertEqual(
+            PopupWindowController.subBarPointerRegion(
+                overSubBarContent: false,
+                isParentGroup: false,
+                isImmediateNeighbor: false,
+                overMainBarContent: false,
+                overSubBarFrame: true
+            ),
+            .subBarShadow
+        )
+    }
+
     func testNonGroupNeighborUsesTheSameDwellAndTriangle() {
         let parked = CGPoint(x: 150, y: 185)
         XCTAssertEqual(
