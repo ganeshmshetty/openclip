@@ -279,8 +279,11 @@ if [ "$NO_INSTALL" = false ]; then
   if [[ $built_sig == *Signature=adhoc* ]] \
      && [ "$(awk -F= '/^CDHash=/{print $2}' <<<"$built_sig")" != "$(awk -F= '/^CDHash=/{print $2}' <<<"$installed_sig")" ]; then
     bundle_id=$(defaults read "$BUILT_APP/Contents/Info" CFBundleIdentifier)
-    if tccutil reset Accessibility "$bundle_id" >/dev/null 2>&1; then
+    if reset_output=$(tccutil reset Accessibility "$bundle_id" 2>&1); then
       status_line '!' "$C_WARN" 'New ad-hoc build: Accessibility reset, grant it again when prompted'
+    else
+      reset_message=${reset_output%%$'\n'*}
+      status_line '!' "$C_FAIL" "Accessibility reset failed: ${reset_message:-unknown error}. Reset manually: tccutil reset Accessibility $bundle_id"
     fi
   fi
   # Terminate old dev instance before updating the binary.
