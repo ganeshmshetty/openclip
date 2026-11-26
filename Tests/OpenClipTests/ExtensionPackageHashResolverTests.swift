@@ -178,6 +178,38 @@ final class ExtensionPackageHashResolverTests: XCTestCase {
         XCTAssertNotEqual(before, after, "a predicate edit must change the package hash even when the file is hidden")
     }
 
+    func testHiddenModuleChangesPackageHash() throws {
+        let pkg = tempDir.appendingPathComponent("hidden.openclipext")
+        try FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
+        let manifestURL = pkg.appendingPathComponent("openclip.json")
+        let scriptURL = pkg.appendingPathComponent("main.sh")
+        try writePackage(identifier: "com.t.hidden", manifestURL: manifestURL, scriptURL: scriptURL, script: "echo main")
+        let hiddenURL = pkg.appendingPathComponent(".helper.js")
+        try "module.exports = 1".write(to: hiddenURL, atomically: true, encoding: .utf8)
+
+        let manifest = ExtensionManifestStore.readManifest(at: manifestURL)!
+        let before = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        try "module.exports = 2".write(to: hiddenURL, atomically: true, encoding: .utf8)
+        let after = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        XCTAssertNotEqual(before, after, "a hidden require-able module must change the package hash")
+    }
+
+    func testFilesystemMetadataDoesNotChangePackageHash() throws {
+        let pkg = tempDir.appendingPathComponent("metadata.openclipext")
+        try FileManager.default.createDirectory(at: pkg, withIntermediateDirectories: true)
+        let manifestURL = pkg.appendingPathComponent("openclip.json")
+        let scriptURL = pkg.appendingPathComponent("main.sh")
+        try writePackage(identifier: "com.t.metadata", manifestURL: manifestURL, scriptURL: scriptURL, script: "echo main")
+
+        let manifest = ExtensionManifestStore.readManifest(at: manifestURL)!
+        let before = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        try "junk".write(to: pkg.appendingPathComponent(".DS_Store"), atomically: true, encoding: .utf8)
+        try FileManager.default.createDirectory(at: pkg.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        try "config".write(to: pkg.appendingPathComponent(".git/config"), atomically: true, encoding: .utf8)
+        let after = try XCTUnwrap(ExtensionPackageHashResolver.packageHash(manifestURL: manifestURL, manifest: manifest))
+        XCTAssertEqual(before, after, "Finder/VCS metadata must not look like package drift")
+    }
+
     private func writePackage(identifier: String, manifestURL: URL, scriptURL: URL, script: String) throws {
         try """
         {"identifier":"\(identifier)","name":"Pkg","actions":[{"title":"A","type":"script","script":"main.sh"}]}

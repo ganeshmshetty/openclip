@@ -22,7 +22,7 @@ final class SettingsStoreTests: XCTestCase {
     func testExtensionAutomaticUpdatesDefaultAndPersistence() async {
         let settings = MemorySettingsStore()
         let manager = ExtensionUpdateManager(settings: settings)
-        XCTAssertTrue(manager.automaticallyUpdatesExtensions)
+        XCTAssertFalse(manager.automaticallyUpdatesExtensions)
 
         manager.automaticallyUpdatesExtensions = false
         XCTAssertFalse(settings.get(.automaticallyUpdatesExtensions))

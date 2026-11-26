@@ -350,7 +350,7 @@ public final class OpenClipJSHost: @unchecked Sendable {
             effects.value.append(.cut(value))
         }
         let openURLBlock: @convention(block) (String) -> Void = { value in
-            guard let url = URL(string: value) else { return } // ignore invalid URLs
+            guard let url = URL(string: value), Self.isAllowedOpenURL(url) else { return }
             collected.value.openURL = url
             effects.value.append(.openURL(url))
         }
@@ -1058,6 +1058,17 @@ public final class OpenClipJSHost: @unchecked Sendable {
         case .toast(let feedback): return .toast(feedback)
         }
     }
+
+    /// Local-file and scripting schemes are not link destinations. App deep links such as `ticktick:`
+    /// stay allowed because extensions legitimately use them.
+    nonisolated static func isAllowedOpenURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(), !scheme.isEmpty else { return false }
+        return !blockedOpenURLSchemes.contains(scheme)
+    }
+
+    private static let blockedOpenURLSchemes: Set<String> = [
+        "about", "blob", "data", "file", "javascript"
+    ]
 
     private static func parseRichPayload(_ value: JSValue?) -> RichPasteboardPayload? {
         guard let value, value.isObject else { return nil }

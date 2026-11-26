@@ -65,7 +65,7 @@ interface OpenClipBridge {
   pasteContent(payload: { 'public.utf8-plain-text'?: string; 'public.html'?: string; 'public.rtf'?: string } | { text?: string; html?: string; rtf?: string }): void;
   copyContent(payload: { 'public.utf8-plain-text'?: string; 'public.html'?: string; 'public.rtf'?: string } | { text?: string; html?: string; rtf?: string }): void;
   cut(value: string): void;
-  openURL(urlString: string): void;      // Invalid URLs are ignored
+  openURL(urlString: string): void;      // Invalid and local-file/scripting URLs are ignored
   keyPress(key: string, modifiers: string[]): void; // e.g. openclip.keyPress("a", ["command"])
   runShortcut(name: string): void;       // Runs a macOS Shortcut (requires /usr/bin/shortcuts)
   notify(title: string, body: string): void;
@@ -195,8 +195,9 @@ json(): Promise<any> }`. Network errors reject the promise. Requests use the inj
 HTTP/HTTPS URLs opened by `openclip.openURL(url)` use the recognized source browser,
 just like Search, falling back to the default browser when the source is not recognized.
 This applies with or without `requirements.content`. Other URL schemes use their system
-handlers. Call `openclip.openURL` repeatedly to queue multiple links in call order; scripts
-choose whether to deduplicate.
+handlers, except `file:`, `javascript:`, `data:`, `blob:` and `about:`, which are ignored.
+Call `openclip.openURL` repeatedly to queue multiple links in call order; scripts choose
+whether to deduplicate.
 
 ### Execution model and watchdog
 

@@ -53,15 +53,16 @@ final class DeepLinkRouter {
     // MARK: - Extension install (existing store deep link)
 
     private func install(id: String, name: String?, downloadURL: URL) {
-        guard let host = downloadURL.host?.lowercased(),
-              RemoteExtensionInstaller.allowedDownloadHosts.contains(host) else {
-            Log.extensions.error("Refused deep-link install from a host outside the allowlist")
+        guard RemoteExtensionInstaller.isAllowedSource(downloadURL) else {
+            Log.extensions.error("Refused deep-link install from a source outside the allowlist")
             return
         }
 
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = trimmedName.flatMap { $0.isEmpty ? nil : $0 } ?? id
         let alert = NSAlert()
         alert.messageText = String(localized: "Install Extension?")
-        alert.informativeText = String(localized: "OpenClip wants to install the extension \"\(id)\" from \(host). Extensions can run scripts when you select text. Only proceed if you trust this source.")
+        alert.informativeText = String(localized: "OpenClip wants to install the extension \"\(displayName)\" from \(downloadURL.absoluteString). Extensions can run scripts when you select text. Only proceed if you trust this source.")
         alert.alertStyle = .warning
         alert.addButton(withTitle: String(localized: "Install"))
         alert.addButton(withTitle: String(localized: "Cancel"))
@@ -73,7 +74,7 @@ final class DeepLinkRouter {
                 _ = try await RemoteExtensionInstaller.shared.installFromRemoteURL(downloadURL, extensionID: id)
                 await ExtensionUpdateManager.shared.checkForUpdates()
             } catch {
-                Log.extensions.error("Failed to install extension '\(id, privacy: .public)' from host \(host, privacy: .public): \(error.localizedDescription, privacy: .private)")
+                Log.extensions.error("Failed to install extension '\(id, privacy: .public)' from \(downloadURL, privacy: .public): \(error.localizedDescription, privacy: .private)")
                 let failure = NSAlert()
                 failure.messageText = String(localized: "Extension Install Failed")
                 failure.informativeText = String(localized: "OpenClip could not install \"\(id)\": \(error.localizedDescription)")
