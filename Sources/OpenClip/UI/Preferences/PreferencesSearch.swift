@@ -7,6 +7,12 @@ enum GeneralSearchTarget {
     static let showCommandPalette = "general.showCommandPalette"
     static let captureText = "general.captureText"
     static let captureTextAutoCopy = "general.captureTextAutoCopy"
+    static let clipBasketToggle = "general.clipBasketToggle"
+    static let clipBasketPasteNext = "general.clipBasketPasteNext"
+    static let clipBasketPasteAll = "general.clipBasketPasteAll"
+    static let clipBasketArmedPaste = "general.clipBasketArmedPaste"
+    static let clipBasketAutoCapture = "general.clipBasketAutoCapture"
+    static let clipBasketAutoClose = "general.clipBasketAutoClose"
     static let saveLocation = "general.saveLocation"
     static let playActionSound = "general.playActionSound"
     static let showMenuBarIcon = "general.showMenuBarIcon"
@@ -15,7 +21,9 @@ enum GeneralSearchTarget {
     static let screenRecordingAccess = "general.screenRecordingAccess"
     static let all = [
         appearAutomatically, holdMouseToTrigger, commandPalette, captureText,
-        captureTextAutoCopy, saveLocation, playActionSound, showMenuBarIcon, showCommandPalette, startAtLogin, accessibilityAccess, screenRecordingAccess
+        captureTextAutoCopy, clipBasketToggle, clipBasketPasteNext, clipBasketPasteAll,
+        clipBasketArmedPaste, clipBasketAutoCapture, clipBasketAutoClose,
+        saveLocation, playActionSound, showMenuBarIcon, showCommandPalette, startAtLogin, accessibilityAccess, screenRecordingAccess
     ]
 }
 

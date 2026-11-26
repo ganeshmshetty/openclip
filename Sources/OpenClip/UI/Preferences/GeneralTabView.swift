@@ -18,6 +18,8 @@ struct GeneralTab: View {
     @State private var showMenuBarIcon: Bool
     @State private var isMouseHoldEnabled: Bool
     @Setting(SettingKey.captureTextAutoCopy) private var captureTextAutoCopy
+    @Setting(SettingKey.clipBasketAutoCaptureCopies) private var clipBasketAutoCaptureCopies
+    @Setting(SettingKey.clipBasketAutoCloseWhenEmpty) private var clipBasketAutoCloseWhenEmpty
     @Setting(SettingKey.showSearchAllActions) private var showSearchAllActions
     @Setting(SettingKey.playActionSound) private var playActionSound
     @Setting(SettingKey.actionSoundName) private var actionSoundName
@@ -116,6 +118,82 @@ struct GeneralTab: View {
                             .id(GeneralSearchTarget.captureTextAutoCopy)
                             .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.captureTextAutoCopy))
                     }
+                }
+
+                SettingsCard("Clip Basket") {
+                    SettingsRow(
+                        title: "Show Clip Basket",
+                        info: "Open or close the floating basket.",
+                        systemImage: "basket",
+                        plainIcon: true
+                    ) {
+                        Shortcut(for: .toggleClipBasket)
+                    }
+                    .id(GeneralSearchTarget.clipBasketToggle)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.clipBasketToggle))
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Paste Next Item",
+                        info: "Paste the first item in the basket.",
+                        systemImage: "arrow.down.doc",
+                        plainIcon: true
+                    ) {
+                        Shortcut(for: .pasteNextFromBasket)
+                    }
+                    .id(GeneralSearchTarget.clipBasketPasteNext)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.clipBasketPasteNext))
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Paste All",
+                        info: "Paste every text item, joined in basket order.",
+                        systemImage: "doc.on.doc",
+                        plainIcon: true
+                    ) {
+                        Shortcut(for: .pasteAllFromBasket)
+                    }
+                    .id(GeneralSearchTarget.clipBasketPasteAll)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.clipBasketPasteAll))
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        title: "Armed ⌘V Paste",
+                        info: "Use ⌘V for sequential paste only while the basket is open and armed.",
+                        systemImage: "command",
+                        plainIcon: true
+                    ) {
+                        Shortcut(for: .armedBasketPaste)
+                    }
+                    .id(GeneralSearchTarget.clipBasketArmedPaste)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.clipBasketArmedPaste))
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        title: "Capture Copies While Open",
+                        info: "Collect new copies only while the basket is visible.",
+                        systemImage: "doc.on.clipboard",
+                        plainIcon: true,
+                        isOn: $clipBasketAutoCaptureCopies
+                    )
+                    .id(GeneralSearchTarget.clipBasketAutoCapture)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.clipBasketAutoCapture))
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        title: "Close When Empty",
+                        info: "Dismiss the basket after its last item is pasted.",
+                        systemImage: "xmark.circle",
+                        plainIcon: true,
+                        isOn: $clipBasketAutoCloseWhenEmpty
+                    )
+                    .id(GeneralSearchTarget.clipBasketAutoClose)
+                    .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.clipBasketAutoClose))
                 }
 
                 SettingsCard("Files") {

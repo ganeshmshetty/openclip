@@ -133,7 +133,7 @@ final class SettingsRouterTests: XCTestCase {
         XCTAssertEqual(SettingsPage.appearance.staticTitle, "Customize")
         XCTAssertTrue(SettingsPage.appearance.searchKeywords.contains("suggestions"))
         XCTAssertTrue(SettingsPage.appearance.searchKeywords.contains("suggestion position"))
-        XCTAssertEqual(GeneralSearchTarget.all.count, 12)
+        XCTAssertEqual(GeneralSearchTarget.all.count, 18)
     }
 
     func testShowingTheCurrentPathAgainRecordsNothing() {

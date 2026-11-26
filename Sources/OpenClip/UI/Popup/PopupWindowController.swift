@@ -2673,7 +2673,7 @@ public class PopupWindowController {
         let match = action.matchInfo(for: context)
         let performContext = ActionContext(
             selection: context.selection,
-            modifiers: context.modifiers,
+            modifiers: context.modifiers.union(.currentHardware),
             isSecondaryClick: isSecondaryClick,
             match: match
         )
@@ -2724,7 +2724,7 @@ public class PopupWindowController {
         let match = action.matchInfo(for: context)
         let performContext = ActionContext(
             selection: context.selection,
-            modifiers: context.modifiers,
+            modifiers: context.modifiers.union(.currentHardware),
             isSecondaryClick: isSecondaryClick,
             match: match
         )

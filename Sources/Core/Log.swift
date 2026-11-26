@@ -197,6 +197,7 @@ public enum Log: Sendable {
     public static let factory = LogChannel(category: "factory")
     public static let coordinator = LogChannel(category: "coordinator")
     public static let resultHandler = LogChannel(category: "result-handler")
+    public static let basket = LogChannel(category: "basket")
 
     // MARK: Runtime owners
     public static let shell = LogChannel(category: "shell")

@@ -17,6 +17,8 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var preferencesToolbarController: PreferencesToolbarController?
     internal var rootMenu: NSMenu?
     internal var captureTextMenuItem: NSMenuItem?
+    internal var clipBasketMenuItem: NSMenuItem?
+    internal var clearBasketMenuItem: NSMenuItem?
     internal var settingsMenuItem: NSMenuItem?
     internal var actionsMenuItem: NSMenuItem?
     internal var resumeItem: NSMenuItem?
@@ -181,6 +183,16 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.captureTextMenuItem = captureItem
         menu.addItem(captureItem)
 
+        let basketItem = menuItem(title: String(localized: "Show Clip Basket"), action: #selector(toggleClipBasket), iconName: "basket")
+        basketItem.setShortcut(for: .toggleClipBasket)
+        self.clipBasketMenuItem = basketItem
+        menu.addItem(basketItem)
+
+        let clearBasketItem = menuItem(title: String(localized: "Clear Basket"), action: #selector(clearClipBasket), iconName: "xmark.bin")
+        clearBasketItem.isHidden = true
+        self.clearBasketMenuItem = clearBasketItem
+        menu.addItem(clearBasketItem)
+
         let actionsMenu = NSMenu(title: String(localized: "Actions"))
         actionsMenu.delegate = self
         self.actionsSubmenu = actionsMenu
@@ -262,6 +274,14 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc private func captureText() {
         let app = currentTargetApp
         DispatchQueue.main.async { [weak self] in self?.onCaptureText?(app) }
+    }
+
+    @objc private func toggleClipBasket() {
+        ClipBasketManager.shared.toggle()
+    }
+
+    @objc private func clearClipBasket() {
+        ClipBasketManager.shared.clear()
     }
 
     // MARK: - NSMenuDelegate
@@ -361,6 +381,12 @@ class StatusBarController: NSObject, NSMenuDelegate, NSMenuItemValidation {
     internal func updateRootMenuDynamicItems() {
         let isEnabled = settingsStore.get(.isAppEnabled)
         toggleEnabledItem?.state = isEnabled ? .on : .off
+
+        let basketCount = ClipBasketStore.shared.count
+        clipBasketMenuItem?.title = basketCount > 0
+            ? String(format: String(localized: "Show Clip Basket (%lld)"), basketCount)
+            : String(localized: "Show Clip Basket")
+        clearBasketMenuItem?.isHidden = basketCount == 0
 
         let pauseUntil = settingsStore.get(.pauseUntilTimestamp)
         let isPaused = pauseUntil > Date().timeIntervalSince1970

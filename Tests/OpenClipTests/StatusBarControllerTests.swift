@@ -62,6 +62,31 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(captureItem.keyEquivalent, "")
     }
 
+    func testClipBasketMenuItemsReflectBasketCount() {
+        let controller = StatusBarController(
+            settingsStore: MemorySettingsStore(),
+            notificationCenter: NotificationCenter(),
+            rulesSaveURL: tempRulesURL
+        )
+        guard let basketItem = controller.clipBasketMenuItem,
+              let clearItem = controller.clearBasketMenuItem,
+              let items = controller.rootMenu?.items else {
+            return XCTFail("Expected Clip Basket menu items")
+        }
+        ClipBasketStore.shared.clear()
+        defer { ClipBasketStore.shared.clear() }
+
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(basketItem.title, "Show Clip Basket")
+        XCTAssertTrue(clearItem.isHidden)
+        XCTAssertLessThan(items.firstIndex(of: basketItem)!, items.firstIndex(of: controller.settingsMenuItem!)!)
+
+        ClipBasketStore.shared.enqueue(ClipBasketItem(content: .text(RichPasteboardPayload(plainText: "one"))))
+        controller.updateRootMenuDynamicItems()
+        XCTAssertEqual(basketItem.title, "Show Clip Basket (1)")
+        XCTAssertFalse(clearItem.isHidden)
+    }
+
     func testVisibilityNotificationRemovesAndRecreatesStatusItem() {
         let store = MemorySettingsStore()
         let notificationCenter = NotificationCenter()

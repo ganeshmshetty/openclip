@@ -10,6 +10,8 @@ public enum BuiltinRegistry {
     @MainActor
     public static func makeCoreBuiltins(
         settingsStore: any SettingsStore = DefaultSettingsStore.shared,
+        basketStore: ClipBasketStore = .shared,
+        enrichSelection: @escaping AddToBasketAction.SelectionEnricher = { $0 },
         dictionaryLookup: @escaping @Sendable (String) -> String? = { _ in nil }
     ) -> [any Action] {
         DefineAction.migrateLegacyDisplayOptionIfNeeded(settingsStore: settingsStore)
@@ -18,6 +20,7 @@ public enum BuiltinRegistry {
             CopyAction(),
             CutAction(),
             PasteAction(),
+            AddToBasketAction(store: basketStore, enrichSelection: enrichSelection),
             CalculateAction(),
             DefineAction(lookup: dictionaryLookup, settingsStore: settingsStore),
             CalendarAction(settingsStore: settingsStore)
