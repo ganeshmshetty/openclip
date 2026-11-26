@@ -268,9 +268,23 @@ if [ "$NO_INSTALL" = false ]; then
   INSTALL_RESULT='Failed'
   mkdir -p "$INSTALL_DIR"
   stage_line '>' "$C_ACCENT" 'Install' 'Installing app'
-  if codesign -dv "$BUILT_APP" 2>&1 | grep -q 'Signature=adhoc' \
-     && [ -d "$TARGET_APP" ] && ! codesign -dv "$TARGET_APP" 2>&1 | grep -q 'Signature=adhoc'; then
+  # Capture first: `codesign | grep -q` under pipefail fails at random when grep's early exit SIGPIPEs codesign.
+  built_sig=$(codesign -dvvv "$BUILT_APP" 2>&1 || true)
+  installed_sig=$(codesign -dvvv "$TARGET_APP" 2>&1 || true)
+  if [[ $built_sig == *Signature=adhoc* ]] && [ -d "$TARGET_APP" ] && [[ $installed_sig != *Signature=adhoc* ]]; then
     status_line '!' "$C_WARN" 'Ad-hoc build replacing a signed Dev app: macOS will ask for permissions again (see docs/developer-guide/signing-and-notarization.md)'
+  fi
+  # An ad-hoc grant is pinned to the build's cdhash, and re-enabling an existing Accessibility row keeps the old
+  # hash, so a changed ad-hoc build stays untrusted. Drop the row so this build registers a fresh one.
+  if [[ $built_sig == *Signature=adhoc* ]] \
+     && [ "$(awk -F= '/^CDHash=/{print $2}' <<<"$built_sig")" != "$(awk -F= '/^CDHash=/{print $2}' <<<"$installed_sig")" ]; then
+    bundle_id=$(defaults read "$BUILT_APP/Contents/Info" CFBundleIdentifier)
+    if reset_output=$(tccutil reset Accessibility "$bundle_id" 2>&1); then
+      status_line '!' "$C_WARN" 'New ad-hoc build: Accessibility reset, grant it again when prompted'
+    else
+      reset_message=${reset_output%%$'\n'*}
+      status_line '!' "$C_FAIL" "Accessibility reset failed: ${reset_message:-unknown error}. Reset manually: tccutil reset Accessibility $bundle_id"
+    fi
   fi
   # Terminate old dev instance before updating the binary.
   pkill -f "OpenClip Dev" 2>/dev/null || true
