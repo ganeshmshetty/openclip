@@ -3,8 +3,8 @@ import XCTest
 import CoreGraphics
 @testable import OpenClip
 
-/// Screen coordinates, y up. The open sub-bar sits above a main bar whose next button is another group.
-/// Non-group neighbors never reach `SubBarAim`; they stay on the immediate-neighbor grace path.
+/// Screen coordinates, y up. The open sub-bar sits above a main bar whose next button is another
+/// group. The same aim geometry serves adjacent groups (switch) and normal actions (dismiss).
 final class SubBarAimTests: XCTestCase {
     /// Visible sub-bar row, not the shadow ring. Wide enough that the path into it crosses the next group.
     private let subBarAbove = CGRect(x: 100, y: 200, width: 180, height: 34)
@@ -75,6 +75,37 @@ final class SubBarAimTests: XCTestCase {
             SubBarAim.decision(
                 previous: parked,
                 current: jitter,
+                subBarRect: subBarAbove,
+                rested: SubBarAim.switchDwell
+            ),
+            .switchToHovered
+        )
+    }
+
+    func testNonGroupNeighborUsesTheSameDwellAndTriangle() {
+        let parked = CGPoint(x: 150, y: 185)
+        XCTAssertEqual(
+            SubBarAim.decision(
+                previous: CGPoint(x: 120, y: 167),
+                current: parked,
+                subBarRect: subBarAbove,
+                rested: 0
+            ),
+            .keepMovingToward
+        )
+        XCTAssertEqual(
+            SubBarAim.decision(
+                previous: CGPoint(x: 120, y: 167),
+                current: CGPoint(x: 160, y: 167),
+                subBarRect: subBarAbove,
+                rested: 0
+            ),
+            .switchToHovered
+        )
+        XCTAssertEqual(
+            SubBarAim.decision(
+                previous: parked,
+                current: CGPoint(x: 151, y: 185.5),
                 subBarRect: subBarAbove,
                 rested: SubBarAim.switchDwell
             ),

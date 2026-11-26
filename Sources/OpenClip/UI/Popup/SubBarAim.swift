@@ -2,9 +2,9 @@
 // OpenClip
 //
 // Menu-aim for an open group sub-bar. The safe triangle runs from the pointer's previous
-// position to the sub-bar edge that faces it — the same corridor that already keeps the
-// row open while the pointer crosses a neighboring non-group button. An adjacent group
-// replaces the row only after the pointer leaves that triangle or rests on the button.
+// position to the sub-bar edge that faces it. An adjacent group replaces the row only after
+// the pointer leaves that triangle or rests on the button; a normal neighbor uses the same
+// timing and resolves to dismissal instead.
 import CoreGraphics
 import Foundation
 

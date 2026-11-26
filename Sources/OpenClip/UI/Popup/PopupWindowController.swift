@@ -52,6 +52,8 @@ public class PopupWindowController {
     private var pendingGroupAim: PendingGroupAim?
     private var groupAimRestTask: Task<Void, Never>?
 
+    /// Pending aim toward an immediate neighbor. Committing switches to an adjacent group or,
+    /// for a normal action, dismisses the open row.
     private struct PendingGroupAim {
         let groupID: String
         let commit: @MainActor () -> Void
@@ -1495,32 +1497,37 @@ public class PopupWindowController {
             SubBarHoverState.shared.location = nil
         }
 
-        guard !subBarController.isPinned else { return }
+        guard !subBarController.isPinned else {
+            clearPendingGroupAim()
+            return
+        }
 
         // Is the pointer anywhere over the sub-bar window (including comfort margin)?
         let overSubBar = subBarController.panelFrame.insetBy(dx: -4, dy: -4).contains(screenLocation)
-
-        // Is the pointer over the parent group action OR an immediate neighbor in the main bar?
-        let isNearAction: Bool = {
+        let hoveredIndex: Int? = {
             guard isOverPanelContent(screenLocation), let hoveredAction, let actions = currentActions else {
-                return false
+                return nil
             }
-            if hoveredAction.id == subBarController.activeState?.groupID {
-                return true
-            }
-            if let currentIndex = actions.firstIndex(where: { $0.id == hoveredAction.id }) {
-                return subBarController.isImmediateNeighbor(actionIndex: currentIndex)
-            }
-            return false
+            return actions.firstIndex(where: { $0.id == hoveredAction.id })
         }()
+        let isParentGroup = hoveredAction?.id == subBarController.activeState?.groupID
+        let isImmediateNeighbor = hoveredIndex.map { subBarController.isImmediateNeighbor(actionIndex: $0) } ?? false
 
-        if overSubBar || isNearAction {
+        if overSubBar || isParentGroup {
+            clearPendingGroupAim()
             subBarController.cancelGrace()
+        } else if let action = hoveredAction, isImmediateNeighbor {
+            subBarController.cancelGrace()
+            if !action.opensSubActions {
+                beginNeighborDismissAimIfNeeded(for: action)
+            }
         } else if isOverPanelContent(screenLocation) {
             // Pointer is over a distant action on the main bar: close the sub-bar!
+            clearPendingGroupAim()
             subBarController.hide()
         } else {
             // Pointer has left both the sub-bar and the main bar (moving across the gap or away)
+            clearPendingGroupAim()
             subBarController.startGrace()
         }
     }
@@ -1540,9 +1547,13 @@ public class PopupWindowController {
         if let hoveredAction, let actions = currentActions,
            let currentIndex = actions.firstIndex(where: { $0.id == hoveredAction.id }),
            subBarController.isImmediateNeighbor(actionIndex: currentIndex) {
-            // Pointer is over an immediate neighbor action: cancel pending dwell without starting grace!
+            // Pointer is over an immediate neighbor: cancel dwell without starting grace. A normal
+            // neighbor gets the same 200 ms aim window as an adjacent group, but expires to dismissal.
             subBarController.cancelDwell(startGrace: false)
             subBarController.cancelGrace()
+            if !hoveredAction.opensSubActions {
+                beginNeighborDismissAim(for: hoveredAction)
+            }
             return
         }
         subBarController.cancelDwell()
@@ -1660,6 +1671,25 @@ public class PopupWindowController {
         evaluateGroupAim(segment: segment, at: location, now: now)
     }
 
+    private func beginNeighborDismissAimIfNeeded(for action: any Action) {
+        guard pendingGroupAim?.groupID != action.id else { return }
+        beginNeighborDismissAim(for: action)
+    }
+
+    /// A non-group neighbor shares the adjacent-group aim window; its commit is dismissal instead
+    /// of switching to another row.
+    private func beginNeighborDismissAim(for action: any Action) {
+        clearPendingGroupAim()
+        pendingGroupAim = PendingGroupAim(groupID: action.id) { [weak self] in
+            self?.subBarController.hide()
+        }
+        let location = NSEvent.mouseLocation
+        let now = ProcessInfo.processInfo.systemUptime
+        let segment = aimSegment(for: location)
+        notePointer(at: location, now: now)
+        evaluateGroupAim(segment: segment, at: location, now: now)
+    }
+
     private func trackPointerForGroupAim(at location: CGPoint) {
         let now = ProcessInfo.processInfo.systemUptime
         let segment = aimSegment(for: location)
@@ -1669,7 +1699,7 @@ public class PopupWindowController {
     }
 
     private func evaluateGroupAim(segment: AimSegment, at location: CGPoint, now: TimeInterval) {
-        guard let pending = pendingGroupAim, subBarController.isShowing else {
+        guard let pending = pendingGroupAim, subBarController.isShowing, !subBarController.isPinned else {
             clearPendingGroupAim()
             return
         }
@@ -2890,5 +2920,13 @@ public class PopupWindowController {
             object: nil,
             userInfo: ["request": request]
         )
+    }
+}
+
+private extension Action {
+    /// Group rows and the AI Tools launcher own a sub-bar; normal rows are dismissal neighbors.
+    @MainActor
+    var opensSubActions: Bool {
+        gesturePolicy.singleClick == .openSubActions || chrome.launchesAI
     }
 }
