@@ -203,4 +203,59 @@ final class ClipBasketEngineTests: XCTestCase {
         _ = engine.popNext()
         XCTAssertFalse(engine.isCommandVArmed)
     }
+
+    func testEnqueueRejectsBeyondItemLimit() {
+        var engine = ClipBasketEngine(maximumItems: 2)
+        XCTAssertTrue(engine.enqueue(item("a")))
+        XCTAssertTrue(engine.enqueue(item("b")))
+        XCTAssertFalse(engine.enqueue(item("c")))
+        XCTAssertEqual(engine.count, 2)
+    }
+
+    func testEnqueueRejectsBeyondByteBudget() {
+        var engine = ClipBasketEngine(maximumTotalBytes: 10)
+        XCTAssertTrue(engine.enqueue(item("123456")))
+        XCTAssertFalse(engine.enqueue(item("12345")))
+        XCTAssertEqual(engine.count, 1)
+    }
+
+    func testEnqueueSplitStopsAtItemLimit() {
+        var engine = ClipBasketEngine(maximumItems: 2)
+        let added = engine.enqueueSplit("a\nb\nc")
+
+        XCTAssertEqual(added, 2)
+        XCTAssertEqual(engine.items.map(\.content.plainText), ["a", "b"])
+    }
+
+    func testRemoveIDsPreservesOtherItemsAndUndo() {
+        var engine = ClipBasketEngine()
+        let text = item("text")
+        let image = ClipBasketItem(content: .image(
+            data: Data([0x89]),
+            uti: "public.png",
+            pixelWidth: 1,
+            pixelHeight: 1
+        ))
+        engine.enqueue(text)
+        engine.enqueue(image)
+
+        engine.remove(ids: [text.id])
+
+        XCTAssertEqual(engine.items.map(\.content), [image.content])
+        XCTAssertTrue(engine.canUndo)
+    }
+
+    func testRestoreRollbackDoesNotLeaveAStaleUndoEntry() {
+        var engine = ClipBasketEngine()
+        let first = item("a")
+        engine.enqueue(first)
+        engine.enqueue(item("b"))
+
+        let popped = engine.popNext()
+        XCTAssertEqual(popped?.id, first.id)
+        engine.restore(first, at: 0)
+
+        XCTAssertEqual(engine.items.map(\.content.plainText), ["a", "b"])
+        XCTAssertFalse(engine.canUndo)
+    }
 }

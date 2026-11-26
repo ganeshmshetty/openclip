@@ -150,6 +150,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
         Task {
             await ActionCoordinator.shared.loadInitialState(
+                enrichSelection: { [weak self] selection in
+                    guard let self else { return selection }
+                    return await self.enrichBasketSelection(selection)
+                },
                 dictionaryLookup: DictionaryLookupFactory.systemLookup
             )
             ActionCoordinator.shared.register(action: OpenURLAction())
@@ -399,6 +403,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
         watcher.start(watching: Constants.extensionsDirectory)
         extensionsWatcher = watcher
+    }
+
+    /// Best-effort rich capture for Add to Basket. Discovery stays plain; this performs the same
+    /// action-time native copy the Copy action uses, then keeps the plain selection on failure.
+    private func enrichBasketSelection(_ selection: SelectionContext) async -> SelectionContext {
+        let wasCapturing = ClipBasketManager.shared.isCapturing
+        if wasCapturing { ClipBasketManager.shared.suspendCapture() }
+        defer {
+            if wasCapturing { ClipBasketManager.shared.resumeCapture() }
+        }
+        let capture = ActionSelectionCapture(
+            isSelectionCurrent: { [weak self] selection in
+                self?.popupController?.selectionIsCurrent(selection) == true
+            }
+        )
+        return (try? await capture.capture(selection)) ?? selection
     }
 
     /// `--dump-logs` mode: runs startup loads (so extension load lines get logged), prints matching buffer entries, exits.

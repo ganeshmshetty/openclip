@@ -10,10 +10,12 @@ final class ClipBasketManagerTests: XCTestCase {
         var pastedTexts: [String] = []
         var plainTextFlags: [Bool] = []
         var error: Error?
+        var beforeResult: (() async -> Void)?
 
         func paste(_ item: ClipBasketItem, asPlainText: Bool, targetApp: NSRunningApplication?) async throws {
             pastedTexts.append(item.content.plainText ?? "")
             plainTextFlags.append(asPlainText)
+            await beforeResult?()
             if let error {
                 throw error
             }
@@ -113,6 +115,24 @@ final class ClipBasketManagerTests: XCTestCase {
         }
     }
 
+    func testFailedPasteRestoresSpecificItemWithoutUndoingALaterRemoval() async {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let paster = RecordingPaster()
+        paster.error = NSError(domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "Paste failed"])
+        let manager = makeManager(store: store, settings: settings, paster: paster)
+        enqueueText(["a", "b", "c"], into: store)
+        let thirdID = store.items[2].id
+        paster.beforeResult = {
+            manager.remove(itemID: thirdID)
+        }
+
+        manager.pasteNext()
+        await waitFor("failed item restored and later removal preserved") {
+            store.items.map(\.content.plainText) == ["a", "b"]
+        }
+    }
+
     func testPasteAllJoinsThenClears() async {
         let settings = MemorySettingsStore()
         let store = ClipBasketStore(settingsStore: settings)
@@ -123,6 +143,32 @@ final class ClipBasketManagerTests: XCTestCase {
         manager.pasteAll()
         await waitFor("joined paste") { paster.pastedTexts == ["one\ntwo"] }
         await waitFor("basket cleared") { store.isEmpty }
+        XCTAssertTrue(store.canUndo, "Paste All keeps the removed items recoverable")
+    }
+
+    func testPasteAllKeepsMediaAndItemsAddedDuringDelivery() async {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let paster = RecordingPaster()
+        let manager = makeManager(store: store, settings: settings, paster: paster)
+        enqueueText(["one", "two"], into: store)
+        let image = ClipBasketItem(content: .image(
+            data: Data([0x89]),
+            uti: "public.png",
+            pixelWidth: 1,
+            pixelHeight: 1
+        ))
+        store.enqueue(image)
+        paster.beforeResult = {
+            store.enqueue(ClipBasketItem(content: .text(RichPasteboardPayload(plainText: "added during paste"))))
+        }
+
+        manager.pasteAll()
+        await waitFor("text items removed") { store.items.count == 2 }
+        XCTAssertTrue(store.items.contains { $0.id == image.id })
+        XCTAssertTrue(store.items.contains { $0.content.plainText == "added during paste" })
+        XCTAssertFalse(store.items.contains { $0.content.plainText == "one" })
+        XCTAssertFalse(store.items.contains { $0.content.plainText == "two" })
     }
 
     func testEmptyPasteNextKeepsBasketAndDoesNotPaste() async {
@@ -206,6 +252,26 @@ final class ClipBasketManagerTests: XCTestCase {
         XCTAssertEqual(recorder.values, [false], "the synthetic ⌘V must be guarded immediately")
         await waitFor("armed hotkey re-enabled") { recorder.values == [false, true] }
         XCTAssertEqual(store.items.map(\.content.plainText), ["b"])
+    }
+
+    func testAnyDeliveryDisablesArmedHotkeyAroundSyntheticPaste() async {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let paster = RecordingPaster()
+        let recorder = ArmedHotkeyRecorder()
+        let manager = makeManager(store: store, settings: settings, paster: paster, armedHotkey: recorder)
+        enqueueText(["a", "b"], into: store)
+        store.setOpen(true)
+        manager.setArmedPaste(true)
+        XCTAssertEqual(recorder.values, [true])
+
+        manager.pasteNext()
+        XCTAssertEqual(recorder.values, [true, false], "a direct paste must guard its synthetic ⌘V too")
+
+        await waitFor("armed hotkey re-enabled after direct paste") {
+            recorder.values == [true, false, true]
+        }
+        manager.setArmedPaste(false)
     }
 
     func testArmedPasteLeavesHotkeyDisabledWhenBasketEmpties() async {

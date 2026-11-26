@@ -323,6 +323,7 @@
 		9B2C92B98C80BB5FCC596CC3 /* ExtensionsStoreIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA880751E87F795D5A87C8F /* ExtensionsStoreIntegrationTests.swift */; };
 		9C5C5A56EBFDFBB19A51A2A3 /* AddApplicationPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843B284D25AD62298BFCBCD8 /* AddApplicationPage.swift */; };
 		9CB33DC0C4D4EE40DBF182AF /* ManifestValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C647642DA3D59197DDF60F5 /* ManifestValidation.swift */; };
+		9ECE154EED6EDE02A63BB7B7 /* SettingKey+ClipBasket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DF160E14138E774AFA4B3F6 /* SettingKey+ClipBasket.swift */; };
 		A051D1B447CEEC03B6945E26 /* ClipBasketPasteboardReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CC3D306B063F7A09C7C338 /* ClipBasketPasteboardReader.swift */; };
 		A0AFEE7C0160491BE2D7F44A /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF33081FB4BA95A0DF2F7A87 /* SecretStore.swift */; };
 		A0FB8CDFC556B5B10CED023B /* MathEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37B15A81CCA6D36DF0183BA /* MathEvaluator.swift */; };
@@ -877,6 +878,7 @@
 		9B8FFC9D70A7B8D88C1F6F91 /* Setting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Setting.swift; sourceTree = "<group>"; };
 		9B9D14F126A7A6B0BAF69C1B /* QuickLookPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPresenter.swift; sourceTree = "<group>"; };
 		9CF11A6B9ADC7FFCD49D1BC7 /* InlineResultEvaluatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineResultEvaluatorTests.swift; sourceTree = "<group>"; };
+		9DF160E14138E774AFA4B3F6 /* SettingKey+ClipBasket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingKey+ClipBasket.swift"; sourceTree = "<group>"; };
 		9EB4A13392161B8BC4CBF001 /* OpenClipCommonJS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClipCommonJS.swift; sourceTree = "<group>"; };
 		9F04245B4F0896E4AFD3B9BC /* DebugLogFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogFilter.swift; sourceTree = "<group>"; };
 		A05E91E92D5BB6757E52B4CE /* TooltipPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooltipPanel.swift; sourceTree = "<group>"; };
@@ -1463,6 +1465,7 @@
 				C5F2AB8A6E0D1E5BC1ECFA6A /* IntegrationSettings.swift */,
 				9B8FFC9D70A7B8D88C1F6F91 /* Setting.swift */,
 				AF3CCF1CBE54152F56028785 /* SettingKey+AI.swift */,
+				9DF160E14138E774AFA4B3F6 /* SettingKey+ClipBasket.swift */,
 				34FD5FB4055A0801CFE23340 /* SettingKey+MenuBar.swift */,
 				79D64C96408A09CB4C053E1E /* SettingKey+ResultCard.swift */,
 				D78ECD0EE9D85A99ADC32BF3 /* SettingsCatalog+App.swift */,
@@ -2608,6 +2611,7 @@
 				0281A6E52E64AF82C70C7F3C /* SelectionGestureTargetProbe.swift in Sources */,
 				307CE5BBD003397FC5D34113 /* Setting.swift in Sources */,
 				15ABF278FF9D44A2B1764BFA /* SettingKey+AI.swift in Sources */,
+				9ECE154EED6EDE02A63BB7B7 /* SettingKey+ClipBasket.swift in Sources */,
 				F3605465C595AC6C4AD817D6 /* SettingKey+MenuBar.swift in Sources */,
 				E86F203A8AF88E30A78C7709 /* SettingKey+ResultCard.swift in Sources */,
 				F2C695C2AE2DC5E209DF8E29 /* SettingsCatalog+App.swift in Sources */,

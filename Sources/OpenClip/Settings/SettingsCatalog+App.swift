@@ -15,7 +15,8 @@ extension SettingsCatalog {
             SettingKey.preferencesInstalledSectionExpanded.erased,
             SettingKey.preferencesSystemPromptExpanded.erased,
             SettingKey.resultCardWidth.erased,
-            SettingKey.resultCardHeight.erased
+            SettingKey.resultCardHeight.erased,
+            SettingKey.clipBasketPanelOrigin.erased
         ] + aiKeys
     }
 

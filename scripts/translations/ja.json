@@ -936,5 +936,7 @@
   "Copy or add items": "コピーまたは項目を追加",
   "to paste them one by one.": "1 つずつペーストします。",
   "Reverse Order": "順序を反転",
-  "Basket": "バスケット"
+  "Basket": "バスケット",
+  "Basket is full": "バスケットがいっぱいです",
+  "The target application changed. Try again.": "対象のアプリが変わりました。もう一度お試しください。"
 }

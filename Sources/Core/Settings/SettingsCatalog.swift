@@ -66,7 +66,6 @@ public enum SettingsCatalog {
             SettingKey.clipBasketPasteAsPlainText.erased,
             SettingKey.clipBasketAutoCaptureCopies.erased,
             SettingKey.clipBasketAutoCloseWhenEmpty.erased,
-            SettingKey.clipBasketPanelOrigin.erased,
 
             // Gesture / lifecycle
             SettingKey.mouseHoldDuration.erased,

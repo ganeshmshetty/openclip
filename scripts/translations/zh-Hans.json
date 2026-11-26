@@ -936,5 +936,7 @@
   "Copy or add items": "复制或添加项目",
   "to paste them one by one.": "逐项粘贴。",
   "Reverse Order": "反转顺序",
-  "Basket": "剪贴篮"
+  "Basket": "剪贴篮",
+  "Basket is full": "剪贴篮已满",
+  "The target application changed. Try again.": "目标应用已更改，请重试。"
 }

@@ -37,6 +37,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
     public func loadInitialState(
         extensionsDirectory: URL = Constants.extensionsDirectory,
         rulesURL: URL = Constants.rulesFileURL,
+        enrichSelection: @escaping AddToBasketAction.SelectionEnricher = { $0 },
         dictionaryLookup: @escaping @Sendable (String) -> String? = { _ in nil }
     ) async {
         extensionManager.onRegister = { [registry] action in
@@ -49,6 +50,7 @@ public final class ActionCoordinator: ObservableObject, Sendable {
         // 1. Core builtins
         let coreBuiltins = BuiltinRegistry.makeCoreBuiltins(
             settingsStore: settingsStore,
+            enrichSelection: enrichSelection,
             dictionaryLookup: dictionaryLookup
         )
         registry.register(builtIns: coreBuiltins)

@@ -3333,6 +3333,34 @@
         }
       }
     },
+    "Basket is full": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪贴篮已满"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪貼籃已滿"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le panier est plein"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バスケットがいっぱいです"
+          }
+        }
+      }
+    },
     "Behavior": {
       "localizations": {
         "zh-Hans": {
@@ -22845,6 +22873,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "元の選択範囲は利用できなくなりました。"
+          }
+        }
+      }
+    },
+    "The target application changed. Try again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标应用已更改，请重试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目標應用程式已變更，請再試一次。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’application cible a changé. Réessayez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対象のアプリが変わりました。もう一度お試しください。"
           }
         }
       }

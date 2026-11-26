@@ -74,7 +74,10 @@ final class ClipBasketManager {
         subscribeToState()
         monitor.onCapture = { [weak self] content, sourceApp in
             guard let self, self.store.isOpen else { return }
-            self.store.enqueue(ClipBasketItem(content: content, sourceApp: sourceApp))
+            guard self.store.enqueue(ClipBasketItem(content: content, sourceApp: sourceApp)) else {
+                Log.basket.debug("capture skipped reason=basketFull")
+                return
+            }
             Log.basket.debug("captured kind=\(Self.kind(of: content), privacy: .public) count=\(self.store.count, privacy: .public)")
         }
         syncArmedHotkey()
@@ -123,15 +126,16 @@ final class ClipBasketManager {
             showEmptyBasketToast()
             return
         }
-        deliver(item)
+        deliver(item, rollbackIndex: 0)
     }
 
     func paste(itemID: UUID) {
+        let rollbackIndex = store.items.firstIndex { $0.id == itemID }
         guard let item = store.pop(id: itemID) else {
             showEmptyBasketToast()
             return
         }
-        deliver(item)
+        deliver(item, rollbackIndex: rollbackIndex)
     }
 
     func remove(itemID: UUID) {
@@ -140,7 +144,7 @@ final class ClipBasketManager {
     }
 
     func pasteAll() {
-        guard let text = store.joinedText else {
+        guard let snapshot = store.joinedTextSnapshot() else {
             showToast(StatusFeedback(
                 message: String(localized: "No Text to Paste"),
                 style: .info,
@@ -148,8 +152,8 @@ final class ClipBasketManager {
             ))
             return
         }
-        let item = ClipBasketItem(content: .text(RichPasteboardPayload(plainText: text)))
-        deliver(item, clearsBasketOnSuccess: true)
+        let item = ClipBasketItem(content: .text(RichPasteboardPayload(plainText: snapshot.text)))
+        deliver(item, removalIDs: snapshot.itemIDs)
     }
 
     func runActionOnBasket() {
@@ -228,36 +232,54 @@ final class ClipBasketManager {
         }
     }
 
-    private func deliver(_ item: ClipBasketItem, clearsBasketOnSuccess: Bool = false) {
+    var isCapturing: Bool { monitor.isRunning }
+
+    /// Pauses scoped capture while an action performs its own native copy, so the enrichment copy
+    /// does not become a basket item.
+    func suspendCapture() {
+        monitor.stop()
+    }
+
+    func resumeCapture() {
+        syncMonitor()
+    }
+
+    private func deliver(
+        _ item: ClipBasketItem,
+        rollbackIndex: Int? = nil,
+        removalIDs: [UUID] = []
+    ) {
         guard !isDelivering else {
-            if !clearsBasketOnSuccess {
-                _ = store.undo()
+            if let rollbackIndex {
+                store.restore(item, at: rollbackIndex)
             }
             syncArmedHotkey()
             return
         }
+        if armedHotkeyEnabled {
+            armedHotkeyEnabled = false
+            setArmedHotkeyEnabled(false)
+        }
         isDelivering = true
-        monitor.beginSelfWrite()
         let plainText = store.pasteAsPlainText
         let targetApp = NSWorkspace.shared.frontmostApplication
 
         Task { @MainActor in
             defer {
-                self.monitor.endSelfWrite()
                 self.isDelivering = false
                 self.syncArmedHotkey()
             }
             do {
                 try await self.paster.paste(item, asPlainText: plainText, targetApp: targetApp)
                 Log.basket.debug("pasted remaining=\(self.store.count, privacy: .public) plain=\(plainText, privacy: .public)")
-                if clearsBasketOnSuccess {
-                    self.store.clear()
+                if !removalIDs.isEmpty {
+                    self.store.remove(itemIDs: removalIDs)
                 }
                 self.finishDeliveryIfEmpty()
             } catch {
                 Log.basket.error("paste failed: \(error.localizedDescription, privacy: .private)")
-                if !clearsBasketOnSuccess {
-                    _ = self.store.undo()
+                if let rollbackIndex {
+                    self.store.restore(item, at: rollbackIndex)
                 }
                 self.showToast(StatusFeedback(error: error))
             }

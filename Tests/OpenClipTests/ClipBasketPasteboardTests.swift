@@ -68,6 +68,13 @@ final class ClipBasketPasteboardReaderTests: XCTestCase {
         XCTAssertEqual(reader.read(from: pasteboard), .ignored(.oversizedImage))
     }
 
+    func testOversizedTextIsSkipped() {
+        let reader = ClipBasketPasteboardReader(maxTextBytes: 4)
+        pasteboard.setString("more than four bytes", forType: .string)
+
+        XCTAssertEqual(reader.read(from: pasteboard), .ignored(.oversizedText))
+    }
+
     func testProtectedPasteboardIsSkipped() {
         for type in ClipBasketPasteboardReader.protectedTypes {
             pasteboard.clearContents()
@@ -79,6 +86,12 @@ final class ClipBasketPasteboardReaderTests: XCTestCase {
 
     func testEmptyPasteboardIsIgnored() {
         XCTAssertEqual(ClipBasketPasteboardReader().read(from: pasteboard), .ignored(.empty))
+    }
+
+    func testMediaPasteRequiresTheCapturedTargetToStayFrontmost() {
+        XCTAssertTrue(ClipBasketPaster.canPost(targetPID: nil, frontmostPID: 42))
+        XCTAssertTrue(ClipBasketPaster.canPost(targetPID: 42, frontmostPID: 42))
+        XCTAssertFalse(ClipBasketPaster.canPost(targetPID: 42, frontmostPID: 7))
     }
 
     private func makePNGData() throws -> Data {
@@ -110,20 +123,34 @@ final class ClipBasketPasteboardMonitorTests: XCTestCase {
     }
 
     private func makeMonitor(
-        identity: AppIdentity? = AppIdentity(bundleIdentifier: "com.example.editor", localizedName: "Editor"),
+        identity: @escaping @MainActor () -> AppIdentity? = {
+            AppIdentity(bundleIdentifier: "com.example.editor", localizedName: "Editor")
+        },
         excluded: @escaping @MainActor (String) -> Bool = { _ in false },
         disabled: @escaping @MainActor (AppIdentity) -> Bool = { _ in false }
     ) -> ClipBasketPasteboardMonitor {
         ClipBasketPasteboardMonitor(
             pasteboard: pasteboard,
             accessPolicy: PasteboardAccessPolicy(read: { .allowed }),
-            frontmostIdentity: { identity },
+            frontmostIdentity: identity,
             isExcluded: excluded,
             isDisabled: disabled
         )
     }
 
-    func testCapturesTextChange() {
+    private func waitFor(
+        _ description: String,
+        timeout: TimeInterval = 2,
+        condition: @escaping () -> Bool
+    ) async {
+        for _ in 0..<Int(timeout * 100) {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("Timed out waiting for \(description)")
+    }
+
+    func testCapturesTextChange() async {
         let monitor = makeMonitor()
         var captured: [ClipBasketContent] = []
         monitor.onCapture = { content, _ in captured.append(content) }
@@ -132,31 +159,26 @@ final class ClipBasketPasteboardMonitorTests: XCTestCase {
         pasteboard.setString("copied", forType: .string)
         monitor.tick()
 
-        XCTAssertEqual(captured, [.text(RichPasteboardPayload(plainText: "copied"))])
+        await waitFor("captured text") { captured == [.text(RichPasteboardPayload(plainText: "copied"))] }
     }
 
-    func testExcludedAppIsIgnored() {
-        let monitor = makeMonitor(excluded: { $0 == "com.pilotmoon.popclip" })
+    func testExcludedAppIsIgnored() async {
+        let monitor = makeMonitor(
+            identity: { AppIdentity(bundleIdentifier: "com.pilotmoon.popclip") },
+            excluded: { $0 == "com.pilotmoon.popclip" }
+        )
         var captured: [ClipBasketContent] = []
         monitor.onCapture = { content, _ in captured.append(content) }
-        let excludedMonitor = ClipBasketPasteboardMonitor(
-            pasteboard: pasteboard,
-            accessPolicy: PasteboardAccessPolicy(read: { .allowed }),
-            frontmostIdentity: { AppIdentity(bundleIdentifier: "com.pilotmoon.popclip") },
-            isExcluded: { $0 == "com.pilotmoon.popclip" },
-            isDisabled: { _ in false }
-        )
-        excludedMonitor.onCapture = { content, _ in captured.append(content) }
 
         pasteboard.clearContents()
         pasteboard.setString("copied", forType: .string)
         monitor.tick()
-        excludedMonitor.tick()
+        try? await Task.sleep(nanoseconds: 100_000_000)
 
-        XCTAssertEqual(captured.count, 1)
+        XCTAssertTrue(captured.isEmpty)
     }
 
-    func testDisabledRuleIsIgnored() {
+    func testDisabledRuleIsIgnored() async {
         let monitor = makeMonitor(disabled: { _ in true })
         var captured: [ClipBasketContent] = []
         monitor.onCapture = { content, _ in captured.append(content) }
@@ -164,11 +186,12 @@ final class ClipBasketPasteboardMonitorTests: XCTestCase {
         pasteboard.clearContents()
         pasteboard.setString("copied", forType: .string)
         monitor.tick()
+        try? await Task.sleep(nanoseconds: 100_000_000)
 
         XCTAssertTrue(captured.isEmpty)
     }
 
-    func testAccessDeniedIsIgnored() {
+    func testAccessDeniedIsIgnored() async {
         let monitor = ClipBasketPasteboardMonitor(
             pasteboard: pasteboard,
             accessPolicy: PasteboardAccessPolicy(read: { .denied }),
@@ -182,26 +205,63 @@ final class ClipBasketPasteboardMonitorTests: XCTestCase {
         pasteboard.clearContents()
         pasteboard.setString("copied", forType: .string)
         monitor.tick()
+        try? await Task.sleep(nanoseconds: 100_000_000)
 
         XCTAssertTrue(captured.isEmpty)
     }
 
-    func testSelfWritesAreIgnored() {
+    func testMarkedPasteboardWritesAreIgnored() async {
         let monitor = makeMonitor()
         var captured: [ClipBasketContent] = []
         monitor.onCapture = { content, _ in captured.append(content) }
 
-        monitor.beginSelfWrite()
         pasteboard.clearContents()
         pasteboard.setString("basket paste", forType: .string)
+        for type in ClipBasketPaster.selfWriteMarkerTypes {
+            pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType(type))
+        }
         monitor.tick()
-        monitor.endSelfWrite()
+        try? await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertTrue(captured.isEmpty)
 
         pasteboard.clearContents()
         pasteboard.setString("user copy", forType: .string)
         monitor.tick()
-        XCTAssertEqual(captured, [.text(RichPasteboardPayload(plainText: "user copy"))])
+        await waitFor("user copy captured") {
+            captured == [.text(RichPasteboardPayload(plainText: "user copy"))]
+        }
+    }
+
+    func testAppSwitchBetweenPollsDiscardsAmbiguousCopy() async {
+        var identity = AppIdentity(bundleIdentifier: "com.example.one")
+        let monitor = makeMonitor(identity: { identity })
+        var captured: [ClipBasketContent] = []
+        monitor.onCapture = { content, _ in captured.append(content) }
+
+        pasteboard.clearContents()
+        pasteboard.setString("one", forType: .string)
+        monitor.tick()
+        await waitFor("first copy captured") {
+            captured == [.text(RichPasteboardPayload(plainText: "one"))]
+        }
+
+        identity = AppIdentity(bundleIdentifier: "com.example.two")
+        pasteboard.clearContents()
+        pasteboard.setString("two", forType: .string)
+        monitor.tick()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(captured.count, 1, "the writer app is ambiguous across an app switch")
+
+        monitor.tick()
+        pasteboard.clearContents()
+        pasteboard.setString("three", forType: .string)
+        monitor.tick()
+        await waitFor("copy after a settled app switch") {
+            captured == [
+                .text(RichPasteboardPayload(plainText: "one")),
+                .text(RichPasteboardPayload(plainText: "three"))
+            ]
+        }
     }
 
     func testStartAndStopToggleRunning() {

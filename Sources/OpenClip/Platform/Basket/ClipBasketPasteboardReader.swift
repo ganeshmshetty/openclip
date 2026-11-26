@@ -10,6 +10,7 @@ import Core
 enum ClipBasketPasteboardIgnoreReason: String, Sendable, Equatable {
     case protected
     case oversizedImage
+    case oversizedText
     case empty
     case unsupported
 }
@@ -27,11 +28,17 @@ struct ClipBasketPasteboardReader: Sendable {
     ]
 
     static let defaultMaxImageBytes = 25 * 1024 * 1024
+    static let defaultMaxTextBytes = Constants.maxTextLength
 
     let maxImageBytes: Int
+    let maxTextBytes: Int
 
-    init(maxImageBytes: Int = ClipBasketPasteboardReader.defaultMaxImageBytes) {
+    init(
+        maxImageBytes: Int = ClipBasketPasteboardReader.defaultMaxImageBytes,
+        maxTextBytes: Int = ClipBasketPasteboardReader.defaultMaxTextBytes
+    ) {
         self.maxImageBytes = maxImageBytes
+        self.maxTextBytes = maxTextBytes
     }
 
     func read(from pasteboard: NSPasteboard) -> ClipBasketPasteboardReadResult {
@@ -62,9 +69,19 @@ struct ClipBasketPasteboardReader: Sendable {
             ))
         }
 
-        let plain = pasteboard.string(forType: .string)
-        let html = pasteboard.string(forType: .html)
-        let rtf = pasteboard.string(forType: .rtf)
+        let plainData = pasteboard.data(forType: .string)
+        let htmlData = pasteboard.data(forType: .html)
+        let rtfData = pasteboard.data(forType: .rtf)
+        for data in [plainData, htmlData, rtfData].compactMap({ $0 }) where data.count > maxTextBytes {
+            return .ignored(.oversizedText)
+        }
+
+        let plain = plainData.flatMap { String(data: $0, encoding: .utf8) } ?? pasteboard.string(forType: .string)
+        let html = htmlData.flatMap { String(data: $0, encoding: .utf8) } ?? pasteboard.string(forType: .html)
+        let rtf = rtfData.flatMap { String(data: $0, encoding: .utf8) } ?? pasteboard.string(forType: .rtf)
+        if [plain, html, rtf].compactMap({ $0 }).contains(where: { $0.utf8.count > maxTextBytes }) {
+            return .ignored(.oversizedText)
+        }
         guard plain != nil || html != nil || rtf != nil else {
             return .ignored(.empty)
         }

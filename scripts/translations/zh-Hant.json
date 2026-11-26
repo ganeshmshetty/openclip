@@ -936,5 +936,7 @@
   "Copy or add items": "複製或加入項目",
   "to paste them one by one.": "逐項貼上。",
   "Reverse Order": "反轉順序",
-  "Basket": "剪貼籃"
+  "Basket": "剪貼籃",
+  "Basket is full": "剪貼籃已滿",
+  "The target application changed. Try again.": "目標應用程式已變更，請再試一次。"
 }

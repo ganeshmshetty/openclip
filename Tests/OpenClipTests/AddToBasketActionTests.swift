@@ -3,6 +3,11 @@ import XCTest
 
 @MainActor
 final class AddToBasketActionTests: XCTestCase {
+    @MainActor
+    private final class EnrichmentCounter {
+        var count = 0
+    }
+
     private func context(
         text: String,
         modifiers: ModifierFlags = [],
@@ -64,5 +69,61 @@ final class AddToBasketActionTests: XCTestCase {
         XCTAssertFalse(action.isEnabled(for: context(text: "clipboard text", isClipboardFallback: true)))
         XCTAssertFalse(action.isEnabled(for: context(text: "")))
         XCTAssertTrue(action.isEnabled(for: context(text: "live selection")))
+    }
+
+    func testEnrichmentFillsMissingRichContent() async throws {
+        let store = ClipBasketStore(settingsStore: MemorySettingsStore())
+        let counter = EnrichmentCounter()
+        let action = AddToBasketAction(store: store) { selection in
+            counter.count += 1
+            return selection.withRichContent(
+                html: "<b>bold</b>",
+                rtf: "{\\rtf1 bold}",
+                flavors: []
+            )
+        }
+
+        _ = try await action.perform(context(text: "bold"))
+
+        XCTAssertEqual(counter.count, 1)
+        guard case .text(let payload) = store.items.first?.content else {
+            return XCTFail("Expected a text item")
+        }
+        XCTAssertEqual(payload.html, "<b>bold</b>")
+        XCTAssertEqual(payload.rtf, "{\\rtf1 bold}")
+    }
+
+    func testEnrichmentIsSkippedWhenRichContentExists() async throws {
+        let store = ClipBasketStore(settingsStore: MemorySettingsStore())
+        let counter = EnrichmentCounter()
+        let action = AddToBasketAction(store: store) { selection in
+            counter.count += 1
+            return selection
+        }
+        let rich = ActionContext(selection: SelectionContext(
+            text: "bold",
+            html: "<b>bold</b>"
+        ))
+
+        _ = try await action.perform(rich)
+
+        XCTAssertEqual(counter.count, 0)
+    }
+
+    func testFullBasketReturnsFullToast() async throws {
+        let store = ClipBasketStore(settingsStore: MemorySettingsStore())
+        for index in 0..<ClipBasketEngine.defaultMaximumItems {
+            store.enqueue(ClipBasketItem(content: .text(RichPasteboardPayload(plainText: "item \(index)"))))
+        }
+        XCTAssertTrue(store.isFull)
+        let action = AddToBasketAction(store: store)
+
+        let result = try await action.perform(context(text: "overflow"))
+
+        guard case .toast(let feedback) = result else {
+            return XCTFail("Expected a full-basket toast")
+        }
+        XCTAssertEqual(feedback.message, "Basket is full")
+        XCTAssertEqual(store.count, ClipBasketEngine.defaultMaximumItems)
     }
 }

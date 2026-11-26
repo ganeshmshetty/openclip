@@ -28,6 +28,8 @@ public final class ClipBasketStore: ObservableObject {
     public var isEmpty: Bool { engine.isEmpty }
     public var canUndo: Bool { engine.canUndo }
     public var nextItem: ClipBasketItem? { engine.nextItem }
+    public var isFull: Bool { engine.isFull }
+    public var estimatedBytes: Int { engine.estimatedBytes }
     public var order: ClipBasketOrder { engine.order }
     public var pasteAsPlainText: Bool { engine.pasteAsPlainText }
     public var joinFormat: ClipBasketJoinFormat { engine.joinFormat }
@@ -36,9 +38,18 @@ public final class ClipBasketStore: ObservableObject {
 
     public var joinedText: String? { engine.joinedText() }
 
-    public func enqueue(_ item: ClipBasketItem) {
-        engine.enqueue(item)
+    public func joinedTextSnapshot() -> (text: String, itemIDs: [UUID])? {
+        engine.joinedTextSnapshot()
+    }
+
+    @discardableResult
+    public func enqueue(_ item: ClipBasketItem) -> Bool {
+        guard engine.enqueue(item) else {
+            Log.basket.debug("enqueue rejected count=\(self.engine.count, privacy: .public)")
+            return false
+        }
         Log.basket.debug("enqueued kind=\(Self.kind(of: item), privacy: .public) count=\(self.engine.count, privacy: .public)")
+        return true
     }
 
     @discardableResult
@@ -81,6 +92,16 @@ public final class ClipBasketStore: ObservableObject {
 
     public func move(id: UUID, toIndex destination: Int) {
         engine.move(id: id, toIndex: destination)
+    }
+
+    public func remove(itemIDs: [UUID]) {
+        engine.remove(ids: itemIDs)
+        Log.basket.debug("removed delivered items count=\(self.engine.count, privacy: .public)")
+    }
+
+    public func restore(_ item: ClipBasketItem, at index: Int) {
+        engine.restore(item, at: index)
+        Log.basket.debug("restored failed delivery index=\(index, privacy: .public) count=\(self.engine.count, privacy: .public)")
     }
 
     public func reverse() {

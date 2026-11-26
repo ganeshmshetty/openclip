@@ -936,5 +936,7 @@
   "Copy or add items": "Copiez ou ajoutez des éléments",
   "to paste them one by one.": "pour les coller un par un.",
   "Reverse Order": "Inverser l’ordre",
-  "Basket": "Panier"
+  "Basket": "Panier",
+  "Basket is full": "Le panier est plein",
+  "The target application changed. Try again.": "L’application cible a changé. Réessayez."
 }

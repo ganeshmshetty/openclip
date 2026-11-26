@@ -22,6 +22,22 @@ public enum ClipBasketContent: Sendable, Equatable {
         if case .text = self { return true }
         return false
     }
+
+    /// Approximate resident bytes, used to keep the in-memory basket bounded.
+    public var estimatedByteCount: Int {
+        switch self {
+        case .text(let payload):
+            let plain = payload.plainText?.utf8.count ?? 0
+            let rtf = payload.rtf?.utf8.count ?? 0
+            let html = payload.html?.utf8.count ?? 0
+            let flavors = payload.flavors.reduce(0) { $0 + $1.type.utf8.count + $1.data.count }
+            return plain + rtf + html + flavors
+        case .image(let data, let uti, _, _):
+            return data.count + uti.utf8.count
+        case .files(let urls):
+            return urls.reduce(0) { $0 + $1.path.utf8.count }
+        }
+    }
 }
 
 public struct ClipBasketItem: Identifiable, Sendable, Equatable {
@@ -41,6 +57,8 @@ public struct ClipBasketItem: Identifiable, Sendable, Equatable {
         self.sourceApp = sourceApp
         self.createdAt = createdAt
     }
+
+    public var estimatedByteCount: Int { content.estimatedByteCount }
 }
 
 public enum ClipBasketOrder: String, Codable, CaseIterable, Sendable {
