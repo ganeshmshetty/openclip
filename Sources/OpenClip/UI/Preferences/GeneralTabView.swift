@@ -284,7 +284,7 @@ struct GeneralTab: View {
 
                 SettingsCard("Permissions") {
                     SettingsRow(
-                        title: "Accessibility Access",
+                        title: PermissionCopy.accessTitle,
                         info: "Required to read the selected text.",
                         systemImage: "lock.shield",
                         plainIcon: true

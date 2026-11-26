@@ -7029,6 +7029,90 @@
         }
       }
     },
+    "Device Control and Data Access": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备控制与数据访问"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置控制與資料存取"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôle des appareils et accès aux données"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイス制御とデータアクセス"
+          }
+        }
+      }
+    },
+    "Device Control and Data Access Granted": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已获得设备控制与数据访问权限"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已取得裝置控制與資料存取權限"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôle des appareils et accès aux données accordé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイス制御とデータアクセスが許可されました"
+          }
+        }
+      }
+    },
+    "Device Control and Data Access Required": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要设备控制与数据访问权限"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要裝置控制與資料存取權限"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôle des appareils et accès aux données requis"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイス制御とデータアクセスが必要です"
+          }
+        }
+      }
+    },
     "Disable in this app": {
       "localizations": {
         "zh-Hans": {
@@ -9937,6 +10021,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキスト選択を検出するためにアクセシビリティのアクセス権を許可してください。"
+          }
+        }
+      }
+    },
+    "Grant Device Control and Data Access to detect your text selections.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授予设备控制与数据访问权限后才能检测文本选中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授予「裝置控制與資料存取」權限以偵測你的文字選取。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accordez le contrôle des appareils et l’accès aux données pour détecter vos sélections de texte."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "テキスト選択を検出するためにデバイス制御とデータアクセスを許可してください。"
           }
         }
       }
@@ -14557,6 +14669,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenClipが選択されたテキストを検出し、アクションバーを表示するにはアクセシビリティのアクセス権が必要です。"
+          }
+        }
+      }
+    },
+    "OpenClip needs Device Control and Data Access to detect selected text and display action bars.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 需要设备控制与数据访问权限，才能检测选中文本并显示动作栏。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip 需要「裝置控制與資料存取」權限以偵測選取的文字並顯示動作列。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClip a besoin du contrôle des appareils et de l’accès aux données pour détecter le texte sélectionné et afficher les barres d’actions."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenClipが選択されたテキストを検出し、アクションバーを表示するにはデバイス制御とデータアクセスが必要です。"
           }
         }
       }
@@ -24861,6 +25001,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキスト選択の検出を継続するには、macOSでアクセシビリティを再度有効にする必要があります。"
+          }
+        }
+      }
+    },
+    "macOS requires re-enabling Device Control and Data Access to continue detecting text selections.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 需要重新开启设备控制与数据访问，才能继续检测文本选中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 需要重新啟用「裝置控制與資料存取」，才能繼續偵測文字選取。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS nécessite de réactiver le contrôle des appareils et l’accès aux données pour continuer à détecter les sélections de texte."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "テキスト選択の検出を継続するには、macOSでデバイス制御とデータアクセスを再度有効にする必要があります。"
           }
         }
       }

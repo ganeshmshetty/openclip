@@ -33,6 +33,9 @@ xcrun stapler validate /Applications/OpenClip.app
 
 OpenClip uses the macOS Accessibility API (`AXUIElement`) to read the text you select without touching your clipboard.
 
+> [!NOTE]
+> On macOS 27 and later, System Settings calls this permission **Device Control and Data Access**.
+
 1. On first launch, OpenClip asks for Accessibility permission. Click **Open System Settings**.
 2. Go to **Privacy & Security > Accessibility**.
 3. Turn on the switch next to **OpenClip**.

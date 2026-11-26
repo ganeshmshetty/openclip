@@ -21,6 +21,7 @@ The Preferences window controls how actions are ordered and labeled, which icons
   - **Start at Login** launches OpenClip when you log in.
 - **Permissions**
   - **Accessibility Access** shows whether macOS has granted Accessibility access, which OpenClip needs to read selections and paste.
+  - On macOS 27 and later, System Settings calls this permission **Device Control and Data Access**.
 
 ## Finding your way around
 
