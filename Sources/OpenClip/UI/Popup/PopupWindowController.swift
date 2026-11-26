@@ -44,6 +44,10 @@ public class PopupWindowController {
     var sessionShowTime: TimeInterval = 0
 
     private var hoveredAction: (any Action)?
+    /// Stable ID of the hovered main-bar control (action ID, `"bar.search"`, or `"bar.chevron.*"`).
+    private var hoveredBarTargetID: String?
+    /// Left-to-right visual slot index of the hovered main-bar control, matching `ActiveSubGroupState.parentIndex`.
+    private var hoveredBarSlotIndex: Int?
 
     /// Last two pointer samples for sub-bar menu-aim. `previous` is the sample before `latest`.
     private var latestPointerLocation: CGPoint?
@@ -393,8 +397,8 @@ public class PopupWindowController {
             onCancelSubBarDwell: { [weak self] in
                 self?.handleCancelSubBarDwell()
             },
-            onHoveredActionChanged: { [weak self] action in
-                self?.updateHoveredAction(action)
+            onHoveredActionChanged: { [weak self] action, targetID, slotIndex in
+                self?.updateHoveredAction(action, targetID: targetID, slotIndex: slotIndex)
             },
             onEnteredScopedSearch: { [weak self] action, frame in
                 self?.enterScopedSearch(for: action, buttonLocalFrame: frame)
@@ -1031,11 +1035,14 @@ public class PopupWindowController {
 
     // MARK: - Hovered Action
 
-    /// Tracks the hovered bar row so the right-click path can run it directly. Re-entry with the
-    /// same action id is a no-op.
-    private func updateHoveredAction(_ action: (any Action)?) {
-        guard action?.id != hoveredAction?.id else { return }
+    /// Tracks the hovered bar control and its visual slot index so right-click and sub-bar neighbor
+    /// checks agree with `PopupView`. Re-entry with the same target and slot is a no-op.
+    private func updateHoveredAction(_ action: (any Action)?, targetID: String?, slotIndex: Int?) {
+        let resolvedTargetID = targetID ?? action?.id
+        guard action?.id != hoveredAction?.id || resolvedTargetID != hoveredBarTargetID || slotIndex != hoveredBarSlotIndex else { return }
         hoveredAction = action
+        hoveredBarTargetID = resolvedTargetID
+        hoveredBarSlotIndex = slotIndex
     }
 
     /// Runs an explicit card button (Paste/Copy) with no delivery context. Dismissing results hide the popup first, so exitKeyMode() reactivates the target app.
@@ -1176,6 +1183,8 @@ public class PopupWindowController {
         currentContext = nil
         currentActionContext = nil
         hoveredAction = nil
+        hoveredBarTargetID = nil
+        hoveredBarSlotIndex = nil
         latestPointerLocation = nil
         previousPointerLocation = nil
         lastPointerMoveTime = nil
@@ -1504,12 +1513,7 @@ public class PopupWindowController {
 
         // Is the pointer anywhere over the sub-bar window (including comfort margin)?
         let overSubBar = subBarController.panelFrame.insetBy(dx: -4, dy: -4).contains(screenLocation)
-        let hoveredIndex: Int? = {
-            guard isOverPanelContent(screenLocation), let hoveredAction, let actions = currentActions else {
-                return nil
-            }
-            return actions.firstIndex(where: { $0.id == hoveredAction.id })
-        }()
+        let hoveredIndex: Int? = isOverPanelContent(screenLocation) ? hoveredBarSlotIndex : nil
         let isParentGroup = hoveredAction?.id == subBarController.activeState?.groupID
         let isImmediateNeighbor = hoveredIndex.map { subBarController.isImmediateNeighbor(actionIndex: $0) } ?? false
         let region = Self.subBarPointerRegion(
@@ -1526,8 +1530,8 @@ public class PopupWindowController {
             subBarController.cancelGrace()
         case .immediateNeighbor:
             subBarController.cancelGrace()
-            if let action = hoveredAction, !action.opensSubActions {
-                beginNeighborDismissAimIfNeeded(for: action)
+            if let targetID = hoveredBarTargetID, hoveredAction?.opensSubActions != true {
+                beginNeighborDismissAimIfNeeded(for: targetID)
             }
         case .distantAction:
             // Pointer is over a distant action on the main bar: close the sub-bar!
@@ -1578,15 +1582,15 @@ public class PopupWindowController {
 
     private func handleCancelSubBarDwell() {
         clearPendingGroupAim()
-        if let hoveredAction, let actions = currentActions,
-           let currentIndex = actions.firstIndex(where: { $0.id == hoveredAction.id }),
+        if let targetID = hoveredBarTargetID, let currentIndex = hoveredBarSlotIndex,
            subBarController.isImmediateNeighbor(actionIndex: currentIndex) {
             // Pointer is over an immediate neighbor: cancel dwell without starting grace. A normal
-            // neighbor gets the same 200 ms aim window as an adjacent group, but expires to dismissal.
+            // neighbor (including non-action bar controls like the search button) gets the same
+            // 200 ms aim window as an adjacent group, but expires to dismissal.
             subBarController.cancelDwell(startGrace: false)
             subBarController.cancelGrace()
-            if !hoveredAction.opensSubActions {
-                beginNeighborDismissAim(for: hoveredAction)
+            if hoveredAction?.opensSubActions != true {
+                beginNeighborDismissAim(for: targetID)
             }
             return
         }
@@ -1706,16 +1710,16 @@ public class PopupWindowController {
         evaluateGroupAim(segment: segment, at: location, now: now)
     }
 
-    private func beginNeighborDismissAimIfNeeded(for action: any Action) {
-        guard pendingGroupAim?.groupID != action.id else { return }
-        beginNeighborDismissAim(for: action)
+    private func beginNeighborDismissAimIfNeeded(for targetID: String) {
+        guard pendingGroupAim?.groupID != targetID else { return }
+        beginNeighborDismissAim(for: targetID)
     }
 
     /// A non-group neighbor shares the adjacent-group aim window; its commit is dismissal instead
     /// of switching to another row.
-    private func beginNeighborDismissAim(for action: any Action) {
+    private func beginNeighborDismissAim(for targetID: String) {
         clearPendingGroupAim()
-        pendingGroupAim = PendingGroupAim(groupID: action.id) { [weak self] in
+        pendingGroupAim = PendingGroupAim(groupID: targetID) { [weak self] in
             self?.subBarController.hide()
         }
         let location = NSEvent.mouseLocation
@@ -1739,7 +1743,7 @@ public class PopupWindowController {
             clearPendingGroupAim()
             return
         }
-        guard hoveredAction?.id == pending.groupID else {
+        guard hoveredBarTargetID == pending.groupID else {
             clearPendingGroupAim()
             return
         }
@@ -1757,9 +1761,11 @@ public class PopupWindowController {
         )
         switch decision {
         case .switchToHovered:
-            // Leaving the triangle starts the same countdown as resting on the neighbor.
+            // Leaving the triangle lets the existing 200 ms countdown run without resetting on further away-movement.
             subBarController.cancelGrace()
-            armGroupAimRest(for: pending.groupID)
+            if groupAimRestTask == nil {
+                armGroupAimRest(for: pending.groupID)
+            }
         case .keepMovingToward:
             subBarController.cancelGrace()
             if segment.isNewMovement || groupAimRestTask == nil {
@@ -1810,7 +1816,7 @@ public class PopupWindowController {
             guard !Task.isCancelled else { return }
             self.groupAimRestTask = nil
             guard let pending = self.pendingGroupAim, pending.groupID == groupID,
-                  self.hoveredAction?.id == groupID,
+                  self.hoveredBarTargetID == groupID,
                   self.subBarController.isShowing,
                   self.subBarController.activeState?.groupID != groupID else { return }
             // No further mouse event arrives while the pointer is still, so the timer is the rest half of SubBarAim.

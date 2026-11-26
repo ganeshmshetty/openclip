@@ -12,7 +12,7 @@ import CoreGraphics
 public struct ActiveSubGroupState: Equatable, Sendable {
     /// The `id` of the parent group action whose sub-bar is open.
     public let groupID: String
-    /// Index of the parent action in `displayActions` (for highlight tracking).
+    /// Left-to-right visual slot of the parent control in the main bar, including chevrons and the search button.
     public let parentIndex: Int
     /// IDs of the resolved sub-actions to display in the sub-bar in their resolved order.
     public let subActionIDs: [String]
