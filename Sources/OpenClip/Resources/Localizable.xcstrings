@@ -2717,6 +2717,34 @@
         }
       }
     },
+    "Armed ⌘V Paste": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启用 ⌘V 粘贴"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "啟用 ⌘V 貼上"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collage ⌘V armé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘V ペーストを有効化"
+          }
+        }
+      }
+    },
     "As suggested action": {
       "localizations": {
         "zh-Hans": {
@@ -3837,6 +3865,34 @@
         }
       }
     },
+    "Capture Copies While Open": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开时捕获复制内容"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟時擷取複製內容"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capturer les copies pendant l’ouverture"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開いている間コピーを取得"
+          }
+        }
+      }
+    },
     "Capture Text": {
       "localizations": {
         "zh-Hans": {
@@ -4593,6 +4649,34 @@
         }
       }
     },
+    "Clear Basket": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空剪贴篮"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空剪貼籃"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vider le panier"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バスケットをクリア"
+          }
+        }
+      }
+    },
     "Click": {
       "localizations": {
         "zh-Hans": {
@@ -4729,6 +4813,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "閉じる (⎋)"
+          }
+        }
+      }
+    },
+    "Close When Empty": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为空时关闭"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為空時關閉"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer quand vide"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空になったら閉じる"
           }
         }
       }
@@ -4981,6 +5093,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "折りたたみ"
+          }
+        }
+      }
+    },
+    "Collect new copies only while the basket is visible.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅在剪贴篮可见时收集新的复制内容。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅在剪貼籃可見時收集新的複製內容。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collecter les nouvelles copies uniquement lorsque le panier est visible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バスケットが表示されている間だけ新しいコピーを収集します。"
           }
         }
       }
@@ -7389,6 +7529,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "閉じる"
+          }
+        }
+      }
+    },
+    "Dismiss the basket after its last item is pasted.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴最后一项后关闭剪贴篮。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "貼上最後一個項目後關閉剪貼籃。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer le panier après le collage de son dernier élément."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後の項目をペーストした後にバスケットを閉じます。"
           }
         }
       }
@@ -13049,6 +13217,34 @@
         }
       }
     },
+    "No Text to Run an Action On": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可运行操作的文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有可執行操作的文字"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun texte sur lequel exécuter une action"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションを実行するテキストがありません"
+          }
+        }
+      }
+    },
     "No actions can be suggested yet. Extensions can add them.": {
       "localizations": {
         "zh-Hans": {
@@ -14421,6 +14617,34 @@
         }
       }
     },
+    "Open or close the floating basket.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开或关闭浮动剪贴篮。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟或關閉浮動剪貼籃。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir ou fermer le panier flottant."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フローティングバスケットを開閉します。"
+          }
+        }
+      }
+    },
     "Open source under AGPL-3.0 License": {
       "localizations": {
         "zh-Hans": {
@@ -15289,6 +15513,62 @@
         }
       }
     },
+    "Paste Next Item": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴下一项"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "貼上下一個項目"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller l’élément suivant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の項目をペースト"
+          }
+        }
+      }
+    },
+    "Paste Next with ⌘V": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 ⌘V 粘贴下一项"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 ⌘V 貼上下一個項目"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller le suivant avec ⌘V"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘V で次をペースト"
+          }
+        }
+      }
+    },
     "Paste and Match Style": {
       "localizations": {
         "zh-Hans": {
@@ -15341,6 +15621,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "プレーンテキストとしてペースト"
+          }
+        }
+      }
+    },
+    "Paste every text item, joined in basket order.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按剪贴篮顺序连接并粘贴所有文本项。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "依剪貼籃順序串接並貼上所有文字項目。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller tous les éléments texte, joints dans l’ordre du panier."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのテキスト項目をバスケット順に連結してペーストします。"
           }
         }
       }
@@ -15425,6 +15733,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "クリップボードの内容を貼り付けます。"
+          }
+        }
+      }
+    },
+    "Paste the first item in the basket.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴剪贴篮中的第一项。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "貼上剪貼籃中的第一個項目。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller le premier élément du panier."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バスケットの最初の項目をペーストします。"
           }
         }
       }
@@ -18313,6 +18649,34 @@
         }
       }
     },
+    "Run Action on Basket…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对剪贴篮运行操作…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "對剪貼籃執行操作…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exécuter une action sur le panier…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バスケットにアクションを実行…"
+          }
+        }
+      }
+    },
     "Run asynchronously (enable promises & fetch)": {
       "localizations": {
         "zh-Hans": {
@@ -20297,6 +20661,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "すべてを表示"
+          }
+        }
+      }
+    },
+    "Show Clip Basket": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示剪贴篮"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示剪貼籃"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le panier de clips"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリップバスケットを表示"
+          }
+        }
+      }
+    },
+    "Show Clip Basket (%lld)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示剪贴篮（%lld）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示剪貼籃（%lld）"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le panier de clips (%lld)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリップバスケットを表示（%lld）"
           }
         }
       }
@@ -24413,6 +24833,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "バンドル ID を持たないアプリは process:<name> または path:<executable> で指定します。複数のアプリに一致させるには * を使います。"
+          }
+        }
+      }
+    },
+    "Use ⌘V for sequential paste only while the basket is open and armed.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅在剪贴篮打开并启用时使用 ⌘V 进行顺序粘贴。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅在剪貼籃開啟並啟用時使用 ⌘V 進行順序貼上。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser ⌘V pour le collage séquentiel uniquement lorsque le panier est ouvert et armé."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バスケットが開いていて有効な間だけ、⌘V で順次ペーストします。"
           }
         }
       }

@@ -917,5 +917,21 @@
   "%lld files": "%lld 个文件",
   "Double-click to paste": "双击以粘贴",
   "No Text to Paste": "没有可粘贴的文本",
-  "Basket complete": "剪贴篮已完成"
+  "Basket complete": "剪贴篮已完成",
+  "Paste Next with ⌘V": "使用 ⌘V 粘贴下一项",
+  "Show Clip Basket": "显示剪贴篮",
+  "Show Clip Basket (%lld)": "显示剪贴篮（%lld）",
+  "Clear Basket": "清空剪贴篮",
+  "No Text to Run an Action On": "没有可运行操作的文本",
+  "Run Action on Basket…": "对剪贴篮运行操作…",
+  "Open or close the floating basket.": "打开或关闭浮动剪贴篮。",
+  "Paste Next Item": "粘贴下一项",
+  "Paste the first item in the basket.": "粘贴剪贴篮中的第一项。",
+  "Paste every text item, joined in basket order.": "按剪贴篮顺序连接并粘贴所有文本项。",
+  "Armed ⌘V Paste": "启用 ⌘V 粘贴",
+  "Use ⌘V for sequential paste only while the basket is open and armed.": "仅在剪贴篮打开并启用时使用 ⌘V 进行顺序粘贴。",
+  "Capture Copies While Open": "打开时捕获复制内容",
+  "Collect new copies only while the basket is visible.": "仅在剪贴篮可见时收集新的复制内容。",
+  "Close When Empty": "为空时关闭",
+  "Dismiss the basket after its last item is pasted.": "粘贴最后一项后关闭剪贴篮。"
 }

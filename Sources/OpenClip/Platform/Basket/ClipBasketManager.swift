@@ -5,6 +5,7 @@
 // one item at a time into whatever app is frontmost. The panel never activates OpenClip, so the
 // frontmost app stays the paste destination while the basket is open.
 import AppKit
+import Combine
 import KeyboardShortcuts
 import Core
 
@@ -12,36 +13,62 @@ extension KeyboardShortcuts.Name {
     static let toggleClipBasket = Self("toggleClipBasket", initial: .init(.b, modifiers: [.command, .shift]))
     static let pasteNextFromBasket = Self("pasteNextFromBasket", initial: .init(.v, modifiers: [.control, .command]))
     static let pasteAllFromBasket = Self("pasteAllFromBasket", initial: .init(.v, modifiers: [.control, .option, .command]))
+    static let armedBasketPaste = Self("armedBasketPaste", initial: .init(.v, modifiers: [.command]))
 }
 
 @MainActor
 final class ClipBasketManager {
     static let shared = ClipBasketManager()
 
+    typealias ArmedHotkeySetter = @MainActor (Bool) -> Void
+
     private let store: ClipBasketStore
     private let panelController: ClipBasketPanelController
     private let paster: any ClipBasketPasting
+    private let monitor: ClipBasketPasteboardMonitor
     private let settingsStore: any SettingsStore
+    private let setArmedHotkeyEnabled: ArmedHotkeySetter
 
     private weak var popupController: PopupWindowController?
     private var hotkeysInstalled = false
+    private var isSubscribed = false
+    private var armedHotkeyEnabled = false
     private var isDelivering = false
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         store: ClipBasketStore = .shared,
         panelController: ClipBasketPanelController = ClipBasketPanelController(),
         paster: any ClipBasketPasting = ClipBasketPaster(),
-        settingsStore: any SettingsStore = DefaultSettingsStore.shared
+        monitor: ClipBasketPasteboardMonitor = ClipBasketPasteboardMonitor(),
+        settingsStore: any SettingsStore = DefaultSettingsStore.shared,
+        setArmedHotkeyEnabled: @escaping ArmedHotkeySetter = { enabled in
+            if enabled {
+                KeyboardShortcuts.enable(.armedBasketPaste)
+            } else {
+                KeyboardShortcuts.disable(.armedBasketPaste)
+            }
+        }
     ) {
         self.store = store
         self.panelController = panelController
         self.paster = paster
+        self.monitor = monitor
         self.settingsStore = settingsStore
+        self.setArmedHotkeyEnabled = setArmedHotkeyEnabled
     }
 
     func setup(popupController: PopupWindowController) {
         self.popupController = popupController
         installHotkeys()
+        subscribeToState()
+        monitor.onCapture = { [weak self] content, sourceApp in
+            guard let self, self.store.isOpen else { return }
+            self.store.enqueue(ClipBasketItem(content: content, sourceApp: sourceApp))
+            Log.basket.debug("captured kind=\(Self.kind(of: content), privacy: .public) count=\(self.store.count, privacy: .public)")
+        }
+        syncArmedHotkey()
+        syncMonitor()
     }
 
     var isVisible: Bool { panelController.isShowing }
@@ -61,15 +88,23 @@ final class ClipBasketManager {
             onPasteNext: { [weak self] in self?.pasteNext() },
             onPasteAll: { [weak self] in self?.pasteAll() },
             onPasteItem: { [weak self] id in self?.paste(itemID: id) },
+            onRemoveItem: { [weak self] id in self?.remove(itemID: id) },
+            onRunAction: { [weak self] in self?.runActionOnBasket() },
+            onSetArmed: { [weak self] armed in self?.setArmedPaste(armed) },
             onClear: { [weak self] in self?.clear() },
             onClose: { [weak self] in self?.hide() }
         )
+        syncArmedHotkey()
+        syncMonitor()
         Log.basket.debug("panel shown count=\(self.store.count, privacy: .public)")
     }
 
     func hide() {
+        monitor.stop()
         panelController.hide()
         store.setOpen(false)
+        syncArmedHotkey()
+        syncMonitor()
         Log.basket.debug("panel hidden")
     }
 
@@ -89,6 +124,11 @@ final class ClipBasketManager {
         deliver(item)
     }
 
+    func remove(itemID: UUID) {
+        _ = store.pop(id: itemID)
+        syncArmedHotkey()
+    }
+
     func pasteAll() {
         guard let text = store.joinedText else {
             showToast(StatusFeedback(
@@ -102,10 +142,71 @@ final class ClipBasketManager {
         deliver(item, clearsBasketOnSuccess: true)
     }
 
+    func runActionOnBasket() {
+        guard let text = store.joinedText else {
+            showToast(StatusFeedback(
+                message: String(localized: "No Text to Run an Action On"),
+                style: .info,
+                symbolName: "text.alignleft"
+            ))
+            return
+        }
+        let sourceApp = NSWorkspace.shared.frontmostApplication.map { AppIdentity($0) } ?? AppIdentity()
+        let context = SelectionContext(
+            text: text,
+            sourceApp: sourceApp,
+            cursorPosition: NSEvent.mouseLocation,
+            timestamp: Date(),
+            isClipboardFallback: true,
+            source: .clipboard
+        )
+        hide()
+        popupController?.show(for: context, pasteAvailable: nil, initialMode: .search)
+        Log.basket.debug("opened action search for basket count=\(self.store.count, privacy: .public)")
+    }
+
     func clear() {
         store.clear()
+        syncArmedHotkey()
         if settingsStore.get(.clipBasketAutoCloseWhenEmpty), panelController.isShowing {
             hide()
+        }
+    }
+
+    func setArmedPaste(_ armed: Bool) {
+        store.setCommandVArmed(armed)
+        syncArmedHotkey()
+    }
+
+    func handleArmedPaste() {
+        guard store.isOpen, store.isCommandVArmed, !store.isEmpty else {
+            syncArmedHotkey()
+            return
+        }
+        guard !isDelivering else {
+            syncArmedHotkey()
+            return
+        }
+        // The synthetic ⌘V posted by the paste must not re-enter this handler.
+        armedHotkeyEnabled = false
+        setArmedHotkeyEnabled(false)
+        pasteNext()
+    }
+
+    func syncArmedHotkey() {
+        let shouldEnable = store.isOpen && store.isCommandVArmed && !store.isEmpty
+        guard shouldEnable != armedHotkeyEnabled else { return }
+        armedHotkeyEnabled = shouldEnable
+        setArmedHotkeyEnabled(shouldEnable)
+        Log.basket.debug("armed paste hotkey enabled=\(shouldEnable, privacy: .public)")
+    }
+
+    func syncMonitor() {
+        let shouldRun = store.isOpen && settingsStore.get(.clipBasketAutoCaptureCopies)
+        if shouldRun, !monitor.isRunning {
+            monitor.start()
+        } else if !shouldRun, monitor.isRunning {
+            monitor.stop()
         }
     }
 
@@ -114,14 +215,20 @@ final class ClipBasketManager {
             if !clearsBasketOnSuccess {
                 _ = store.undo()
             }
+            syncArmedHotkey()
             return
         }
         isDelivering = true
+        monitor.beginSelfWrite()
         let plainText = store.pasteAsPlainText
         let targetApp = NSWorkspace.shared.frontmostApplication
 
         Task { @MainActor in
-            defer { self.isDelivering = false }
+            defer {
+                self.monitor.endSelfWrite()
+                self.isDelivering = false
+                self.syncArmedHotkey()
+            }
             do {
                 try await self.paster.paste(item, asPlainText: plainText, targetApp: targetApp)
                 Log.basket.debug("pasted remaining=\(self.store.count, privacy: .public) plain=\(plainText, privacy: .public)")
@@ -173,6 +280,28 @@ final class ClipBasketManager {
         }
         KeyboardShortcuts.onKeyDown(for: .pasteAllFromBasket) { [weak self] in
             MainActor.assumeIsolated { self?.pasteAll() }
+        }
+        KeyboardShortcuts.onKeyDown(for: .armedBasketPaste) { [weak self] in
+            MainActor.assumeIsolated { self?.handleArmedPaste() }
+        }
+        KeyboardShortcuts.disable(.armedBasketPaste)
+    }
+
+    private func subscribeToState() {
+        guard !isSubscribed else { return }
+        isSubscribed = true
+        settingsStore.publisher(for: .clipBasketAutoCaptureCopies)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.syncMonitor() }
+            }
+            .store(in: &cancellables)
+    }
+
+    private static func kind(of content: ClipBasketContent) -> String {
+        switch content {
+        case .text: return "text"
+        case .image: return "image"
+        case .files: return "files"
         }
     }
 }

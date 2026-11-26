@@ -20,16 +20,37 @@ final class ClipBasketManagerTests: XCTestCase {
         }
     }
 
+    @MainActor
+    private final class ArmedHotkeyRecorder {
+        var values: [Bool] = []
+    }
+
     private func makeManager(
         store: ClipBasketStore,
         settings: MemorySettingsStore,
-        paster: RecordingPaster
+        paster: RecordingPaster,
+        monitor: ClipBasketPasteboardMonitor? = nil,
+        armedHotkey: ArmedHotkeyRecorder? = nil
     ) -> ClipBasketManager {
         ClipBasketManager(
             store: store,
             panelController: ClipBasketPanelController(settingsStore: settings),
             paster: paster,
-            settingsStore: settings
+            monitor: monitor ?? ClipBasketPasteboardMonitor(),
+            settingsStore: settings,
+            setArmedHotkeyEnabled: { enabled in
+                armedHotkey?.values.append(enabled)
+            }
+        )
+    }
+
+    private func makeMonitor(pasteboard: NSPasteboard) -> ClipBasketPasteboardMonitor {
+        ClipBasketPasteboardMonitor(
+            pasteboard: pasteboard,
+            accessPolicy: PasteboardAccessPolicy(read: { .allowed }),
+            frontmostIdentity: { AppIdentity(bundleIdentifier: "com.example.editor") },
+            isExcluded: { _ in false },
+            isDisabled: { _ in false }
         )
     }
 
@@ -111,5 +132,130 @@ final class ClipBasketManagerTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertTrue(paster.pastedTexts.isEmpty)
         XCTAssertTrue(store.isEmpty)
+    }
+
+    func testSetArmedPasteTogglesDynamicHotkey() {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let recorder = ArmedHotkeyRecorder()
+        let manager = makeManager(store: store, settings: settings, paster: RecordingPaster(), armedHotkey: recorder)
+        enqueueText(["a"], into: store)
+        store.setOpen(true)
+
+        manager.setArmedPaste(true)
+        XCTAssertEqual(recorder.values, [true])
+        XCTAssertTrue(store.isCommandVArmed)
+
+        manager.setArmedPaste(false)
+        XCTAssertEqual(recorder.values, [true, false])
+        XCTAssertFalse(store.isCommandVArmed)
+    }
+
+    func testRemovingLastItemDisarmsHotkey() {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let recorder = ArmedHotkeyRecorder()
+        let manager = makeManager(store: store, settings: settings, paster: RecordingPaster(), armedHotkey: recorder)
+        enqueueText(["a"], into: store)
+        store.setOpen(true)
+        manager.setArmedPaste(true)
+        let id = store.items[0].id
+
+        manager.remove(itemID: id)
+
+        XCTAssertTrue(store.isEmpty)
+        XCTAssertFalse(store.isCommandVArmed)
+        XCTAssertEqual(recorder.values, [true, false])
+    }
+
+    func testArmedPasteDisablesHotkeyThenReenablesWhenItemsRemain() async {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let paster = RecordingPaster()
+        let recorder = ArmedHotkeyRecorder()
+        let manager = makeManager(store: store, settings: settings, paster: paster, armedHotkey: recorder)
+        enqueueText(["a", "b"], into: store)
+        store.setOpen(true)
+        store.setCommandVArmed(true)
+
+        manager.handleArmedPaste()
+
+        XCTAssertEqual(recorder.values, [false], "the synthetic ⌘V must be guarded immediately")
+        await waitFor("armed hotkey re-enabled") { recorder.values == [false, true] }
+        XCTAssertEqual(store.items.map(\.content.plainText), ["b"])
+    }
+
+    func testArmedPasteLeavesHotkeyDisabledWhenBasketEmpties() async {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let paster = RecordingPaster()
+        let recorder = ArmedHotkeyRecorder()
+        let manager = makeManager(store: store, settings: settings, paster: paster, armedHotkey: recorder)
+        enqueueText(["a"], into: store)
+        store.setOpen(true)
+        store.setCommandVArmed(true)
+
+        manager.handleArmedPaste()
+
+        await waitFor("last item pasted") { paster.pastedTexts == ["a"] }
+        await waitFor("basket closed") { !store.isOpen }
+        XCTAssertEqual(recorder.values, [false])
+        XCTAssertFalse(store.isCommandVArmed)
+    }
+
+    func testAutoCaptureMonitorRunsOnlyWhileOpenAndEnabled() {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("ClipBasketManager-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        let monitor = makeMonitor(pasteboard: pasteboard)
+        let manager = makeManager(
+            store: store,
+            settings: settings,
+            paster: RecordingPaster(),
+            monitor: monitor
+        )
+
+        store.setOpen(true)
+        manager.syncMonitor()
+        XCTAssertTrue(monitor.isRunning)
+
+        settings.set(.clipBasketAutoCaptureCopies, value: false)
+        manager.syncMonitor()
+        XCTAssertFalse(monitor.isRunning)
+
+        settings.set(.clipBasketAutoCaptureCopies, value: true)
+        store.setOpen(false)
+        manager.syncMonitor()
+        XCTAssertFalse(monitor.isRunning)
+    }
+
+    func testAutoCloseStopsMonitorAndDisarmsHotkey() async {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("ClipBasketManager-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        let monitor = makeMonitor(pasteboard: pasteboard)
+        let recorder = ArmedHotkeyRecorder()
+        let paster = RecordingPaster()
+        let manager = makeManager(
+            store: store,
+            settings: settings,
+            paster: paster,
+            monitor: monitor,
+            armedHotkey: recorder
+        )
+        enqueueText(["only"], into: store)
+        store.setOpen(true)
+        store.setCommandVArmed(true)
+        manager.syncMonitor()
+        manager.syncArmedHotkey()
+        XCTAssertTrue(monitor.isRunning)
+
+        manager.pasteNext()
+
+        await waitFor("basket empty and closed") { store.isEmpty && !store.isOpen }
+        XCTAssertFalse(monitor.isRunning)
+        XCTAssertEqual(recorder.values.last, false)
     }
 }

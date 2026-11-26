@@ -193,4 +193,14 @@ final class ClipBasketEngineTests: XCTestCase {
         engine.setOpen(false)
         XCTAssertFalse(engine.isCommandVArmed)
     }
+
+    func testArmedPasteDisarmsWhenItemsRunOut() {
+        var engine = ClipBasketEngine(isOpen: true)
+        engine.enqueue(item("a"))
+        engine.setCommandVArmed(true)
+        XCTAssertTrue(engine.isCommandVArmed)
+
+        _ = engine.popNext()
+        XCTAssertFalse(engine.isCommandVArmed)
+    }
 }

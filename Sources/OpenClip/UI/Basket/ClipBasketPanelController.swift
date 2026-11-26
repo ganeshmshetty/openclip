@@ -23,6 +23,9 @@ final class ClipBasketPanelController {
         onPasteNext: @escaping @MainActor () -> Void,
         onPasteAll: @escaping @MainActor () -> Void,
         onPasteItem: @escaping @MainActor (UUID) -> Void,
+        onRemoveItem: @escaping @MainActor (UUID) -> Void,
+        onRunAction: @escaping @MainActor () -> Void,
+        onSetArmed: @escaping @MainActor (Bool) -> Void,
         onClear: @escaping @MainActor () -> Void,
         onClose: @escaping @MainActor () -> Void
     ) {
@@ -31,6 +34,9 @@ final class ClipBasketPanelController {
             onPasteNext: onPasteNext,
             onPasteAll: onPasteAll,
             onPasteItem: onPasteItem,
+            onRemoveItem: onRemoveItem,
+            onRunAction: onRunAction,
+            onSetArmed: onSetArmed,
             onClear: onClear,
             onClose: onClose,
             onDrag: { [weak self] delta, isFinal in

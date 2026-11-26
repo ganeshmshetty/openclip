@@ -917,5 +917,21 @@
   "%lld files": "%lld ファイル",
   "Double-click to paste": "ダブルクリックでペースト",
   "No Text to Paste": "ペーストするテキストがありません",
-  "Basket complete": "バスケット完了"
+  "Basket complete": "バスケット完了",
+  "Paste Next with ⌘V": "⌘V で次をペースト",
+  "Show Clip Basket": "クリップバスケットを表示",
+  "Show Clip Basket (%lld)": "クリップバスケットを表示（%lld）",
+  "Clear Basket": "バスケットをクリア",
+  "No Text to Run an Action On": "アクションを実行するテキストがありません",
+  "Run Action on Basket…": "バスケットにアクションを実行…",
+  "Open or close the floating basket.": "フローティングバスケットを開閉します。",
+  "Paste Next Item": "次の項目をペースト",
+  "Paste the first item in the basket.": "バスケットの最初の項目をペーストします。",
+  "Paste every text item, joined in basket order.": "すべてのテキスト項目をバスケット順に連結してペーストします。",
+  "Armed ⌘V Paste": "⌘V ペーストを有効化",
+  "Use ⌘V for sequential paste only while the basket is open and armed.": "バスケットが開いていて有効な間だけ、⌘V で順次ペーストします。",
+  "Capture Copies While Open": "開いている間コピーを取得",
+  "Collect new copies only while the basket is visible.": "バスケットが表示されている間だけ新しいコピーを収集します。",
+  "Close When Empty": "空になったら閉じる",
+  "Dismiss the basket after its last item is pasted.": "最後の項目をペーストした後にバスケットを閉じます。"
 }

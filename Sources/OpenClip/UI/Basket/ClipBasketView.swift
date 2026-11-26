@@ -23,6 +23,9 @@ struct ClipBasketView: View {
     let onPasteNext: @MainActor () -> Void
     let onPasteAll: @MainActor () -> Void
     let onPasteItem: @MainActor (UUID) -> Void
+    let onRemoveItem: @MainActor (UUID) -> Void
+    let onRunAction: @MainActor () -> Void
+    let onSetArmed: @MainActor (Bool) -> Void
     let onClear: @MainActor () -> Void
     let onClose: @MainActor () -> Void
     let onDrag: @MainActor (CGSize, Bool) -> Void
@@ -129,6 +132,15 @@ struct ClipBasketView: View {
 
             Spacer(minLength: 0)
 
+            if store.isCommandVArmed {
+                Text(verbatim: "⌘V")
+                    .font(.system(size: 8.5 * scale, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 4 * scale)
+                    .frame(height: 16 * scale)
+                    .background(Capsule(style: .continuous).fill(Color.accentColor))
+            }
+
             Image(systemName: "chevron.down")
                 .font(.system(size: 8 * scale, weight: .semibold))
                 .foregroundStyle(secondaryForeground)
@@ -145,10 +157,6 @@ struct ClipBasketView: View {
     private var header: some View {
         HStack(spacing: 5 * scale) {
             countBadge
-            Text("Clip Basket")
-                .font(.system(size: rowTextSize, weight: .semibold))
-                .foregroundStyle(foreground)
-                .lineLimit(1)
 
             Spacer(minLength: 2)
 
@@ -176,6 +184,26 @@ struct ClipBasketView: View {
                 store.setPasteAsPlainText(!store.pasteAsPlainText)
             }
 
+            Button {
+                onSetArmed(!store.isCommandVArmed)
+            } label: {
+                Text(verbatim: "⌘V")
+                    .font(.system(size: 9 * scale, weight: .bold))
+                    .foregroundStyle(store.isCommandVArmed ? .white : foreground)
+                    .padding(.horizontal, 4 * scale)
+                    .frame(height: 20 * scale)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5 * scale, style: .continuous)
+                            .fill(store.isCommandVArmed ? Color.accentColor : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(store.isEmpty)
+            .opacity(store.isEmpty ? 0.4 : 1)
+            .help("Paste Next with ⌘V")
+            .accessibilityLabel(Text("Paste Next with ⌘V"))
+
             headerButton(
                 systemName: "arrow.uturn.backward",
                 help: "Undo Last Removal",
@@ -186,6 +214,8 @@ struct ClipBasketView: View {
 
             Menu {
                 Button("Paste All") { onPasteAll() }
+                    .disabled(store.joinedText == nil)
+                Button("Run Action on Basket…") { onRunAction() }
                     .disabled(store.joinedText == nil)
                 Divider()
                 Button("Clear", role: .destructive) { onClear() }
@@ -265,7 +295,7 @@ struct ClipBasketView: View {
             secondaryForeground: secondaryForeground,
             isTargeted: dropTargetID == item.id,
             onRemove: {
-                _ = store.pop(id: item.id)
+                onRemoveItem(item.id)
             },
             onPaste: {
                 onPasteItem(item.id)

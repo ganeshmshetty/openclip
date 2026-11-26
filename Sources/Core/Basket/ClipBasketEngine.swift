@@ -69,6 +69,7 @@ public struct ClipBasketEngine: Sendable, Equatable {
         guard !items.isEmpty else { return nil }
         let item = items.removeFirst()
         undoStack.append(.popped(item: item, index: 0))
+        if items.isEmpty { isCommandVArmed = false }
         return item
     }
 
@@ -77,6 +78,7 @@ public struct ClipBasketEngine: Sendable, Equatable {
         guard let index = items.firstIndex(where: { $0.id == id }) else { return nil }
         let item = items.remove(at: index)
         undoStack.append(.removed(item: item, index: index))
+        if items.isEmpty { isCommandVArmed = false }
         return item
     }
 
