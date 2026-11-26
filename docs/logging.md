@@ -42,6 +42,7 @@ Each subsystem owns a dedicated `LogChannel` property on `Log` under the `com.op
 | `chrome`         | popup window chrome & sizing (currently unused, reserved)  |
 | `factory`        | action factory, extension manifest authoring (Add/Edit sheets) |
 | `result-handler` | post-action effect handling (paste, calendar write, etc.)   |
+| `basket`         | ephemeral Clip Basket queue, panel lifecycle, sequential paste |
 | `coordinator`    | action coordination / enablement evaluation                 |
 | `shell`          | `ShellProcessRunner` (subprocess watchdog, timeout)         |
 | `js`             | `OpenClipJSHost` runtime                                    |

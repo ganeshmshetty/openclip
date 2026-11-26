@@ -950,13 +950,14 @@ public struct PopupSearchView: View {
             }
             return
         }
+        let clickModifiers = ModifierFlags.currentHardware
         Task { @MainActor in
             do {
                 // Thread the visibility match into the perform context so placeholders see the match that enabled the row.
                 let match = action.matchInfo(for: activeContext)
                 let performContext = ActionContext(
                     selection: activeContext.selection,
-                    modifiers: activeContext.modifiers,
+                    modifiers: activeContext.modifiers.union(clickModifiers),
                     isSecondaryClick: clickIntent == .secondary,
                     match: match
                 )

@@ -60,6 +60,14 @@ public enum SettingsCatalog {
             SettingKey.popupAlignment.erased,
             SettingKey.popupVerticalPosition.erased,
 
+            // Clip Basket
+            SettingKey.clipBasketOrder.erased,
+            SettingKey.clipBasketJoinFormat.erased,
+            SettingKey.clipBasketPasteAsPlainText.erased,
+            SettingKey.clipBasketAutoCaptureCopies.erased,
+            SettingKey.clipBasketAutoCloseWhenEmpty.erased,
+            SettingKey.clipBasketPanelOrigin.erased,
+
             // Gesture / lifecycle
             SettingKey.mouseHoldDuration.erased,
             SettingKey.pauseUntilTimestamp.erased,

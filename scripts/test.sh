@@ -50,6 +50,9 @@ CORE_TEST_FLAGS=(
     -only-testing:OpenClipTests/ExtensionTrustStateTests
     -only-testing:OpenClipTests/ExtensionPackageHashResolverTests
     -only-testing:OpenClipTests/ExtensionUpdatePlannerTests
+    -only-testing:OpenClipTests/ClipBasketEngineTests
+    -only-testing:OpenClipTests/ClipBasketStoreTests
+    -only-testing:OpenClipTests/AddToBasketActionTests
 )
 
 run_xcodebuild() {

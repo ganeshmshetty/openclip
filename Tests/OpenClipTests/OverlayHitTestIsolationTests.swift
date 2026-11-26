@@ -1,5 +1,6 @@
 import XCTest
 import AppKit
+import SwiftUI
 import Core
 @testable import OpenClip
 
@@ -67,5 +68,33 @@ final class OverlayHitTestIsolationTests: XCTestCase {
         }
 
         wait(for: [done], timeout: 5)
+    }
+
+    @MainActor
+    func testClipBasketContentDeclinesBackgroundHitTesting() {
+        let content = ClipBasketPanel.ContentView(rootView: AnyView(Color.clear))
+        content.frame = NSRect(x: 0, y: 0, width: 200, height: 100)
+        XCTAssertTrue(content.isMousePoint(NSPoint(x: 100, y: 50), in: content.bounds))
+
+        let box = UnsafeSendable(content)
+        let card = NSRect(x: 0, y: 0, width: 200, height: 100)
+        let done = expectation(description: "background basket hit test")
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            XCTAssertNil(box.value.hitTest(NSPoint(x: 100, y: 50)))
+            XCTAssertFalse(box.value.isMousePoint(NSPoint(x: 100, y: 50), in: card))
+            done.fulfill()
+        }
+
+        wait(for: [done], timeout: 5)
+    }
+
+    @MainActor
+    func testClipBasketPanelNeverBecomesKeyOrMain() {
+        let panel = ClipBasketPanel()
+        XCTAssertFalse(panel.canBecomeKey)
+        XCTAssertFalse(panel.canBecomeMain)
+        XCTAssertFalse(panel.isMovable)
+        XCTAssertEqual(panel.level, .floating)
     }
 }

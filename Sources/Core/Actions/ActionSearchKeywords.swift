@@ -95,6 +95,13 @@ public enum ActionSearchKeywords {
             "coller", "insérer",
             "ペースト", "貼り付け"
         ],
+        "builtin.addToBasket": [
+            "basket", "clip", "collect", "queue", "stack", "sequential", "multi", "workbench",
+            "剪贴篮", "收集", "队列", "顺序粘贴", "多个",
+            "剪貼籃", "收集", "佇列", "順序貼上", "多個",
+            "panier", "extrait", "collecter", "file d’attente", "séquentiel",
+            "バスケット", "クリップ", "収集", "キュー", "連続ペースト"
+        ],
         "builtin.reveal_in_finder": [
             "finder", "reveal", "folder", "show", "directory", "file", "path", "open folder",
             "访达", "文件夹", "打开目录", "显示文件", "路径", "定位",

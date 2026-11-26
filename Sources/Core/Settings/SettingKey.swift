@@ -126,6 +126,12 @@ public extension SettingKey where Value == Bool {
     /// Plays a short system sound when an action copies to the clipboard.
     static var playActionSound: SettingKey<Bool> { SettingKey<Bool>("playActionSound", defaultValue: false) }
     static var captureTextAutoCopy: SettingKey<Bool> { SettingKey<Bool>("captureTextAutoCopy", defaultValue: true) }
+    /// Pasting from the basket writes plain text and strips rich formatting.
+    static var clipBasketPasteAsPlainText: SettingKey<Bool> { SettingKey<Bool>("clipBasket.pasteAsPlainText", defaultValue: false) }
+    /// Captures new copies only while the basket panel is open. Phase 2 wires the monitor; the key
+    /// ships now so the preference has a stable home.
+    static var clipBasketAutoCaptureCopies: SettingKey<Bool> { SettingKey<Bool>("clipBasket.autoCaptureCopies", defaultValue: true) }
+    static var clipBasketAutoCloseWhenEmpty: SettingKey<Bool> { SettingKey<Bool>("clipBasket.autoCloseWhenEmpty", defaultValue: true) }
     static var completionCopyToClipboard: SettingKey<Bool> { SettingKey<Bool>("completionCopyToClipboard", defaultValue: false) }
     /// When true, Word Completion appears only if the word is misspelled in every enabled keyboard input language.
     static var completionOnlyMisspelled: SettingKey<Bool> { SettingKey<Bool>("completionOnlyMisspelled", defaultValue: true) }
@@ -180,6 +186,13 @@ public extension SettingKey where Value == String {
 
     /// Default directory where action file outputs are saved. Defaults to empty string (which resolves to ~/Downloads).
     static var fileSaveLocation: SettingKey<String> { SettingKey<String>("fileSaveLocation", defaultValue: "") }
+
+    /// `ClipBasketOrder` raw value: queue (FIFO) or stack (LIFO).
+    static var clipBasketOrder: SettingKey<String> { SettingKey<String>("clipBasket.order", defaultValue: ClipBasketOrder.fifo.rawValue) }
+    /// `ClipBasketJoinFormat` raw value used by Paste All.
+    static var clipBasketJoinFormat: SettingKey<String> { SettingKey<String>("clipBasket.joinFormat", defaultValue: ClipBasketJoinFormat.newline.rawValue) }
+    /// Last parked panel position, normalized to the screen's visible frame as "x,y" (0...1).
+    static var clipBasketPanelOrigin: SettingKey<String> { SettingKey<String>("clipBasket.panelOrigin", defaultValue: "") }
 
     /// Popup theme ("classic"/"glass") and shared appearance ("system"/"light"/"dark").
     static var popupTheme: SettingKey<String> { SettingKey<String>("popupTheme", defaultValue: "classic") }

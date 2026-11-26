@@ -1005,12 +1005,13 @@ public struct PopupView: View {
                             }
                             return
                         }
+                        let clickModifiers = ModifierFlags.currentHardware
                         Task {
                             do {
                                 let match = action.matchInfo(for: context)
                                 let performContext = ActionContext(
                                     selection: context.selection,
-                                    modifiers: context.modifiers,
+                                    modifiers: context.modifiers.union(clickModifiers),
                                     isSecondaryClick: clickIntent == .secondary,
                                     match: match
                                 )

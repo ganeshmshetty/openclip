@@ -135,6 +135,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         selectionMonitor = macMonitor
 
         HotkeyManager.shared.setup(popupController: controller, selectionMonitor: macMonitor, captureTextController: captureController)
+        ClipBasketManager.shared.setup(popupController: controller)
 
         let optionStore = SecretActionOptionStore()
         ExtensionManager.shared.actionFactory = DefaultActionFactory(optionStore: optionStore, isSelectionCurrent: { [weak self] selection in
