@@ -912,7 +912,6 @@
   "Paste as Plain Text": "Coller en texte brut",
   "Undo Last Removal": "Annuler la dernière suppression",
   "Paste All": "Tout coller",
-  "Select text and choose Add to Basket.": "Sélectionnez du texte et choisissez Ajouter au panier.",
   "Image": "Image",
   "%lld files": "%lld fichiers",
   "Double-click to paste": "Double-cliquez pour coller",
@@ -933,5 +932,9 @@
   "Capture Copies While Open": "Capturer les copies pendant l’ouverture",
   "Collect new copies only while the basket is visible.": "Collecter les nouvelles copies uniquement lorsque le panier est visible.",
   "Close When Empty": "Fermer quand vide",
-  "Dismiss the basket after its last item is pasted.": "Fermer le panier après le collage de son dernier élément."
+  "Dismiss the basket after its last item is pasted.": "Fermer le panier après le collage de son dernier élément.",
+  "Copy or add items": "Copiez ou ajoutez des éléments",
+  "to paste them one by one.": "pour les coller un par un.",
+  "Reverse Order": "Inverser l’ordre",
+  "Basket": "Panier"
 }

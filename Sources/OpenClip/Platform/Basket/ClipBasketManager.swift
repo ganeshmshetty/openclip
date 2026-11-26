@@ -10,7 +10,9 @@ import KeyboardShortcuts
 import Core
 
 extension KeyboardShortcuts.Name {
-    static let toggleClipBasket = Self("toggleClipBasket", initial: .init(.b, modifiers: [.command, .shift]))
+    // The browser bookmark-bar chord (⇧⌘B) and paste-and-match-style chord (⇧⌘V) are left to
+    // system/app defaults; the basket uses control-based chords instead.
+    static let toggleClipBasket = Self("toggleClipBasket", initial: .init(.b, modifiers: [.control, .command]))
     static let pasteNextFromBasket = Self("pasteNextFromBasket", initial: .init(.v, modifiers: [.control, .command]))
     static let pasteAllFromBasket = Self("pasteAllFromBasket", initial: .init(.v, modifiers: [.control, .option, .command]))
     static let armedBasketPaste = Self("armedBasketPaste", initial: .init(.v, modifiers: [.command]))
@@ -28,12 +30,16 @@ final class ClipBasketManager {
     private let monitor: ClipBasketPasteboardMonitor
     private let settingsStore: any SettingsStore
     private let setArmedHotkeyEnabled: ArmedHotkeySetter
+    private let armedPasteTimeout: TimeInterval
+    private let monitorsOutsideClicks: Bool
 
     private weak var popupController: PopupWindowController?
     private var hotkeysInstalled = false
     private var isSubscribed = false
     private var armedHotkeyEnabled = false
     private var isDelivering = false
+    private var armedTimeoutTask: Task<Void, Never>?
+    private var outsideClickMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
 
     init(
@@ -42,6 +48,8 @@ final class ClipBasketManager {
         paster: any ClipBasketPasting = ClipBasketPaster(),
         monitor: ClipBasketPasteboardMonitor = ClipBasketPasteboardMonitor(),
         settingsStore: any SettingsStore = DefaultSettingsStore.shared,
+        armedPasteTimeout: TimeInterval = 20,
+        monitorsOutsideClicks: Bool = true,
         setArmedHotkeyEnabled: @escaping ArmedHotkeySetter = { enabled in
             if enabled {
                 KeyboardShortcuts.enable(.armedBasketPaste)
@@ -55,6 +63,8 @@ final class ClipBasketManager {
         self.paster = paster
         self.monitor = monitor
         self.settingsStore = settingsStore
+        self.armedPasteTimeout = armedPasteTimeout
+        self.monitorsOutsideClicks = monitorsOutsideClicks
         self.setArmedHotkeyEnabled = setArmedHotkeyEnabled
     }
 
@@ -175,6 +185,11 @@ final class ClipBasketManager {
 
     func setArmedPaste(_ armed: Bool) {
         store.setCommandVArmed(armed)
+        if armed {
+            startArmedWatchdogs()
+        } else {
+            stopArmedWatchdogs()
+        }
         syncArmedHotkey()
     }
 
@@ -195,6 +210,9 @@ final class ClipBasketManager {
 
     func syncArmedHotkey() {
         let shouldEnable = store.isOpen && store.isCommandVArmed && !store.isEmpty
+        if !shouldEnable {
+            stopArmedWatchdogs()
+        }
         guard shouldEnable != armedHotkeyEnabled else { return }
         armedHotkeyEnabled = shouldEnable
         setArmedHotkeyEnabled(shouldEnable)
@@ -266,6 +284,32 @@ final class ClipBasketManager {
 
     private func showToast(_ feedback: StatusFeedback) {
         popupController?.showToast(feedback, at: NSEvent.mouseLocation)
+    }
+
+    private func startArmedWatchdogs() {
+        armedTimeoutTask?.cancel()
+        armedTimeoutTask = nil
+        if monitorsOutsideClicks, outsideClickMonitor == nil {
+            outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+                MainActor.assumeIsolated { self?.setArmedPaste(false) }
+            }
+        }
+        guard armedPasteTimeout > 0 else { return }
+        armedTimeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64((self?.armedPasteTimeout ?? 0) * 1_000_000_000))
+            guard !Task.isCancelled, let self, self.store.isCommandVArmed else { return }
+            self.setArmedPaste(false)
+            Log.basket.debug("armed paste timed out")
+        }
+    }
+
+    private func stopArmedWatchdogs() {
+        armedTimeoutTask?.cancel()
+        armedTimeoutTask = nil
+        if let outsideClickMonitor {
+            NSEvent.removeMonitor(outsideClickMonitor)
+            self.outsideClickMonitor = nil
+        }
     }
 
     private func installHotkeys() {

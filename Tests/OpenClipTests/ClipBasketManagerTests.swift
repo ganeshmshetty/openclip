@@ -30,7 +30,8 @@ final class ClipBasketManagerTests: XCTestCase {
         settings: MemorySettingsStore,
         paster: RecordingPaster,
         monitor: ClipBasketPasteboardMonitor? = nil,
-        armedHotkey: ArmedHotkeyRecorder? = nil
+        armedHotkey: ArmedHotkeyRecorder? = nil,
+        armedPasteTimeout: TimeInterval = 20
     ) -> ClipBasketManager {
         ClipBasketManager(
             store: store,
@@ -38,6 +39,8 @@ final class ClipBasketManagerTests: XCTestCase {
             paster: paster,
             monitor: monitor ?? ClipBasketPasteboardMonitor(),
             settingsStore: settings,
+            armedPasteTimeout: armedPasteTimeout,
+            monitorsOutsideClicks: false,
             setArmedHotkeyEnabled: { enabled in
                 armedHotkey?.values.append(enabled)
             }
@@ -165,6 +168,26 @@ final class ClipBasketManagerTests: XCTestCase {
 
         XCTAssertTrue(store.isEmpty)
         XCTAssertFalse(store.isCommandVArmed)
+        XCTAssertEqual(recorder.values, [true, false])
+    }
+
+    func testArmedPasteIdleTimeoutDisarms() async {
+        let settings = MemorySettingsStore()
+        let store = ClipBasketStore(settingsStore: settings)
+        let recorder = ArmedHotkeyRecorder()
+        let manager = makeManager(
+            store: store,
+            settings: settings,
+            paster: RecordingPaster(),
+            armedHotkey: recorder,
+            armedPasteTimeout: 0.05
+        )
+        enqueueText(["a"], into: store)
+        store.setOpen(true)
+        manager.setArmedPaste(true)
+        XCTAssertTrue(store.isCommandVArmed)
+
+        await waitFor("armed paste to time out") { !store.isCommandVArmed }
         XCTAssertEqual(recorder.values, [true, false])
     }
 

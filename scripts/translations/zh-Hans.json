@@ -912,7 +912,6 @@
   "Paste as Plain Text": "以纯文本粘贴",
   "Undo Last Removal": "撤销上次移除",
   "Paste All": "全部粘贴",
-  "Select text and choose Add to Basket.": "选择文本并选择“添加到剪贴篮”。",
   "Image": "图像",
   "%lld files": "%lld 个文件",
   "Double-click to paste": "双击以粘贴",
@@ -933,5 +932,9 @@
   "Capture Copies While Open": "打开时捕获复制内容",
   "Collect new copies only while the basket is visible.": "仅在剪贴篮可见时收集新的复制内容。",
   "Close When Empty": "为空时关闭",
-  "Dismiss the basket after its last item is pasted.": "粘贴最后一项后关闭剪贴篮。"
+  "Dismiss the basket after its last item is pasted.": "粘贴最后一项后关闭剪贴篮。",
+  "Copy or add items": "复制或添加项目",
+  "to paste them one by one.": "逐项粘贴。",
+  "Reverse Order": "反转顺序",
+  "Basket": "剪贴篮"
 }

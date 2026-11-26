@@ -3249,6 +3249,34 @@
         }
       }
     },
+    "Basket": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪贴篮"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪貼籃"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panier"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バスケット"
+          }
+        }
+      }
+    },
     "Basket complete": {
       "localizations": {
         "zh-Hans": {
@@ -5793,6 +5821,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "キャプチャしたテキストを自動的にコピー"
+          }
+        }
+      }
+    },
+    "Copy or add items": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制或添加项目"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製或加入項目"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiez ou ajoutez des éléments"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーまたは項目を追加"
           }
         }
       }
@@ -18397,6 +18453,34 @@
         }
       }
     },
+    "Reverse Order": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "反转顺序"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "反轉順序"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inverser l’ordre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "順序を反転"
+          }
+        }
+      }
+    },
     "Revert": {
       "localizations": {
         "zh-Hans": {
@@ -20073,34 +20157,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "テキストを選択するとOpenClipが表示されます"
-          }
-        }
-      }
-    },
-    "Select text and choose Add to Basket.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择文本并选择“添加到剪贴篮”。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選取文字並選擇「加入剪貼籃」。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sélectionnez du texte et choisissez Ajouter au panier."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "テキストを選択して「クリップバスケットに追加」を選んでください。"
           }
         }
       }
@@ -25953,6 +26009,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "snake_case を camelCase に変換"
+          }
+        }
+      }
+    },
+    "to paste them one by one.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "逐项粘贴。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "逐項貼上。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pour les coller un par un."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 つずつペーストします。"
           }
         }
       }

@@ -157,32 +157,12 @@ struct ClipBasketView: View {
     private var header: some View {
         HStack(spacing: 5 * scale) {
             countBadge
+            Text("Basket")
+                .font(.system(size: rowTextSize, weight: .semibold))
+                .foregroundStyle(foreground)
+                .lineLimit(1)
 
             Spacer(minLength: 2)
-
-            Button {
-                store.reverse()
-            } label: {
-                Text(store.order == .fifo ? "FIFO" : "LIFO")
-                    .font(.system(size: 9 * scale, weight: .semibold))
-                    .foregroundStyle(foreground)
-                    .padding(.horizontal, 5 * scale)
-                    .frame(height: 20 * scale)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(divider.opacity(0.55))
-                    )
-            }
-            .buttonStyle(.plain)
-            .help("Toggle first-in-first-out or last-in-first-out")
-
-            headerButton(
-                systemName: "textformat",
-                help: "Paste as Plain Text",
-                active: store.pasteAsPlainText
-            ) {
-                store.setPasteAsPlainText(!store.pasteAsPlainText)
-            }
 
             Button {
                 onSetArmed(!store.isCommandVArmed)
@@ -204,19 +184,20 @@ struct ClipBasketView: View {
             .help("Paste Next with ⌘V")
             .accessibilityLabel(Text("Paste Next with ⌘V"))
 
-            headerButton(
-                systemName: "arrow.uturn.backward",
-                help: "Undo Last Removal",
-                disabled: !store.canUndo
-            ) {
-                _ = store.undo()
-            }
-
             Menu {
                 Button("Paste All") { onPasteAll() }
                     .disabled(store.joinedText == nil)
                 Button("Run Action on Basket…") { onRunAction() }
                     .disabled(store.joinedText == nil)
+                Divider()
+                Button("Reverse Order") { store.reverse() }
+                    .disabled(store.isEmpty)
+                Toggle("Paste as Plain Text", isOn: Binding(
+                    get: { store.pasteAsPlainText },
+                    set: { store.setPasteAsPlainText($0) }
+                ))
+                Button("Undo Last Removal") { _ = store.undo() }
+                    .disabled(!store.canUndo)
                 Divider()
                 Button("Clear", role: .destructive) { onClear() }
                     .disabled(store.isEmpty)
@@ -272,10 +253,10 @@ struct ClipBasketView: View {
             Image(systemName: "basket")
                 .font(.system(size: 18 * scale, weight: .regular))
                 .foregroundStyle(secondaryForeground)
-            Text("Basket is empty")
+            Text("Copy or add items")
                 .font(.system(size: rowTextSize, weight: .medium))
                 .foregroundStyle(foreground)
-            Text("Select text and choose Add to Basket.")
+            Text("to paste them one by one.")
                 .font(.system(size: 9 * scale, weight: .regular))
                 .foregroundStyle(secondaryForeground)
                 .multilineTextAlignment(.center)
@@ -340,8 +321,6 @@ struct ClipBasketView: View {
     private func headerButton(
         systemName: String,
         help: LocalizedStringKey,
-        active: Bool = false,
-        disabled: Bool = false,
         action: @escaping @MainActor () -> Void
     ) -> some View {
         Button {
@@ -349,17 +328,11 @@ struct ClipBasketView: View {
         } label: {
             Image(systemName: systemName)
                 .font(.system(size: 10 * scale, weight: .semibold))
-                .foregroundStyle(active ? Color.white : foreground)
+                .foregroundStyle(foreground)
                 .frame(width: 22 * scale, height: 20 * scale)
-                .background(
-                    RoundedRectangle(cornerRadius: 5 * scale, style: .continuous)
-                        .fill(active ? Color.accentColor : Color.clear)
-                )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(disabled)
-        .opacity(disabled ? 0.4 : 1)
         .help(help)
         .accessibilityLabel(Text(help))
     }

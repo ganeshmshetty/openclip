@@ -912,7 +912,6 @@
   "Paste as Plain Text": "プレーンテキストとしてペースト",
   "Undo Last Removal": "最後の削除を元に戻す",
   "Paste All": "すべてペースト",
-  "Select text and choose Add to Basket.": "テキストを選択して「クリップバスケットに追加」を選んでください。",
   "Image": "画像",
   "%lld files": "%lld ファイル",
   "Double-click to paste": "ダブルクリックでペースト",
@@ -933,5 +932,9 @@
   "Capture Copies While Open": "開いている間コピーを取得",
   "Collect new copies only while the basket is visible.": "バスケットが表示されている間だけ新しいコピーを収集します。",
   "Close When Empty": "空になったら閉じる",
-  "Dismiss the basket after its last item is pasted.": "最後の項目をペーストした後にバスケットを閉じます。"
+  "Dismiss the basket after its last item is pasted.": "最後の項目をペーストした後にバスケットを閉じます。",
+  "Copy or add items": "コピーまたは項目を追加",
+  "to paste them one by one.": "1 つずつペーストします。",
+  "Reverse Order": "順序を反転",
+  "Basket": "バスケット"
 }
