@@ -1516,7 +1516,7 @@ public class PopupWindowController {
             overSubBarContent: overContent,
             isParentGroup: isParentGroup,
             isImmediateNeighbor: isImmediateNeighbor,
-            overMainBarContent: isOverPanelContent(screenLocation),
+            overMainBarContent: hoveredIndex != nil,
             overSubBarFrame: overSubBar
         )
 
@@ -1702,6 +1702,7 @@ public class PopupWindowController {
         let now = ProcessInfo.processInfo.systemUptime
         let segment = aimSegment(for: location)
         notePointer(at: location, now: now)
+        lastPointerMoveTime = now
         evaluateGroupAim(segment: segment, at: location, now: now)
     }
 
@@ -1721,6 +1722,7 @@ public class PopupWindowController {
         let now = ProcessInfo.processInfo.systemUptime
         let segment = aimSegment(for: location)
         notePointer(at: location, now: now)
+        lastPointerMoveTime = now
         evaluateGroupAim(segment: segment, at: location, now: now)
     }
 
@@ -1755,7 +1757,9 @@ public class PopupWindowController {
         )
         switch decision {
         case .switchToHovered:
-            commitPendingGroupAim()
+            // Leaving the triangle starts the same countdown as resting on the neighbor.
+            subBarController.cancelGrace()
+            armGroupAimRest(for: pending.groupID)
         case .keepMovingToward:
             subBarController.cancelGrace()
             if segment.isNewMovement || groupAimRestTask == nil {

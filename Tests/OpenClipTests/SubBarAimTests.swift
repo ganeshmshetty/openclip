@@ -35,7 +35,7 @@ final class SubBarAimTests: XCTestCase {
         XCTAssertEqual(decision, .keepMovingToward)
     }
 
-    func testMovingAlongTheBarOntoAdjacentGroupSwitchesImmediately() {
+    func testMovingAlongTheBarOntoAdjacentGroupLeavesTheAimTriangle() {
         let decision = SubBarAim.decision(
             previous: CGPoint(x: 120, y: 167),
             current: CGPoint(x: 160, y: 167),
@@ -45,7 +45,7 @@ final class SubBarAimTests: XCTestCase {
         XCTAssertEqual(decision, .switchToHovered)
     }
 
-    func testMovingAwayFromOpenSubBarSwitchesImmediately() {
+    func testMovingAwayFromOpenSubBarLeavesTheAimTriangle() {
         let decision = SubBarAim.decision(
             previous: CGPoint(x: 120, y: 167),
             current: CGPoint(x: 140, y: 150),
@@ -170,7 +170,7 @@ final class SubBarAimTests: XCTestCase {
         XCTAssertEqual(decision, .keepMovingToward)
     }
 
-    func testMovingUpAwayFromSubBarBelowSwitches() {
+    func testMovingUpAwayFromSubBarBelowLeavesTheAimTriangle() {
         let subBarBelow = CGRect(x: 100, y: 40, width: 180, height: 34)
         let decision = SubBarAim.decision(
             previous: CGPoint(x: 120, y: 150),
@@ -181,7 +181,7 @@ final class SubBarAimTests: XCTestCase {
         XCTAssertEqual(decision, .switchToHovered)
     }
 
-    func testLeavingTheSubBarTowardAnotherGroupSwitches() {
+    func testLeavingTheSubBarTowardAnotherGroupLeavesTheAimTriangle() {
         let decision = SubBarAim.decision(
             previous: CGPoint(x: 150, y: 210),
             current: CGPoint(x: 150, y: 185),
