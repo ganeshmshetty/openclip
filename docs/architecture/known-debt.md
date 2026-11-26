@@ -896,10 +896,11 @@ lines by height interleaved multi-column text.
   delivery and is not supplied by this tracking-area path.
 - Adjacent group buttons share that corridor. While a sub-bar is open, `SubBarAim` keeps it
   when the pointer moves inside the triangle from its previous position to the open row's near
-  edge, including across the next group button (#194). That group replaces the row when the
-  pointer leaves the triangle or rests for `SubBarAim.switchDwell` (200 ms). Non-group
-  neighbors still only cancel grace; they do not open a row. The keep-or-switch decision is a
-  pure function of the pointer samples, the visible sub-bar rect, and the rest time.
+  edge, including across the next group button (#194). Leaving the triangle starts the same
+  `SubBarAim.switchDwell` (200 ms) countdown as resting on the button; the next group then replaces
+  the row. A non-group immediate neighbor uses the same triangle and dwell window, but its
+  resolution is dismissal instead of a switch. The keep/switch/dismiss decision is a pure function
+  of the pointer samples, the visible sub-bar rect, and the rest time.
 - Tooltip and sub-bar windows follow the toast Space recovery. Both panels include
   `canJoinAllApplications`. Each show schedules one 150 ms check; a reused window that is
   invisible or off the active Space is replaced once, keeping its content view and frame,

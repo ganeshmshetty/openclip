@@ -2,15 +2,16 @@
 // OpenClip
 //
 // Menu-aim for an open group sub-bar. The safe triangle runs from the pointer's previous
-// position to the sub-bar edge that faces it — the same corridor that already keeps the
-// row open while the pointer crosses a neighboring non-group button. An adjacent group
-// replaces the row only after the pointer leaves that triangle or rests on the button.
+// position to the sub-bar edge that faces it. Leaving the triangle starts the same dwell as
+// resting on the button; an adjacent group then replaces the row, while a normal neighbor
+// resolves to dismissal instead.
 import CoreGraphics
 import Foundation
 
 public enum SubBarAim {
-    /// What an adjacent group hover should do to the open sub-bar.
-    /// `keepMovingToward` restarts the rest timer; `keepResting` leaves it alone.
+    /// What an adjacent neighbor hover should do to the open sub-bar.
+    /// `keepMovingToward` restarts the rest timer; `keepResting` leaves it alone;
+    /// `switchToHovered` ends the aim, and the caller applies the shared dwell before resolving.
     public enum Decision: Equatable {
         case keepMovingToward
         case keepResting

@@ -43,8 +43,8 @@ public struct PopupView: View {
     public let onPinCard: (@MainActor () -> Void)?
     /// Paste/Copy on the AI result card: explicit requests that bypass the paste-vs-copy re-decision.
     public let onCardEffect: @MainActor (ActionResult) -> Void
-    /// Called when the hovered action changes (nil when none); drives right-click tracking.
-    public let onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)?
+    /// Called when the hovered bar target changes: the action (nil for non-action controls like search/chevrons), a stable target ID, and its left-to-right visual bar slot index.
+    public let onHoveredActionChanged: (@MainActor ((any Action)?, String?, Int?) -> Void)?
     /// Opens a scoped palette for a bar row's sub-actions; the controller owns the SearchScope.
     public let onEnteredScopedSearch: (@MainActor (any Action, CGRect?) -> Void)?
     /// Sets the horizontal anchor mode on the popup panel before pagination or mode transitions.
@@ -172,7 +172,7 @@ public struct PopupView: View {
         onRequestSubBarToggle: (@MainActor (any Action, Int, CGRect) -> Void)? = nil,
         onRequestSubBarDwell: (@MainActor (any Action, Int, CGRect) -> Void)? = nil,
         onCancelSubBarDwell: (@MainActor () -> Void)? = nil,
-        onHoveredActionChanged: (@MainActor ((any Action)?) -> Void)? = nil,
+        onHoveredActionChanged: (@MainActor ((any Action)?, String?, Int?) -> Void)? = nil,
         onEnteredScopedSearch: (@MainActor (any Action, CGRect?) -> Void)? = nil,
         onPaginationAnchor: (@MainActor (PopupPanel.HorizontalAnchor) -> Void)? = nil,
         onActionPerformed: (@MainActor (String) -> Void)? = nil,
@@ -1080,14 +1080,15 @@ public struct PopupView: View {
         guard target != hoveredTarget else { return }
         let oldTarget = hoveredTarget
         hoveredTarget = target
-        reportHoveredAction()
+        reportHoveredAction(for: target)
 
         if case .action(let index) = target, index < visibleBarActions.count {
             let action = visibleBarActions[index]
             let isGroup = action.gesturePolicy.singleClick == .openSubActions || action.chrome.launchesAI
             if isGroup {
                 let frame = hoverFrames[.action(index)] ?? .zero
-                onRequestSubBarDwell?(action, index, frame)
+                let slotIndex = barSlotIndex(for: .action(index)) ?? index
+                onRequestSubBarDwell?(action, slotIndex, frame)
             } else if case .action = oldTarget {
                 onCancelSubBarDwell?()
             }
@@ -1096,16 +1097,68 @@ public struct PopupView: View {
         }
     }
 
-    /// Reports the hovered target's action upward for the right-click path.
-    private func reportHoveredAction() {
-        let action: (any Action)? = {
-            if inCompletionMode, case .completion(let index) = hoveredTarget, index < cachedCompletions.count {
-                return WordCompletionCandidateAction(word: cachedCompletions[index])
+    /// Left-to-right visual slot index across all main-bar controls (actions, pagination chevrons, and the search button).
+    private func barSlotIndex(for target: PopupHoverTarget) -> Int? {
+        guard !inCompletionMode else { return nil }
+        let leadingChevronCount = showsInlineCompletionChevron ? 1 : 0
+        let trailingChevronCount = (hasLeftChevron ? 1 : 0) + (hasRightChevron ? 1 : 0)
+        let standardSlotCount = leadingChevronCount + pagedStandardActions.count + trailingChevronCount + (showSearchAllActions ? 1 : 0)
+        let contextualSlotCount = contextualIslandActions.count
+        let standardStart = contextualIslandTrailing ? 0 : contextualSlotCount
+        let contextualStart = contextualIslandTrailing ? standardSlotCount : 0
+
+        switch target {
+        case .action(let index):
+            guard index >= 0, index < visibleBarActions.count else { return nil }
+            if contextualIslandTrailing {
+                if index < pagedStandardActions.count {
+                    return standardStart + leadingChevronCount + index
+                }
+                return contextualStart + (index - pagedStandardActions.count)
+            } else {
+                if index < contextualSlotCount {
+                    return contextualStart + index
+                }
+                return standardStart + leadingChevronCount + (index - contextualSlotCount)
             }
-            guard case .action(let index) = hoveredTarget, index < visibleBarActions.count else { return nil }
-            return visibleBarActions[index]
-        }()
-        onHoveredActionChanged?(action)
+        case .chevron("chevron.down"):
+            return showsInlineCompletionChevron ? standardStart : nil
+        case .chevron("chevron.left"):
+            return hasLeftChevron ? standardStart + leadingChevronCount + pagedStandardActions.count : nil
+        case .chevron("chevron.right"):
+            return hasRightChevron ? standardStart + leadingChevronCount + pagedStandardActions.count + (hasLeftChevron ? 1 : 0) : nil
+        case .search:
+            return showSearchAllActions ? standardStart + leadingChevronCount + pagedStandardActions.count + trailingChevronCount : nil
+        default:
+            return nil
+        }
+    }
+
+    /// Reports the hovered target's action, target ID, and visual bar slot index upward for right-click and sub-bar neighbor tracking.
+    private func reportHoveredAction(for target: PopupHoverTarget?) {
+        guard let target else {
+            onHoveredActionChanged?(nil, nil, nil)
+            return
+        }
+        if inCompletionMode, case .completion(let index) = target, index < cachedCompletions.count {
+            onHoveredActionChanged?(WordCompletionCandidateAction(word: cachedCompletions[index]), nil, nil)
+            return
+        }
+        switch target {
+        case .action(let index) where index < visibleBarActions.count:
+            let action = visibleBarActions[index]
+            onHoveredActionChanged?(action, action.id, barSlotIndex(for: target))
+        case .search:
+            onHoveredActionChanged?(nil, "bar.search", barSlotIndex(for: target))
+        case .chevron(let glyph):
+            if let slot = barSlotIndex(for: target) {
+                onHoveredActionChanged?(nil, "bar.chevron.\(glyph)", slot)
+            } else {
+                onHoveredActionChanged?(nil, nil, nil)
+            }
+        default:
+            onHoveredActionChanged?(nil, nil, nil)
+        }
     }
 
     func useLocalHoverFallback(for target: PopupHoverTarget, isHovering: Bool) {
