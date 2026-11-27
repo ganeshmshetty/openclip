@@ -18,6 +18,8 @@ public class PopupWindowController {
     // Re-shows keep the AI session but invalidate pending Space recovery from an earlier presentation.
     private(set) var presentationAttemptID = UUID()
     private var didAttemptSpaceRecovery = false
+    private var spaceRecoveryAttempts = 0
+    private static let maxSpaceRecoveryAttempts = 2
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var currentContext: SelectionContext?
@@ -248,6 +250,7 @@ public class PopupWindowController {
         ActionSound.prepareIfEnabled()
         presentationAttemptID = UUID()
         didAttemptSpaceRecovery = false
+        spaceRecoveryAttempts = 0
         let attemptID = presentationAttemptID
         let evaluator = InlineResultEvaluator.shared
         let aiSession: UUID
@@ -483,18 +486,24 @@ public class PopupWindowController {
         // app's I-beam into an arrow the moment the bar appears. The global monitor keeps this in
         // step afterwards; without it the panel must stay interactive so clicks still land.
         updatePopupHover(at: NSEvent.mouseLocation)
-        // Two bounded snapshots catch delayed AppKit hiding/Space changes without polling.
+        // Bounded snapshots catch delayed AppKit hiding/Space changes without polling. A fullscreen
+        // transition can settle after the first check, so keep checking through the second window.
         Task { @MainActor [weak self] in
-            for delay in [150_000_000, 600_000_000] {
-                try? await Task.sleep(nanoseconds: UInt64(delay))
+            let delays: [UInt64] = [150_000_000, 450_000_000, 600_000_000]
+            for (index, delay) in delays.enumerated() {
+                try? await Task.sleep(nanoseconds: delay)
                 guard let self, self.presentationAttemptID == attemptID, self.currentContext != nil else { return }
-                if delay == 150_000_000 {
-                    self.recoverPopupSpaceIfNeeded(for: attemptID,
-                        frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier)
-                } else if self.panel?.isOnActiveSpace == false {
+                if let panel = self.panel, !Self.needsSpaceRecovery(panel) {
+                    if self.didAttemptSpaceRecovery {
+                        self.logPresentation("space-recovery-verified")
+                        return
+                    }
+                    continue
+                }
+                if !self.recoverPopupSpaceIfNeeded(for: attemptID,
+                    frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier),
+                   index == delays.count - 1 {
                     self.logPresentation("space-recovery-unresolved")
-                } else if self.didAttemptSpaceRecovery {
-                    self.logPresentation("space-recovery-verified")
                 }
             }
         }
@@ -509,17 +518,19 @@ public class PopupWindowController {
         }
     }
 
-    /// Replace stale WindowServer membership once after AppKit has had time to order the window.
+    /// Replace stale WindowServer membership after AppKit has had time to order the window.
     /// Never activate the app or make the panel key to recover an automatic action bar.
     @discardableResult
     func recoverPopupSpaceIfNeeded(for attemptID: UUID, frontmostPID: pid_t?,
                                    makePanel: () -> PopupPanel = { PopupPanel() }) -> Bool {
-        guard presentationAttemptID == attemptID, !didAttemptSpaceRecovery,
+        guard presentationAttemptID == attemptID,
+              spaceRecoveryAttempts < Self.maxSpaceRecoveryAttempts,
               let context = currentContext, let panel,
-              panel.isVisible, !panel.isOnActiveSpace, !panel.isKeyWindow, modeStore.mode == .actions,
+              Self.needsSpaceRecovery(panel), !panel.isKeyWindow, modeStore.mode == .actions,
               let sourcePID = context.sourceApp.processIdentifier,
               frontmostPID == sourcePID else { return false }
         didAttemptSpaceRecovery = true
+        spaceRecoveryAttempts += 1
         logPresentation("space-recovery-start")
         // Reordering the same window failed in live traces; keep the hosting view but give WindowServer a new window identity.
         let frame = panel.frame
@@ -543,6 +554,12 @@ public class PopupWindowController {
         lastPopupFrame = replacement.frame
         logPresentation("space-recovery-recreated")
         return true
+    }
+
+    /// A presentation is healthy only while its panel is on screen and on the active Space. AppKit
+    /// can clear `isVisible` during a Space transition even though the session is still current.
+    private static func needsSpaceRecovery(_ panel: PopupPanel) -> Bool {
+        !panel.isVisible || !panel.isOnActiveSpace
     }
 
     /// Metadata only: never include selected text, window titles, or clipboard contents.
@@ -576,6 +593,7 @@ public class PopupWindowController {
     func startTestSession(for context: SelectionContext, pasteAvailable: Bool? = nil, initialMode: PopupMode = .actions) {
         presentationAttemptID = UUID()
         didAttemptSpaceRecovery = false
+        spaceRecoveryAttempts = 0
         isMenuTracking = false
         let selectionContext = Self.anchoredContext(context.with(
             pasteTargetAvailable: PasteAvailability.effective(policy: context.appPolicy, probe: pasteAvailable)
