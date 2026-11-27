@@ -30,19 +30,23 @@ final class HotkeyPasteboardDenialTests: XCTestCase {
             HotkeyManager.shared.selectionMonitor = nil
             HotkeyManager.shared.pasteboardAccess = PasteboardAccessPolicy()
             HotkeyManager.shared.didLogPasteboardDenied = false
+            HotkeyManager.shared.clipboardPasteboard = NSPasteboard(
+                name: NSPasteboard.Name("OpenClipTests-PasteboardAccess-\(UUID().uuidString)")
+            )
         }
     }
 
     override func tearDown() async throws {
         HotkeyManager.shared.pasteboardAccess = PasteboardAccessPolicy()
         HotkeyManager.shared.didLogPasteboardDenied = false
+        HotkeyManager.shared.clipboardPasteboard = .general
         try await super.tearDown()
     }
 
     func testDeniedPasteboardReadBehavesLikeEmptyClipboardAndLogsOnce() throws {
         let manager = HotkeyManager.shared
         manager.pasteboardAccess = PasteboardAccessPolicy(read: { .denied })
-        let board = NSPasteboard.general
+        let board = HotkeyManager.shared.clipboardPasteboard
         let snapshot = PasteboardSnapshot.capture(board)
         defer { snapshot.restore(to: board) }
         board.clearContents()
@@ -71,7 +75,7 @@ final class HotkeyPasteboardDenialTests: XCTestCase {
     func testAllowedPasteboardStillReadsClipboardText() throws {
         let manager = HotkeyManager.shared
         manager.pasteboardAccess = PasteboardAccessPolicy(read: { .allowed })
-        let board = NSPasteboard.general
+        let board = HotkeyManager.shared.clipboardPasteboard
         let snapshot = PasteboardSnapshot.capture(board)
         defer { snapshot.restore(to: board) }
         board.clearContents()

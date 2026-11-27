@@ -902,5 +902,8 @@
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "建议栏相对于主栏的位置。自动会跟随弹出窗口的水平对齐方式。",
   "Action Suggestions": "操作建议",
   "Suggestion Position": "建议位置",
-  "Show Command Palette": "显示命令面板"
+  "Show Command Palette": "显示命令面板",
+  "Clipboard Access": "剪贴板访问权限",
+  "Required to read selections in copy-only apps. Set OpenClip to Always Allow.": "读取仅支持复制的应用中所选文本时需要此权限。请将 OpenClip 设为“始终允许”。",
+  "Allow Clipboard Access in System Settings to read selections in copy-only apps.": "请在系统设置中允许剪贴板访问，以读取仅支持复制的应用中所选文本。"
 }

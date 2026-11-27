@@ -33,7 +33,7 @@ final class PopupSpaceRecoveryTests: XCTestCase {
         return (controller, panel)
     }
 
-    func testOffSpacePopupRecreatesOnceWithoutReplacingContentOrTakingFocus() {
+    func testOffSpacePopupRecreatesUpToTwiceWithoutReplacingContentOrTakingFocus() {
         let (controller, panel) = fixture()
         let content = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 80))
         panel.contentView = content
@@ -50,20 +50,41 @@ final class PopupSpaceRecoveryTests: XCTestCase {
         XCTAssertEqual(replacement.frame, frame)
         XCTAssertFalse(replacement.canBecomeKey)
         XCTAssertTrue(replacement.collectionBehavior.contains(.canJoinAllSpaces))
-        XCTAssertFalse(controller.recoverPopupSpaceIfNeeded(for: attempt, frontmostPID: 99999))
-        XCTAssertEqual(panel.ordering, ["out"])
+
+        // A fullscreen transition can leave the replacement off-Space too. One more replacement is
+        // allowed; a third is refused so a persistently stale Space cannot spin windows forever.
+        let second = SpaceTestPanel()
+        XCTAssertTrue(controller.recoverPopupSpaceIfNeeded(for: attempt, frontmostPID: 99999, makePanel: { second }))
+        XCTAssertTrue(controller.panel === second)
+        XCTAssertEqual(replacement.ordering, ["front", "out"])
+        XCTAssertEqual(second.ordering, ["front"])
+        XCTAssertTrue(second.contentView === content)
+        XCTAssertEqual(second.frame, frame)
+        XCTAssertFalse(controller.recoverPopupSpaceIfNeeded(for: attempt, frontmostPID: 99999, makePanel: { SpaceTestPanel() }))
+        XCTAssertEqual(second.ordering, ["front"])
         controller.hide()
     }
 
-    func testHealthyHiddenKeyAndChangedSourcePopupsAreNotReordered() {
+    func testHiddenPopupRecreatesInsteadOfStayingInvisible() {
+        let (controller, panel) = fixture()
+        panel.simulatedActiveSpace = true
+        panel.reportedVisible = false
+        let attempt = controller.presentationAttemptID
+        let replacement = SpaceTestPanel()
+
+        XCTAssertTrue(controller.recoverPopupSpaceIfNeeded(for: attempt, frontmostPID: 99999, makePanel: { replacement }))
+        XCTAssertTrue(controller.panel === replacement)
+        XCTAssertEqual(panel.ordering, ["out"])
+        XCTAssertEqual(replacement.ordering, ["front"])
+        controller.hide()
+    }
+
+    func testHealthyKeyAndChangedSourcePopupsAreNotReordered() {
         let (controller, panel) = fixture()
         let attempt = controller.presentationAttemptID
         panel.simulatedActiveSpace = true
         XCTAssertFalse(controller.recoverPopupSpaceIfNeeded(for: attempt, frontmostPID: 99999))
         panel.simulatedActiveSpace = false
-        panel.reportedVisible = false
-        XCTAssertFalse(controller.recoverPopupSpaceIfNeeded(for: attempt, frontmostPID: 99999))
-        panel.reportedVisible = true
         panel.reportedKey = true
         XCTAssertFalse(controller.recoverPopupSpaceIfNeeded(for: attempt, frontmostPID: 99999))
         panel.reportedKey = false

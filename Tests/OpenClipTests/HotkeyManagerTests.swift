@@ -20,10 +20,14 @@ final class HotkeyManagerTests: XCTestCase {
             HotkeyManager.shared.selectionMonitor = nil
             HotkeyManager.shared.retriever = nil
             HotkeyManager.shared.frontmostPIDProvider = { 1001 }
+            HotkeyManager.shared.clipboardPasteboard = NSPasteboard(
+                name: NSPasteboard.Name("OpenClipTests-Hotkey-\(UUID().uuidString)")
+            )
         }
     }
 
     override func tearDown() async throws {
+        HotkeyManager.shared.clipboardPasteboard = .general
         HotkeyManager.shared.frontmostPIDProvider = { NSWorkspace.shared.frontmostApplication?.processIdentifier }
         HotkeyManager.shared.retriever = nil
         try? FileManager.default.removeItem(at: tempRulesURL)
@@ -81,7 +85,7 @@ final class HotkeyManagerTests: XCTestCase {
 
     func testClipboardFallbackRetainsReadFailure() async {
         let manager = HotkeyManager.shared
-        let board = NSPasteboard.general
+        let board = HotkeyManager.shared.clipboardPasteboard
         let snapshot = PasteboardSnapshot.capture(board)
         defer { snapshot.restore(to: board) }
         board.clearContents()
@@ -154,7 +158,7 @@ final class HotkeyManagerTests: XCTestCase {
             XCTFail("A focused palette must not inspect itself or wait for AX")
             return AXElementInspector.Target()
         }, copyCapture: { _ in XCTFail("A focused palette must not post copy"); return nil })
-        let board = NSPasteboard.general
+        let board = HotkeyManager.shared.clipboardPasteboard
         let snapshot = PasteboardSnapshot.capture(board)
         defer { controller.hide(); snapshot.restore(to: board) }
         board.clearContents()
@@ -182,7 +186,7 @@ final class HotkeyManagerTests: XCTestCase {
         manager.selectionMonitor = monitor
         manager.retriever = SelectionRetrievalCoordinator(inspect: { _ in AXElementInspector.Target() })
         // Clipboard text so the palette opens instead of the empty-clipboard toast (CI starts empty).
-        let board = NSPasteboard.general
+        let board = HotkeyManager.shared.clipboardPasteboard
         let snapshot = PasteboardSnapshot.capture(board)
         defer { controller.hide(); snapshot.restore(to: board) }
         board.clearContents()
@@ -351,7 +355,7 @@ final class HotkeyManagerTests: XCTestCase {
         let monitor = MockSelectionMonitor()
         manager.selectionMonitor = monitor
 
-        let pasteboard = NSPasteboard.general
+        let pasteboard = HotkeyManager.shared.clipboardPasteboard
         pasteboard.clearContents()
         pasteboard.setString("fallback clipboard text", forType: .string)
 
@@ -368,7 +372,7 @@ final class HotkeyManagerTests: XCTestCase {
         let monitor = MockSelectionMonitor()
         manager.selectionMonitor = monitor
 
-        let pasteboard = NSPasteboard.general
+        let pasteboard = HotkeyManager.shared.clipboardPasteboard
         pasteboard.clearContents()
 
         let frontmost = MockFrontmostApp(bundleID: "com.apple.TextEdit")
@@ -385,7 +389,7 @@ final class HotkeyManagerTests: XCTestCase {
         let monitor = MockSelectionMonitor()
         manager.selectionMonitor = monitor
 
-        let pasteboard = NSPasteboard.general
+        let pasteboard = HotkeyManager.shared.clipboardPasteboard
         pasteboard.clearContents()
         pasteboard.setString("clipboard from Paste app", forType: .string)
 
@@ -403,7 +407,7 @@ final class HotkeyManagerTests: XCTestCase {
         let monitor = MockSelectionMonitor()
         manager.selectionMonitor = monitor
 
-        let pasteboard = NSPasteboard.general
+        let pasteboard = HotkeyManager.shared.clipboardPasteboard
         pasteboard.clearContents()
 
         let trigger = manager.resolveSynchronousTrigger(frontmostApp: nil)
@@ -418,7 +422,7 @@ final class HotkeyManagerTests: XCTestCase {
         let store = MemorySettingsStore()
         store.set(.pauseUntilTimestamp, value: Date().timeIntervalSince1970 + 1800)
 
-        let pasteboard = NSPasteboard.general
+        let pasteboard = HotkeyManager.shared.clipboardPasteboard
         pasteboard.clearContents()
         pasteboard.setString("should not appear", forType: .string)
 

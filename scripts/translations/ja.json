@@ -902,5 +902,8 @@
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "メインバーに対する候補バーの位置。自動はポップアップの水平方向の配置に従います。",
   "Action Suggestions": "アクション候補",
   "Suggestion Position": "候補の位置",
-  "Show Command Palette": "コマンドパレットを表示"
+  "Show Command Palette": "コマンドパレットを表示",
+  "Clipboard Access": "クリップボードへのアクセス",
+  "Required to read selections in copy-only apps. Set OpenClip to Always Allow.": "コピーのみをサポートするアプリで選択範囲を読み取るために必要です。OpenClipを「常に許可」に設定してください。",
+  "Allow Clipboard Access in System Settings to read selections in copy-only apps.": "コピーのみをサポートするアプリで選択範囲を読み取るには、システム設定でクリップボードへのアクセスを許可してください。"
 }

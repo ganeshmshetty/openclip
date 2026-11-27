@@ -51,6 +51,13 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     /// Monotonic token for the current press cycle. A hold captures it when armed and drops its
     /// delivery if a later cancellation (system-cancelled press, new press, app switch) advanced it.
     private var pressGeneration: UInt64 = 0
+    /// Whether the system allows this process to read `NSPasteboard.general`. macOS 15.4+ can deny
+    /// programmatic reads per app; a synthetic copy cannot be read or restored in that state, so
+    /// the automatic copy fallback must stand down instead of leaving the selection on the clipboard.
+    internal var pasteboardAccess = PasteboardAccessPolicy()
+    /// Called once per launch the first time a selection is blocked by pasteboard read denial.
+    internal var onPasteboardAccessDenied: (@MainActor () -> Void)?
+    private var didReportPasteboardAccessDenied = false
     private var selectionSourceApp: NSRunningApplication?
     private let settingsStore: SettingsStore
 
@@ -120,6 +127,16 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
     internal func shouldSuppress(for bundleID: String? = nil) -> Bool {
         isSuppressed() || isSuppressedForApp(bundleID ?? frontmostAppProvider()?.bundleIdentifier)
     }
+
+    private var canReadPasteboard: Bool { !pasteboardAccess.deniesReads }
+
+    private func notePasteboardAccessDenied() {
+        guard !didReportPasteboardAccessDenied else { return }
+        didReportPasteboardAccessDenied = true
+        Log.selection.notice("automatic copy withheld: clipboard reads are denied by the system pasteboard access policy")
+        onPasteboardAccessDenied?()
+    }
+
     /// Policy resolution for the target app; tests fix it to `.default` so real user rules
     /// (~/.openclip/rules.json) cannot alter gating or force copy-based strategies mid-test.
     internal var policyResolver: @MainActor (AppIdentity) -> AppPolicyContext = { identity in
@@ -413,6 +430,10 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
         guard let source = selectionSourceApp, isSelectionSourceActive(source) else {
             return .init(status: isSuppressed() ? .copyBlocked : .targetChanged)
         }
+        guard canReadPasteboard else {
+            notePasteboardAccessDenied()
+            return .init(status: .copyBlocked)
+        }
         return await AutomaticCopyCapture.captureResponse(request: request)
     }
 
@@ -524,20 +545,25 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             // earlier I-beam signal did the same over read-only web text — browsers show a beam
             // over selectable text whether or not it is editable.
             if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let isEditableContext = self.isOverOwnWindow(point)
-                    ? false
-                    : await isPressOverEditableText(point, app.processIdentifier)
-                guard self.isSelectionSourceActive(app) else {
-                self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged, traceID: read.traceID)); return
-            }
-                if isEditableContext && canPaste != false,
-                   let clipboard = fallbackPasteboard.string(forType: .string),
-                   !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Log.selection.debug("monitor: hold falling back to clipboard for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); cursor=\(cursor.rawValue, privacy: .public)")
-                    retrievedText = clipboard
-                    isClipboardFallback = true
+                if !self.canReadPasteboard {
+                    self.notePasteboardAccessDenied()
+                    Log.selection.debug("monitor: hold clipboard fallback skipped, pasteboard reads are denied")
                 } else {
-                    Log.selection.debug("monitor: hold clipboard fallback skipped for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); pressOverEditable=\(isEditableContext, privacy: .public), isEditable=\(isEditable, privacy: .public), cursor=\(cursor.rawValue, privacy: .public), canPaste=\(String(describing: canPaste), privacy: .public)")
+                    let isEditableContext = self.isOverOwnWindow(point)
+                        ? false
+                        : await isPressOverEditableText(point, app.processIdentifier)
+                    guard self.isSelectionSourceActive(app) else {
+                    self.recordRead(.init(status: Task.isCancelled ? .cancelled : .targetChanged, traceID: read.traceID)); return
+                }
+                    if isEditableContext && canPaste != false,
+                       let clipboard = fallbackPasteboard.string(forType: .string),
+                       !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Log.selection.debug("monitor: hold falling back to clipboard for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); cursor=\(cursor.rawValue, privacy: .public)")
+                        retrievedText = clipboard
+                        isClipboardFallback = true
+                    } else {
+                        Log.selection.debug("monitor: hold clipboard fallback skipped for \(appIdentity.bundleIdentifier ?? "unknown", privacy: .public); pressOverEditable=\(isEditableContext, privacy: .public), isEditable=\(isEditable, privacy: .public), cursor=\(cursor.rawValue, privacy: .public), canPaste=\(String(describing: canPaste), privacy: .public)")
+                    }
                 }
             }
 
@@ -754,7 +780,10 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             let isAutoEnabled = self.settingsStore.get(.isAppEnabled)
             let isCopyOnlyPolicy = policy.retrievalMode == .keyboardCopy
             let isWebPolicy = policy.retrievalMode == .axWebArea
-            let allowCopyFallback = isAutoEnabled && !policy.hotkeyOnly
+            if !self.canReadPasteboard {
+                self.notePasteboardAccessDenied()
+            }
+            let allowCopyFallback = self.canReadPasteboard && isAutoEnabled && !policy.hotkeyOnly
                 && !self.isOverlayPresent(cursor) && (hasTextCue || isCopyOnlyPolicy || isWebPolicy)
             if isAutoEnabled, !policy.hotkeyOnly, !hasTextCue, !isCopyOnlyPolicy, !isWebPolicy {
                 Log.selection.debug("monitor: copy fallback withheld, no text cursor cue bundleID=\(app.bundleIdentifier ?? "unknown", privacy: .public)")
@@ -815,14 +844,19 @@ internal final class MacSelectionMonitor: SelectionMonitoring {
             }
             let appIdentity = AppIdentity(app)
             let probeTask = self.preparePasteProbe?(app, policy)
+            if !self.canReadPasteboard {
+                self.notePasteboardAccessDenied()
+            }
             // Match the mouse-up path: passive caching stays AX-only when automatic appearance
-            // is disabled, this app is hotkey-only, or a foreign overlay owns the key window.
+            // is disabled, this app is hotkey-only, a foreign overlay owns the key window, or the
+            // system denies clipboard reads.
             let response = await retriever.retrieveResponse(
                 for: appIdentity,
                 policy: policy,
                 cursor: self.currentCursorProvider(),
                 isSelectAll: isSelectAll,
-                allowCopyFallback: self.settingsStore.get(.isAppEnabled) && !policy.hotkeyOnly
+                allowCopyFallback: self.canReadPasteboard
+                    && self.settingsStore.get(.isAppEnabled) && !policy.hotkeyOnly
                     && !self.isOverlayPresent(self.currentMouseLocation()),
                 requireCopyEvidence: false,
                 trigger: .keyboardShortcut
