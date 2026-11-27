@@ -1933,6 +1933,34 @@
         }
       }
     },
+    "Allow Clipboard Access in System Settings to read selections in copy-only apps.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在系统设置中允许剪贴板访问，以读取仅支持复制的应用中所选文本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請在系統設定中允許剪貼簿存取，以讀取僅支援複製的應用程式中所選文字。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisez l’accès au presse-papiers dans Réglages Système pour lire les sélections dans les apps qui ne prennent en charge que la copie."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーのみをサポートするアプリで選択範囲を読み取るには、システム設定でクリップボードへのアクセスを許可してください。"
+          }
+        }
+      }
+    },
     "Allow Screen Recording for OpenClip in System Settings, then reopen OpenClip.": {
       "localizations": {
         "zh-Hans": {
@@ -4477,6 +4505,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "クリップボード"
+          }
+        }
+      }
+    },
+    "Clipboard Access": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪贴板访问权限"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪貼簿存取權限"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accès au presse-papiers"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリップボードへのアクセス"
           }
         }
       }
@@ -17357,6 +17413,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "必要なオプションが設定されていません。"
+          }
+        }
+      }
+    },
+    "Required to read selections in copy-only apps. Set OpenClip to Always Allow.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读取仅支持复制的应用中所选文本时需要此权限。请将 OpenClip 设为“始终允许”。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讀取僅支援複製的應用程式中所選文字時需要此權限。請將 OpenClip 設為「永遠允許」。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nécessaire pour lire les sélections dans les apps qui ne prennent en charge que la copie. Réglez OpenClip sur « Toujours autoriser »."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーのみをサポートするアプリで選択範囲を読み取るために必要です。OpenClipを「常に許可」に設定してください。"
           }
         }
       }

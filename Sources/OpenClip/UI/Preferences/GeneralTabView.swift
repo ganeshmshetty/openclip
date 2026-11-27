@@ -346,6 +346,35 @@ struct GeneralTab: View {
                     }
                     .id(GeneralSearchTarget.screenRecordingAccess)
                     .modifier(SettingsSearchHighlight(isHighlighted: highlightedControlID == GeneralSearchTarget.screenRecordingAccess))
+
+                    if permissionManager.isPasteboardAccessDenied {
+                        SettingsDivider()
+
+                        SettingsRow(
+                            title: "Clipboard Access",
+                            info: "Required to read selections in copy-only apps. Set OpenClip to Always Allow.",
+                            systemImage: "doc.on.clipboard",
+                            plainIcon: true
+                        ) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.callout)
+                                    .foregroundStyle(Color.orange)
+                                    .accessibilityLabel(String(localized: "Access Required"))
+
+                                Button(String(localized: "Open Settings")) {
+                                    permissionManager.requestPasteboardAccess()
+                                }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 11.5, weight: .medium))
+                                .foregroundStyle(SettingsDesignTokens.primaryText)
+                                .padding(.horizontal, 10)
+                                .frame(height: 24)
+                                .settingsGlassCapsule()
+                                .contentShape(Capsule())
+                            }
+                        }
+                    }
                 }
                 }
                 .padding(.horizontal, 24)

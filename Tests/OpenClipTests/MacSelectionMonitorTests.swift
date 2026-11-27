@@ -377,6 +377,28 @@ final class MacSelectionMonitorTests: XCTestCase {
         return monitor
     }
 
+    /// A denied general pasteboard is not readable or restorable: posting a synthetic copy would
+    /// leave the selection behind and then fail to capture it. The monitor must stand down before
+    /// the copy engine runs, and report the recovery exactly once.
+    func testDeniedPasteboardBlocksAutomaticCopyAndReportsOnce() async {
+        let monitor = makeMonitor()
+        monitor.pasteboardAccess = PasteboardAccessPolicy(read: { .denied })
+        var reports = 0
+        monitor.onPasteboardAccessDenied = { reports += 1 }
+        monitor.handleMouseDown(at: CGPoint(x: 100, y: 100))
+        defer { monitor.cancelPendingSelection() }
+
+        let request = CopyRequest(trigger: { XCTFail("a denied pasteboard must not post a synthetic copy") },
+                                  evidence: CopyEvidence("test-selection", .strong))
+        let first = await monitor.captureAutomaticCopyResponse(request)
+        XCTAssertEqual(first.status, .copyBlocked)
+        XCTAssertEqual(reports, 1)
+
+        let second = await monitor.captureAutomaticCopyResponse(request)
+        XCTAssertEqual(second.status, .copyBlocked)
+        XCTAssertEqual(reports, 1, "the recovery notice is one per launch, not one per selection")
+    }
+
     nonisolated private static func runnerApp() -> NSRunningApplication {
         MockTestApp(bundleID: Bundle.main.bundleIdentifier, pid: ProcessInfo.processInfo.processIdentifier)
     }

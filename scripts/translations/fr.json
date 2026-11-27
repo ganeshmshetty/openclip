@@ -902,5 +902,8 @@
   "Where the suggestions bar sits relative to the main bar. Auto follows the popup's horizontal alignment.": "Emplacement de la barre de suggestions par rapport à la barre principale. Auto suit l’alignement horizontal du popup.",
   "Action Suggestions": "Suggestions d’actions",
   "Suggestion Position": "Position des suggestions",
-  "Show Command Palette": "Afficher la palette de commandes"
+  "Show Command Palette": "Afficher la palette de commandes",
+  "Clipboard Access": "Accès au presse-papiers",
+  "Required to read selections in copy-only apps. Set OpenClip to Always Allow.": "Nécessaire pour lire les sélections dans les apps qui ne prennent en charge que la copie. Réglez OpenClip sur « Toujours autoriser ».",
+  "Allow Clipboard Access in System Settings to read selections in copy-only apps.": "Autorisez l’accès au presse-papiers dans Réglages Système pour lire les sélections dans les apps qui ne prennent en charge que la copie."
 }

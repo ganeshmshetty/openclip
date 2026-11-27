@@ -126,6 +126,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         macMonitor.preparePasteProbe = { [weak self] app, policy in
             self?.popupController?.preparePasteProbe(for: app, policy: policy)
         }
+        macMonitor.onPasteboardAccessDenied = { [weak controller] in
+            controller?.showToast(
+                StatusFeedback(
+                    message: String(localized: "Allow Clipboard Access in System Settings to read selections in copy-only apps."),
+                    style: .info,
+                    symbolName: "doc.on.clipboard"
+                ),
+                at: NSEvent.mouseLocation
+            )
+        }
         // Don't re-open the action bar over a dragged-aside result card from the same source app.
         macMonitor.isSuppressedForApp = { [weak self] bundleID in
             guard let self, let popup = self.popupController, popup.cardIsModal,

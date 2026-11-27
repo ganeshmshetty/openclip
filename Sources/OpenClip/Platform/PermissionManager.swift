@@ -14,12 +14,17 @@ public final class PermissionManager: ObservableObject {
     @Published public private(set) var isAccessibilityGranted: Bool = false
     /// Screen Recording, needed only by Capture Text. Optional: the rest of the app works without it.
     @Published public private(set) var isScreenRecordingGranted: Bool = false
+    /// macOS 15.4+ can deny programmatic `NSPasteboard.general` reads per app. OpenClip needs them
+    /// for copy-only apps and for the clipboard fallback. Denied reads are not a hard requirement
+    /// for AX-exposed selections, so this is surfaced as a recoverable setup issue, not a blocker.
+    @Published public private(set) var isPasteboardAccessDenied: Bool = false
 
     private var pollingTask: Task<Void, Never>?
 
     private init() {
         self.isAccessibilityGranted = Self.queryAX()
         self.isScreenRecordingGranted = Self.queryScreenRecording()
+        self.isPasteboardAccessDenied = Self.queryPasteboardAccessDenied()
     }
 
     // MARK: - Public API
@@ -49,6 +54,10 @@ public final class PermissionManager: ObservableObject {
         if isScreenRecordingGranted != screenRecording {
             isScreenRecordingGranted = screenRecording
         }
+        let pasteboardDenied = Self.queryPasteboardAccessDenied()
+        if isPasteboardAccessDenied != pasteboardDenied {
+            isPasteboardAccessDenied = pasteboardDenied
+        }
     }
 
     /// Asks TCC to list OpenClip under Screen Recording, then opens the pane. macOS usually applies a
@@ -65,6 +74,18 @@ public final class PermissionManager: ObservableObject {
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
                 NSWorkspace.shared.open(url)
             }
+        }
+    }
+
+    /// Opens Privacy & Security > Pasteboard so the user can set OpenClip to Always Allow. If the
+    /// behavior is still `.default`, do a programmatic read first so macOS files OpenClip under the
+    /// pane and shows its access prompt.
+    public func requestPasteboardAccess() {
+        if #available(macOS 15.4, *), NSPasteboard.general.accessBehavior == .default {
+            _ = NSPasteboard.general.string(forType: .string)
+        }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Pasteboard") {
+            NSWorkspace.shared.open(url)
         }
     }
 
@@ -129,5 +150,10 @@ public final class PermissionManager: ObservableObject {
 
     private static func queryScreenRecording() -> Bool {
         CGPreflightScreenCaptureAccess()
+    }
+
+    private static func queryPasteboardAccessDenied() -> Bool {
+        guard #available(macOS 15.4, *) else { return false }
+        return NSPasteboard.general.accessBehavior == .alwaysDeny
     }
 }

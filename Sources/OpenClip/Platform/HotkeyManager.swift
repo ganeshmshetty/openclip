@@ -30,6 +30,9 @@ public final class HotkeyManager {
     private var cancellables = Set<AnyCancellable>()
     private var registeredHotkeyIDs: Set<String> = []
     internal var pasteboardAccess = PasteboardAccessPolicy()
+    /// Clipboard used by the hotkey fast path. Production uses the general pasteboard; tests inject
+    /// a unique named board so they never read or overwrite the user's real clipboard.
+    internal var clipboardPasteboard: NSPasteboard = .general
     internal var didLogPasteboardDenied = false
     
     /// Does not consult `isAppEnabled` ("Appear Automatically" only gates the automatic popup).
@@ -179,7 +182,7 @@ public final class HotkeyManager {
         }
 
         // 2. Paste fallback: read clipboard text synchronously
-        let pasteboard = NSPasteboard.general
+        let pasteboard = clipboardPasteboard
         let currentChangeCount = pasteboard.changeCount
         var retrievedText = ""
         var isClipboardFallback = false
@@ -357,8 +360,16 @@ public final class HotkeyManager {
         var selectionRTF: String?
         var selectionFlavors: [RichPasteboardFlavor] = []
 
+        let canReadPasteboard = !pasteboardAccess.deniesReads
+        if !canReadPasteboard, !didLogPasteboardDenied {
+            didLogPasteboardDenied = true
+            Log.selection.notice("automatic copy withheld: clipboard reads are denied by the system pasteboard access policy")
+        }
         let copyCapture: SelectionRetrievalCoordinator.DetailedCopyCapture = { request in
-            await PasteboardCopyEngine(authorizationFailure: {
+            guard canReadPasteboard else {
+                return SelectionReadResponse(status: .copyBlocked)
+            }
+            return await PasteboardCopyEngine(authorizationFailure: {
                 if Task.isCancelled { return .cancelled }
                 return isTriggerAuthorized() ? nil : .targetChanged
             }, isCopyAuthorized: isTriggerAuthorized).captureResponse(trigger: request.trigger)
@@ -369,7 +380,7 @@ public final class HotkeyManager {
             for: appIdentity,
             policy: policy,
             cursor: CursorClassifier.current.asCore,
-            allowCopyFallback: true,
+            allowCopyFallback: canReadPasteboard,
             requireCopyEvidence: false,
             trigger: .keyboardShortcut
         )
@@ -389,7 +400,7 @@ public final class HotkeyManager {
         }
         var isClipboardFallback = false
         if retrievedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let pasteboard = NSPasteboard.general
+            let pasteboard = clipboardPasteboard
             let currentChangeCount = pasteboard.changeCount
             if let clipboard = clipboardString(from: pasteboard),
                !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
